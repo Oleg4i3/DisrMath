@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Бінарних Відношень (Vis.js + MathJax)</title>
+    
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #c0392b;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 { margin-bottom: 5px; color: var(--dark); }
+        .subtitle { color: #7f8c8d; margin-bottom: 25px; font-size: 1rem; }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            max-width: 1200px;
+            width: 100%;
+            align-items: flex-start;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Matrix Styling */
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 40px repeat(3, 50px);
+            grid-template-rows: 40px repeat(3, 50px);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            user-select: none;
+            height: 50px;
+        }
+
+        .header-cell {
+            font-weight: bold;
+            color: var(--primary);
+            cursor: default;
+            height: 40px; /* Header height */
+        }
+
+        .matrix-cell {
+            background-color: var(--light);
+            border: 2px solid #bdc3c7;
+            color: #bdc3c7;
+        }
+
+        .matrix-cell.active {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+        }
+        
+        .matrix-cell.diagonal {
+            border-style: dashed;
+        }
+
+        /* Graph Container */
+        #network-container {
+            width: 500px;
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: white;
+        }
+
+        /* Properties Panel */
+        .props-container {
+            width: 300px;
+        }
+
+        .prop-item {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            background: #f0f3f4;
+            color: #95a5a6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .prop-item.active {
+            background: #e8f8f5;
+            color: var(--dark);
+            font-weight: 600;
+            border-left: 5px solid var(--success);
+        }
+
+        .result-badge {
+            margin-top: 15px;
+            padding: 12px;
+            background: var(--dark);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .result-badge.found {
+            background: linear-gradient(135deg, #8e44ad, #c0392b);
+        }
+
+        /* Buttons */
+        .presets {
+            margin-top: 15px;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover { background: #ecf0f1; border-color: var(--dark); }
+
+        /* THEORY SECTION Styling */
+        .theory-section {
+            max-width: 1000px;
+            width: 100%;
+            margin-top: 40px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+
+        details { width: 100%; }
+        
+        summary {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--dark);
+            font-size: 1.1rem;
+            border-bottom: 1px solid #eee;
+            outline: none;
+        }
+        
+        .theory-content {
+            padding: 25px;
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        table.theory-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.95rem;
+        }
+        
+        table.theory-table th {
+            background: #eef2f3;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid #bdc3c7;
+            width: 20%;
+        }
+        
+        table.theory-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        /* MathJax Corrections */
+        mjx-container { font-size: 110% !important; }
+    </style>
+</head>
+<body>
+
+    <h1>Лабораторія Бінарних Відношень</h1>
+    <div class="subtitle">Побудуй граф і досліди його властивості</div>
+
+    <div class="main-layout">
+        <div class="panel">
+            <h3>Матриця Суміжності</h3>
+            <div class="matrix-grid" id="matrix-container"></div>
+            <div style="font-size:0.8rem; color:#999;">Натисніть на комірку для зміни (0/1)</div>
+        </div>
+
+        <div class="panel">
+            <h3>Граф Відношення</h3>
+            <div id="network-container"></div>
+        </div>
+
+        <div class="panel props-container">
+            <h3>Властивості</h3>
+            <div id="props-list">
+                <div class="prop-item" id="p-refl"><span>Рефлексивне</span><span class="icon"></span></div>
+                <div class="prop-item" id="p-irrefl"><span>Антирефлексивне</span><span class="icon"></span></div>
+                <div class="prop-item" id="p-sym"><span>Симетричне</span><span class="icon"></span></div>
+                <div class="prop-item" id="p-antisym"><span>Антисиметричне</span><span class="icon"></span></div>
+                <div class="prop-item" id="p-asym"><span>Асиметричне</span><span class="icon"></span></div>
+                <div class="prop-item" id="p-trans"><span>Транзитивне</span><span class="icon"></span></div>
+                <div class="prop-item" id="p-compl"><span>Повне (Зв'язне)</span><span class="icon"></span></div>
+            </div>
+
+            <div id="result-type" class="result-badge">Звичайне відношення</div>
+
+            <div class="presets">
+                <button onclick="setPreset('empty')">Очистити</button>
+                <button onclick="setPreset('equiv')">Еквівалентність</button>
+                <button onclick="setPreset('partial')">Частковий порядок</button>
+                <button onclick="setPreset('strict')">Строгий порядок</button>
+                <button onclick="setPreset('linear')">Лінійний порядок</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="theory-section">
+        <details>
+            <summary>📖 Довідник з теорії (Визначення та Формули)</summary>
+            <div class="theory-content">
+                <p>Нехай $A$ — множина, а $R$ — бінарне відношення на ній ($R \subseteq A \times A$). Запис $(x, y) \in R$ означає наявність дуги $x \to y$.</p>
+                
+                <table class="theory-table">
+                    <thead>
+                        <tr>
+                            <th>Властивість</th>
+                            <th>Формальне визначення (LaTeX)</th>
+                            [cite_start]<th>Приклади [cite: 2, 12]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Рефлексивне</strong></td>
+                            <td>$$ \forall x \in A: (x, x) \in R $$</td>
+                            <td>«$=$», «$\le$», «ділиться на»<br><em>(Кожен елемент має петлю)</em></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Антирефлексивне</strong> (Іррефлексивне)</td>
+                            <td>$$ \forall x \in A: (x, x) \notin R $$</td>
+                            <td>«$<$», «бути батьком»<br><em>(Жодних петель)</em></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Симетричне</strong></td>
+                            <td>$$ \forall x,y \in A: (x,y) \in R \Rightarrow (y,x) \in R $$</td>
+                            <td>«$=$», «бути родичем», «паралельність»</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Антисиметричне</strong></td>
+                            <td>$$ \forall x,y \in A: (x,y) \in R \land (y,x) \in R \Rightarrow x = y $$</td>
+                            <td>«$\le$», «$\subseteq$» (підмножина)<br><em>Дозволяє петлі, але забороняє двосторонні стрілки між різними точками.</em></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Асиметричне</strong></td>
+                            <td>$$ \forall x,y \in A: (x,y) \in R \Rightarrow (y,x) \notin R $$</td>
+                            <td>«$<$», «бути батьком»<br><em>(Ще суворіше: автоматично іррефлексивне)</em></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Транзитивне</strong></td>
+                            <td>$$ \forall x,y,z \in A: (x,y) \in R \land (y,z) \in R \Rightarrow (x,z) \in R $$</td>
+                            <td>«$<$», «бути предком»<br><em>Якщо є шлях з двох кроків, має бути прямий шлях.</em></td>
+                        </tr>
+                         <tr>
+                            <td><strong>Повне</strong> (Зв'язне)</td>
+                            <td>$$ \forall x,y \in A: (x,y) \in R \lor (y,x) \in R $$</td>
+                            <td>«$\le$» на числах (будь-які два числа можна порівняти)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                [cite_start]<h3>Ключові типи відношень [cite: 2, 20]</h3>
+                <ul>
+                    <li><strong>Еквівалентність ($\equiv$):</strong> Рефлексивне + Симетричне + Транзитивне. <br><em>Приклад:</em> $a \equiv b \pmod n$. Розбиває множину на класи.</li>
+                    <li><strong>Частковий порядок ($\preceq$):</strong> Рефлексивне + Антисиметричне + Транзитивне. <br><em>Приклад:</em> Включення множин $\subseteq$. Не всі елементи порівнянні.</li>
+                    <li><strong>Строгий порядок ($<$):</strong> Антирефлексивне + Антисиметричне + Транзитивне. <br><em>Приклад:</em> Числова нерівність.</li>
+                    <li><strong>Лінійний порядок ($\le$):</strong> Частковий порядок + Повнота. <br><em>Приклад:</em> Числа на прямій. Всі вишикувані в один ланцюжок.</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+
+    <script>
+        // --- DATA STATE ---
+        const nodes = ['a', 'b', 'c'];
+        let matrix = [
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0]
+        ];
+
+        // --- VIS.JS SETUP ---
+        let network = null;
+        let edgesDataSet = new vis.DataSet([]);
+        const nodesDataSet = new vis.DataSet([
+            { id: 0, label: 'a', x: 0, y: 0, fixed: true, color: {background:'#3498db', border:'white'}, font:{color:'white', size:20} },
+            { id: 1, label: 'b', x: 150, y: 0, fixed: true, color: {background:'#3498db', border:'white'}, font:{color:'white', size:20} },
+            { id: 2, label: 'c', x: 300, y: 0, fixed: true, color: {background:'#3498db', border:'white'}, font:{color:'white', size:20} }
+        ]);
+
+        function initNetwork() {
+            const container = document.getElementById('network-container');
+            const data = { nodes: nodesDataSet, edges: edgesDataSet };
+            const options = {
+                edges: {
+                    arrows: { to: { enabled: true, scaleFactor: 1 } },
+                    smooth: {
+                        enabled: true,
+                        type: 'curvedCW', // Clockwise curvature helps separate a->b and b->a
+                        roundness: 0.2
+                    },
+                    color: { color: '#2c3e50', highlight: '#e74c3c' },
+                    width: 2
+                },
+                physics: { enabled: false } // Static layout as requested
+            };
+            network = new vis.Network(container, data, options);
+        }
+
+        // --- RENDERERS ---
+        function renderMatrix() {
+            const container = document.getElementById('matrix-container');
+            container.innerHTML = '';
+
+            // Header
+            container.appendChild(createDiv('header-cell', ''));
+            nodes.forEach(n => container.appendChild(createDiv('header-cell', n)));
+
+            // Rows
+            for (let i = 0; i < 3; i++) {
+                container.appendChild(createDiv('header-cell', nodes[i]));
+                for (let j = 0; j < 3; j++) {
+                    const div = document.createElement('div');
+                    div.className = `cell matrix-cell ${matrix[i][j] ? 'active' : ''} ${i===j ? 'diagonal' : ''}`;
+                    div.innerText = matrix[i][j];
+                    div.onclick = () => toggleEdge(i, j);
+                    container.appendChild(div);
+                }
+            }
+        }
+
+        function createDiv(cls, content) {
+            const d = document.createElement('div');
+            d.className = cls;
+            d.innerText = content;
+            return d;
+        }
+
+        function updateGraph() {
+            // Diffing logic not strictly needed for small N=3, simplify by clearing and adding
+            const newEdges = [];
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (matrix[i][j] === 1) {
+                        // Vis.js config for self-loops
+                        if (i === j) {
+                            newEdges.push({ from: i, to: j, selfReferenceSize: 20, selfReference: { angle: Math.PI * 1.5 } }); 
+                        } else {
+                            newEdges.push({ from: i, to: j });
+                        }
+                    }
+                }
+            }
+            edgesDataSet.clear();
+            edgesDataSet.add(newEdges);
+        }
+
+        // --- LOGIC ---
+        function toggleEdge(from, to) {
+            matrix[from][to] = matrix[from][to] === 1 ? 0 : 1;
+            updateAll();
+        }
+
+        function updateAll() {
+            renderMatrix();
+            updateGraph();
+            analyze();
+        }
+
+        function analyze() {
+            const m = matrix;
+            const N = 3;
+
+            // Properties
+            const isReflexive = m[0][0] && m[1][1] && m[2][2];
+            const isIrreflexive = !m[0][0] && !m[1][1] && !m[2][2];
+
+            let isSymmetric = true;
+            for(let i=0; i<N; i++) for(let j=0; j<N; j++) 
+                if(m[i][j] && !m[j][i]) isSymmetric = false;
+
+            let isAsymmetric = true; // Impies Irreflexive
+            for(let i=0; i<N; i++) for(let j=0; j<N; j++) 
+                if(m[i][j] && m[j][i]) isAsymmetric = false;
+
+            let isAntisymmetric = true;
+            for(let i=0; i<N; i++) for(let j=0; j<N; j++) 
+                if(i !== j && m[i][j] && m[j][i]) isAntisymmetric = false;
+
+            let isTransitive = true;
+            for(let i=0; i<N; i++) for(let j=0; j<N; j++) for(let k=0; k<N; k++)
+                if(m[i][j] && m[j][k] && !m[i][k]) isTransitive = false;
+
+            let isComplete = true;
+            for(let i=0; i<N; i++) for(let j=0; j<N; j++) 
+                if (i !== j && !m[i][j] && !m[j][i]) isComplete = false;
+
+            // UI Updates
+            setProp('p-refl', isReflexive);
+            setProp('p-irrefl', isIrreflexive);
+            setProp('p-sym', isSymmetric);
+            setProp('p-antisym', isAntisymmetric);
+            setProp('p-asym', isAsymmetric);
+            setProp('p-trans', isTransitive);
+            setProp('p-compl', isComplete);
+
+            // Determine Type
+            const badge = document.getElementById('result-type');
+            let type = "Звичайне відношення";
+            let found = false;
+
+            if (isReflexive && isSymmetric && isTransitive) {
+                type = "ЕКВІВАЛЕНТНІСТЬ (≡)";
+                found = true;
+            } else if (isReflexive && isAntisymmetric && isTransitive) {
+                if (isComplete) type = "ЛІНІЙНИЙ ПОРЯДОК (≤)";
+                else type = "ЧАСТКОВИЙ ПОРЯДОК (⊆)";
+                found = true;
+            } else if (isAsymmetric && isTransitive) {
+                // Asymmetric implies irreflexive and antisymmetric
+                 if (isComplete) type = "СТРОГИЙ ЛІНІЙНИЙ ПОРЯДОК (<)";
+                 else type = "СТРОГИЙ ПОРЯДОК (<)";
+                 found = true;
+            }
+
+            badge.innerText = type;
+            if(found) badge.classList.add('found'); else badge.classList.remove('found');
+        }
+
+        function setProp(id, isActive) {
+            const el = document.getElementById(id);
+            const icon = el.querySelector('.icon');
+            if(isActive) {
+                el.classList.add('active');
+                icon.innerText = '✔';
+            } else {
+                el.classList.remove('active');
+                icon.innerText = '✕';
+            }
+        }
+
+        // --- PRESETS ---
+        function setPreset(type) {
+            // Reset
+            matrix = [[0,0,0],[0,0,0],[0,0,0]];
+            
+            if (type === 'equiv') {
+                // {a, b} cluster, {c} alone
+                matrix = [[1,1,0], [1,1,0], [0,0,1]];
+            } else if (type === 'partial') {
+                // Subset structure: a->b, a->c
+                matrix = [[1,1,1], [0,1,0], [0,0,1]];
+            } else if (type === 'strict') {
+                // a < b < c
+                matrix = [[0,1,1], [0,0,1], [0,0,0]];
+            } else if (type === 'linear') {
+                // a <= b <= c
+                matrix = [[1,1,1], [0,1,1], [0,0,1]];
+            }
+
+            updateAll();
+        }
+
+        // Initialize
+        initNetwork();
+        renderMatrix();
+        analyze(); // initial state
+
+    </script>
+</body>
+</html>
