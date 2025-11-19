@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES-подібний симулятор шифрування</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        
+        h3 {
+            text-align: left;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin-top: 5px;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .matrices-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .matrix-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px;
+        }
+        
+        .matrix {
+            display: inline-block;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            margin: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+        }
+        
+        .matrix-row {
+            display: flex;
+        }
+        
+        .matrix-cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #3498db;
+            margin: 5px;
+            font-weight: bold;
+            font-size: 18px;
+            background-color: white;
+            transition: all 0.5s ease;
+        }
+        
+        .highlight {
+            background-color: #f39c12 !important;
+            transform: scale(1.1);
+        }
+
+        .sbox-highlight {
+            background-color: #e74c3c !important;
+            color: white;
+            box-shadow: 0 0 10px #e74c3c;
+        }
+        
+        .key-cell {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .operation {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #3498db;
+            background-color: #ecf0f1;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .arrow {
+            font-size: 24px;
+            margin: 0 10px;
+            color: #e74c3c;
+        }
+        
+        .explanation {
+            background-color: #d5edff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .binary {
+            font-family: monospace;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .step-indicator {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #3498db;
+        }
+        
+        .animation-area {
+            min-height: 150px;
+            border: 1px dashed #3498db;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            position: relative;
+        }
+        
+        .key-expansion-steps {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .expansion-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 5px;
+        }
+        
+        .step-label {
+            font-size: 12px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .mix-columns-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .mix-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        /* Стилі для теоретичного блоку */
+        .container ul {
+            padding-left: 20px;
+        }
+        .container li {
+            margin-bottom: 10px;
+        }
+        .container p {
+            line-height: 1.6;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h3>AES-подібний симулятор шифрування</h3>
+    
+    <div class="container">
+        <div class="matrices-container">
+            <div class="matrix-wrapper">
+                 <h4>Матриця стану - блок інформації, що шифрується</h4>
+				<p>	(2x2 по 4 біти, в реальному AES 4х4 по байту)</p>
+                <div class="matrix" id="state-matrix">
+                    <div class="matrix-row">
+                        <div class="matrix-cell" id="cell-00">0000</div>
+                        <div class="matrix-cell" id="cell-01">0000</div>
+                    </div>
+                    <div class="matrix-row">
+                        <div class="matrix-cell" id="cell-10">0000</div>
+                        <div class="matrix-cell" id="cell-11">0000</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="matrix-wrapper">
+                <h2>Ключ (2x2)</h2>
+                <div class="matrix" id="key-matrix">
+                    <div class="matrix-row">
+                        <div class="matrix-cell key-cell" id="key-00">0000</div>
+                        <div class="matrix-cell key-cell" id="key-01">0000</div>
+                    </div>
+                    <div class="matrix-row">
+                        <div class="matrix-cell key-cell" id="key-10">0000</div>
+                        <div class="matrix-cell key-cell" id="key-11">0000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="reset-btn">Почати заново</button>
+            <button id="prev-step" disabled>← Попередній крок</button>
+            <button id="next-step">Наступний крок →</button>
+        </div>
+        
+        <div class="step-indicator" id="step-indicator">Крок 0: Початковий стан</div>
+        
+        <div class="animation-area" id="animation-area">
+            </div>
+        
+        <div class="explanation" id="explanation">
+            <p>Ласкаво просимо до симулятора AES-подібного шифрування!</p>
+            <p>Ми працюємо з матрицею 2x2, де кожен елемент - 4-бітне слово (від 0000 до 1111).</p>
+            <p>Натисніть "Наступний крок", щоб побачити процес шифрування покроково.</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Теоретичні відомості</h2>
+        
+        <h3>🧩 Симетричне та Асиметричне шифрування</h3>
+        <p>У криптографії існує два основних підходи:</p>
+        <ul>
+            <li><strong>Симетричне шифрування (Symmetric):</strong> Використовує <strong>один і той же ключ</strong> для шифрування та дешифрування. Це той тип, який ви бачите в цьому симуляторі (AES - це симетричний алгоритм). Вони надзвичайно <strong>швидкі</strong>, але мають проблему: як безпечно передати спільний ключ співрозмовнику?</li>
+            <li><strong>Асиметричне шифрування (Asymmetric):</strong> Використовує <strong>пару ключів</strong>: <strong>публічний</strong> (яким можна ділитися з усіма) та <strong>приватний</strong> (який зберігається в таємниці). Те, що зашифроване публічним ключем, може бути розшифроване лише приватним. Це вирішує проблему обміну ключами, але ці алгоритми (наприклад, RSA) <strong>набагато повільніші</strong>.</li>
+        </ul>
+        <p>В реальному світі (наприклад, у HTTPS) використовують <strong>гібридний підхід</strong>: асиметричне шифрування використовується для безпечного обміну симетричним ключем, а потім вся комунікація відбувається швидко за допомогою симетричного шифрування.</p>
+
+        <h3>🤝 Проблема обміну ключами: Діффі-Геллман (DH)</h3>
+        <p>Щоб дві сторони, які ніколи не зустрічалися, могли домовитися про спільний секретний ключ (для симетричного шифрування) через незахищений канал (наприклад, Інтернет), використовується <strong>протокол Діффі-Геллмана (DH)</strong>. Це "магічний" математичний трюк, який дозволяє Алісі та Бобу, обмінюючись лише публічною інформацією, незалежно згенерувати однаковий секретний ключ, який неможливо перехопити.</p>
+        <p><strong>Важливо:</strong> DH сам по собі не захищає від "людини посередині" (man-in-the-middle). Для цього потрібна <strong>автентифікація</strong> (перевірка, що ви говорите саме з Бобом, а не з шахраєм), яка зазвичай забезпечується цифровими сертифікатами.</p>
+
+        <h3>🌪️ Принципи AES: Плутанина та Дифузія</h3>
+        <p>AES, як і багато сучасних блокових шифрів, побудований на принципах "плутанини" та "дифузії", сформульованих Клодом Шенноном:</p>
+        <ul>
+            <li><strong>Плутанина (Confusion):</strong> Це робить зв'язок між ключем та шифротекстом якомога складнішим. В AES за це відповідає етап <strong>SubBytes (S-блок)</strong>. Це єдина <strong>нелінійна</strong> операція в алгоритмі, яка унеможливлює прості алгебраїчні атаки.</li>
+            <li><strong>Дифузія (Diffusion):</strong> Це робить зв'язок між відкритим текстом та шифротекстом складним. Вона "розсіює" вплив одного біта відкритого тексту на багато бітів шифротексту. В AES за це відповідають етапи <strong>ShiftRows</strong> та <strong>MixColumns</strong>.</li>
+        </ul>
+        <p>Повторення цих етапів у багатьох раундах (10-14 в реальному AES) створює "лавинний ефект", де зміна одного біта на вході призводить до повної зміни ~50% бітів на виході.</p>
+
+        <h3>❓ Як формуються S-блоки?</h3>
+        <p>Таблиця S-блоку (SubBytes) — це не просто випадковий набір чисел. Вона генерується за суворим математичним алгоритмом у Полі Галуа GF(2^8). Спочатку для кожного байта знаходиться його <strong>мультиплікативний обернений</strong> (це складна операція), а потім результат пропускається через <strong>афінне перетворення</strong> (XOR з константами). Це гарантує, що S-блок має чудові криптографічні властивості та стійкість до лінійного та диференціального криптоаналізу.</p>
+
+        <h3>🌊 Сучасні Альтернативи: Потокові Шифри</h3>
+        <p>AES — це <strong>блоковий шифр</strong> (він шифрує дані фіксованими блоками по 128 біт). Існують також <strong>потокові шифри</strong>, які генерують нескінченний "потік" псевдовипадкових байтів (на основі ключа) і просто XOR-ять його з вашими даними. Це часто швидше, особливо в програмній реалізації.</p>
+        <p>Найвідоміші сучасні потокові шифри — це <strong>Salsa20</strong> та його наступник <strong>ChaCha20</strong> (використовується в TLS 1.3, WireGuard VPN, Google). Вони вважаються дуже безпечними та швидкими.</p>
+
+        <h3>🌐 Де використовується AES?</h3>
+        <p>Скрізь! AES — це світовий "золотий стандарт" симетричного шифрування. Ви стикаєтеся з ним щодня:</p>
+        <ul>
+            <li><strong>Wi-Fi:</strong> Ваш WPA2/WPA3 пароль захищає трафік за допомогою AES.</li>
+            <li><strong>Вебсайти (HTTPS):</strong> Коли ви бачите "замочок" в браузері (TLS/SSL), дані сесії, скоріш за все, шифруються за допомогою AES.</li>
+            <li><strong>VPN:</strong> Протоколи як OpenVPN або WireGuard (з ChaCha20) використовують AES для шифрування вашого інтернет-трафіку.</li>
+            <li><strong>Файли та Диски:</strong> Шифрування диска (BitLocker, FileVault) та архіви (7-Zip, WinRAR) використовують AES.</li>
+            <li><strong>Месенджери:</strong> Багато додатків з end-to-end шифруванням використовують AES як частину свого криптографічного протоколу.</li>
+        </ul>
+    </div>
+    <script>
+        // Константи для симулятора
+        const STEPS = [
+            "Початковий стан",
+            "Розширення ключа - генерація ключа раунду 1",
+            "Розширення ключа - генерація ключа раунду 2",
+            "Додавання ключа (AddRoundKey) - Раунд 0",
+            "Заміна байтів (SubBytes) - Раунд 1",
+            "Перестановка рядків (ShiftRows) - Раунд 1",
+            "Змішування стовпців (MixColumns) - Раунд 1",
+            "Додавання ключа раунду 1 (AddRoundKey) - Раунд 1",
+            "Заміна байтів (SubBytes) - Раунд 2 (Фінальний)",
+            "Перестановка рядків (ShiftRows) - Раунд 2",
+            "Додавання ключа раунду 2 (AddRoundKey) - Фінальний",
+            "Шифрування завершено"
+        ];
+
+        // S-блок для заміни байтів
+        const sBox = {
+            "0000": "1111", "0001": "0100", "0010": "1101", "0011": "0001",
+            "0100": "0010", "0101": "1111", "0110": "1011", "0111": "1000",
+            "1000": "0010", "1001": "1010", "1010": "0110", "1011": "1100",
+            "1100": "0101", "1101": "1001", "1110": "0000", "1111": "0111"
+        };
+
+        // --- ГЛОБАЛЬНИЙ СТАН ---
+        let currentStep = 0;
+        let stateMatrix = [["", ""], ["", ""]];
+        let originalKey = [["", ""], ["", ""]];
+        let keyMatrix = [["", ""], ["", ""]];
+        let roundKeys = [
+            [["", ""], ["", ""]], // Початковий ключ (Раунд 0)
+            [["", ""], ["", ""]], // Розширений ключ 1 (Раунд 1)
+            [["", ""], ["", ""]]  // Розширений ключ 2 (Раунд 2)
+        ];
+        // Нова змінна для історії станів
+        let history = []; 
+        // ------------------------
+
+        // Елементи DOM
+        const stateCells = {
+            "00": document.getElementById("cell-00"),
+            "01": document.getElementById("cell-01"),
+            "10": document.getElementById("cell-10"),
+            "11": document.getElementById("cell-11")
+        };
+        
+        const keyCells = {
+            "00": document.getElementById("key-00"),
+            "01": document.getElementById("key-01"),
+            "10": document.getElementById("key-10"),
+            "11": document.getElementById("key-11")
+        };
+        
+        const stepIndicator = document.getElementById("step-indicator");
+        const explanation = document.getElementById("explanation");
+        const animationArea = document.getElementById("animation-area");
+        const prevStepBtn = document.getElementById("prev-step");
+        const nextStepBtn = document.getElementById("next-step");
+        const resetBtn = document.getElementById("reset-btn");
+
+        // --- ФУНКЦІЇ ДЛЯ УПРАВЛІННЯ ІСТОРІЄЮ ---
+
+        function saveState() {
+            // Глибоке копіювання всіх необхідних змінних
+            const stateCopy = stateMatrix.map(row => row.slice());
+            const keyCopy = keyMatrix.map(row => row.slice());
+            const roundKeysCopy = roundKeys.map(keyRound => keyRound.map(row => row.slice()));
+
+            history.push({
+                step: currentStep,
+                state: stateCopy,
+                key: keyCopy,
+                roundKeys: roundKeysCopy
+            });
+        }
+
+        function restoreState(prevState) {
+            currentStep = prevState.step;
+            stateMatrix = prevState.state;
+            keyMatrix = prevState.key;
+            roundKeys = prevState.roundKeys;
+            // updateStep викличе оновлення DOM
+            updateStep(); 
+        }
+
+        // --- ЗАГАЛЬНІ ДОПОМІЖНІ ФУНКЦІЇ ---
+
+        function generateRandom4Bit() {
+            return Math.floor(Math.random() * 16).toString(2).padStart(4, '0');
+        }
+
+        function generateRandomMatrix() {
+            return [
+                [generateRandom4Bit(), generateRandom4Bit()],
+                [generateRandom4Bit(), generateRandom4Bit()]
+            ];
+        }
+
+        function updateMatrixDisplay() {
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    const key = `${i}${j}`;
+                    stateCells[key].textContent = stateMatrix[i][j];
+                    keyCells[key].textContent = keyMatrix[i][j];
+                    stateCells[key].classList.remove('sbox-highlight');
+                    stateCells[key].style.backgroundColor = 'white'; // Скидаємо тимчасове підсвічування
+                }
+            }
+        }
+
+        function addBits(a, b) {
+            let result = "";
+            for (let i = 0; i < 4; i++) {
+                result += (parseInt(a[i]) ^ parseInt(b[i])).toString();
+            }
+            return result;
+        }
+
+        function subBytes(value) {
+            return sBox[value];
+        }
+
+        function shiftRows() {
+            const temp = stateMatrix[1][0];
+            stateMatrix[1][0] = stateMatrix[1][1];
+            stateMatrix[1][1] = temp;
+        }
+
+        function RotL(bits, n) {
+            const val = parseInt(bits, 2);
+            const n_mod = n % 4;
+            const shifted = (val << n_mod) | (val >> (4 - n_mod));
+            const result = shifted & 0b1111;
+            return result.toString(2).padStart(4, '0');
+        }
+
+        function mixColumns() {
+            const newState = [[], []];
+            
+            for (let col = 0; col < 2; col++) {
+                const s0 = stateMatrix[0][col];
+                const s1 = stateMatrix[1][col];
+                
+                // s0' = s0 ⊕ RotL(s1, 1)
+                const s0_prime = addBits(s0, RotL(s1, 1));
+                
+                // s1' = s1 ⊕ RotL(s0', 2)
+                const s1_prime = addBits(s1, RotL(s0_prime, 2));
+                
+                newState[0][col] = s0_prime;
+                newState[1][col] = s1_prime;
+            }
+            
+            stateMatrix = newState;
+        }
+
+        function expandKey(round) {
+            const rcon = round === 1 ? "0001" : "0010";
+            const prevKey = roundKeys[round - 1];
+
+            const lastRow = [prevKey[1][0], prevKey[1][1]];
+            const subLastRow = [subBytes(lastRow[0]), subBytes(lastRow[1])];
+            const afterRcon = [addBits(subLastRow[0], rcon), subLastRow[1]];
+            
+            const firstRow = [
+                addBits(prevKey[0][0], afterRcon[0]),
+                addBits(prevKey[0][1], afterRcon[1])
+            ];
+            
+            const secondRow = [
+                addBits(prevKey[1][0], firstRow[0]),
+                addBits(prevKey[1][1], firstRow[1])
+            ];
+            
+            return [firstRow, secondRow];
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // --- АНІМАЦІЙНІ ФУНКЦІЇ ---
+
+        // Анімація S-Box: Відображає таблицю S-блоку та підсвічує вхідні значення
+        function animateSBoxTable(matrixName, matrix) {
+            animationArea.innerHTML = "";
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("div");
+            title.textContent = `Заміна байтів за допомогою S-блоку для ${matrixName}:`;
+            title.style.marginBottom = "15px";
+            title.style.fontWeight = "bold";
+            
+            container.appendChild(title);
+            
+            const sBoxTable = document.createElement("div");
+            sBoxTable.style.display = "grid";
+            sBoxTable.style.gridTemplateColumns = "repeat(4, 1fr)";
+            sBoxTable.style.gap = "5px";
+            sBoxTable.style.margin = "0 auto";
+            sBoxTable.style.maxWidth = "300px";
+            
+            const inputValues = Object.values(matrix).flat();
+
+            for (let i = 0; i < 16; i++) {
+                const key = i.toString(2).padStart(4, '0');
+                const value = sBox[key];
+                
+                const cell = document.createElement("div");
+                cell.className = "matrix-cell";
+                cell.style.fontSize = "12px";
+                cell.style.padding = "5px";
+                cell.style.width = "unset";
+                cell.style.height = "unset";
+                cell.textContent = `${key}→${value}`;
+                
+                // Підсвічуємо всі S-блоки, які використовуються
+                if (inputValues.includes(key)) {
+                    cell.classList.add('highlight');
+                }
+                
+                sBoxTable.appendChild(cell);
+            }
+            
+            container.appendChild(sBoxTable);
+            animationArea.appendChild(container);
+        }
+
+        // НОВА Анімація SubBytes: Послідовна заміна в основній матриці
+        async function animateSubBytesSubstitution(oldState, newState) {
+            nextStepBtn.disabled = true;
+            prevStepBtn.disabled = true;
+
+            const order = [[0, 0], [0, 1], [1, 0], [1, 1]]; // Порядок заміни
+            const cellElements = [stateCells["00"], stateCells["01"], stateCells["10"], stateCells["11"]];
+            
+            for (let k = 0; k < 4; k++) {
+                const i = order[k][0];
+                const j = order[k][1];
+                const cell = cellElements[k];
+                
+                const inputVal = oldState[i][j];
+                const outputVal = newState[i][j];
+                
+                // *** ВИПРАВЛЕННЯ БАГУ: Пошук S-Box елемента без :contains() ***
+                const sBoxCells = document.querySelectorAll('#animation-area .matrix-cell.highlight');
+                let sBoxCell = null;
+                sBoxCells.forEach(boxCell => {
+                    // Шукаємо комірку S-блоку, текст якої містить вхідне значення
+                    if (boxCell.textContent.includes(`${inputVal}→`)) {
+                        sBoxCell = boxCell;
+                    }
+                });
+                // *************************************************************
+
+                // 1. Підсвічуємо вхідне значення в матриці
+                cell.classList.add('sbox-highlight');
+                cell.style.backgroundColor = '#e74c3c';
+                
+                // 2. Додатково підсвічуємо відповідну пару в S-блоці
+                if (sBoxCell) sBoxCell.classList.add('sbox-highlight'); 
+
+                await delay(500);
+
+                // 3. Демонструємо заміну
+                cell.textContent = `${inputVal} → ${outputVal}`;
+
+                await delay(1000);
+
+                // 4. Фіксуємо нове значення та знімаємо підсвічування
+                cell.textContent = outputVal;
+                cell.classList.remove('sbox-highlight');
+
+                if (sBoxCell) sBoxCell.classList.remove('sbox-highlight');
+                
+                // 5. Вимикаємо загальне підсвічування highlight, яке було увімкнене в animateSBoxTable
+                if (sBoxCell) sBoxCell.classList.remove('highlight');
+
+
+                await delay(500);
+
+                // 6. Очищаємо підсвічування комірки, залишаючи лише фон 'white'
+                cell.style.backgroundColor = 'white';
+            }
+
+            // Перевіряємо, чи ми не на фінальному кроці, і відновлюємо кнопки
+            if (currentStep < STEPS.length - 1) nextStepBtn.disabled = false;
+            if (history.length > 0) prevStepBtn.disabled = false;
+        }
+
+        // --- ОСНОВНА ЛОГІКА КРОКІВ ---
+
+        // Функція для виконання наступного кроку
+        async function nextStep() {
+            if (currentStep >= STEPS.length - 1 || nextStepBtn.disabled) return;
+            
+            // 1. Зберігаємо поточний стан ДО виконання операції
+            saveState(); 
+            
+            currentStep++;
+
+            // 2. Виконуємо операцію для нового кроку
+            await updateStep();
+        }
+
+        // Функція для виконання попереднього кроку
+        function prevStep() {
+            if (currentStep <= 0 || history.length <= 1) return; // history.length має бути > 1, щоб повернутися назад з крок 1 на крок 0
+            
+            // 1. Видаляємо поточний стан (який ми хочемо покинути)
+            history.pop();
+            
+            // 2. Витягуємо попередній стан з історії
+            const prevState = history[history.length - 1];
+            
+            // 3. Відновлюємо всі глобальні змінні
+            restoreState(prevState); 
+        }
+
+        // Функція для оновлення стану на основі поточного кроку
+        async function updateStep() {
+            // Оновлюємо індикатор кроку та кнопки
+            stepIndicator.textContent = `Крок ${currentStep}: ${STEPS[currentStep]}`;
+            prevStepBtn.disabled = history.length <= 1;
+            nextStepBtn.disabled = currentStep === STEPS.length - 1;
+            animationArea.innerHTML = "";
+            
+            // Тимчасові змінні для нового стану
+            let newStateMatrix = stateMatrix.map(row => row.slice());
+
+            // Виконуємо дії залежно від поточного кроку
+            switch (currentStep) {
+                case 0: // Початковий стан
+                    explanation.innerHTML = `
+                        <p><strong>Початковий стан матриці даних та ключа.</strong></p>
+                        <p>Кожен елемент матриці - це 4-бітне слово (від 0000 до 1111).</p>
+                        <p>Початковий ключ буде використаний для генерування ключів для всіх раундів шифрування.</p>
+                        <p>Наступним кроком буде розширення ключа для генерації ключа першого раунду.</p>
+                    `;
+                    break;
+                    
+                case 1: // Розширення ключа - генерація ключа раунду 1
+                    roundKeys[1] = expandKey(1);
+                    keyMatrix = roundKeys[1];
+                    explanation.innerHTML = `
+                        <p><strong>Розширення ключа для генерації ключа першого раунду.</strong></p>
+                        <p>Процес включає застосування <strong>S-блоку (нелінійність)</strong>, додавання констант раунду (за допомогою XOR) та операції XOR.</p>
+                    `;
+                    animateKeyExpansion(1);
+                    break;
+                    
+                case 2: // Розширення ключа - генерація ключа раунду 2
+                    roundKeys[2] = expandKey(2);
+                    keyMatrix = roundKeys[0]; // Повертаємо початковий ключ для відображення
+                    explanation.innerHTML = `
+                        <p><strong>Розширення ключа для генерації ключа другого раунду.</strong></p>
+                        <p>Константа раунду для другого раунду відрізняється (${"0010"} замість ${"0001"}).</p>
+                    `;
+                    animateKeyExpansion(2);
+                    break;
+                    
+                case 3: // Додавання ключа (AddRoundKey)
+                    keyMatrix = roundKeys[0];
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 2; j++) {
+                            stateMatrix[i][j] = addBits(stateMatrix[i][j], keyMatrix[i][j]);
+                        }
+                    }
+                    explanation.innerHTML = `
+                        <p><strong>Додавання ключа (AddRoundKey).</strong> Виконуємо операцію XOR між матрицею стану та ключем раунду.</p>
+                    `;
+                    // Анімуємо XOR для першого елемента
+                    animateXOR(stateMatrix[0][0], keyMatrix[0][0], stateMatrix[0][0], "Додавання ключа: кожен елемент стану XOR з відповідним елементом ключа");
+                    break;
+                    
+                case 4: // Заміна байтів (SubBytes) - Раунд 1
+                    // Зберігаємо старий стан ДО заміни для коректної анімації
+                    const oldStateCase4 = stateMatrix.map(row => row.slice());
+                    
+                    // Обчислюємо новий стан (не комітуємо в stateMatrix поки не завершиться анімація)
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 2; j++) {
+                            newStateMatrix[i][j] = subBytes(oldStateCase4[i][j]);
+                        }
+                    }
+                    
+                    animateSBoxTable("матриці стану", oldStateCase4);
+                    
+                    // Тут комітуємо зміну в глобальний стан
+                    stateMatrix = newStateMatrix;
+                    
+                    // Запускаємо послідовну анімацію в основній матриці
+                    await animateSubBytesSubstitution(oldStateCase4, newStateMatrix);
+                    
+                    explanation.innerHTML = `
+                        <p><strong>Заміна байтів (SubBytes) - Принцип "Плутанини".</strong></p>
+                        <p>Це нелінійна заміна кожного байта за допомогою S-блоку, що додає <strong>плутанину</strong>.</p>
+                    `;
+                    break;
+                    
+                case 5: // Перестановка рядків (ShiftRows)
+                    explanation.innerHTML = `
+                        <p><strong>Перестановка рядків (ShiftRows) - Принцип "Дифузії".</strong></p>
+                        <p>Другий рядок циклічно зсувається на одну позицію вліво. Це допомагає <strong>розсіяти</strong> вплив байтів по горизонталі.</p>
+                    `;
+                    animateShiftRows();
+                    shiftRows();
+                    break;
+                    
+                case 6: // Змішування стовпців (MixColumns)
+                    // Викликаємо функцію, яка вже оновлює stateMatrix
+                    explanation.innerHTML = `
+                        <p><strong>Змішування стовпців (MixColumns) - Принцип "Дифузії".</strong></p>
+                        <p>Це <strong>сурогатна операція (RotL + XOR)</strong>, яка є оборотною і демонструє принцип дифузії.</p>
+                        <p><strong>В реальному AES</strong> тут використовується множення на матрицю в <strong>Полі Галуа</strong>.</p>
+                    `;
+                    
+                    animateMixColumns();
+                    mixColumns();
+                    break;
+                    
+                case 7: // Додавання ключа раунду 1 (AddRoundKey)
+                    keyMatrix = roundKeys[1];
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 2; j++) {
+                            stateMatrix[i][j] = addBits(stateMatrix[i][j], keyMatrix[i][j]);
+                        }
+                    }
+                    explanation.innerHTML = `
+                        <p><strong>Додавання ключа раунду 1 (AddRoundKey).</strong> Виконуємо XOR між матрицею стану та ключем першого раунду.</p>
+                    `;
+                    // Анімуємо XOR для першого елемента
+                    animateXOR(stateMatrix[0][0], keyMatrix[0][0], stateMatrix[0][0], "Додавання ключа раунду 1: XOR стану з ключем раунду");
+                    break;
+                    
+                case 8: // Заміна байтів (SubBytes) - Раунд 2
+                    const oldStateCase8 = stateMatrix.map(row => row.slice());
+                    
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 2; j++) {
+                            newStateMatrix[i][j] = subBytes(oldStateCase8[i][j]);
+                        }
+                    }
+
+                    animateSBoxTable("матриці стану", oldStateCase8);
+
+                    stateMatrix = newStateMatrix;
+
+                    await animateSubBytesSubstitution(oldStateCase8, newStateMatrix);
+                    
+                    explanation.innerHTML = `
+                        <p><strong>Заміна байтів (SubBytes) - другий раунд.</strong></p>
+                        <p>Повторно виконуємо нелінійну заміну кожного байта.</p>
+                    `;
+                    break;
+                    
+                case 9: // Перестановка рядків (ShiftRows) - другий раунд
+                    explanation.innerHTML = `
+                        <p><strong>Перестановка рядків (ShiftRows) - другий раунд.</strong></p>
+                        <p>Повторно виконуємо перестановку рядків для кращого перемішування даних.</p>
+                    `;
+                    
+                    animateShiftRows();
+                    shiftRows();
+                    break;
+                    
+                case 10: // Додавання ключа раунду 2 (AddRoundKey) - останній раунд
+                    keyMatrix = roundKeys[2];
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 2; j++) {
+                            stateMatrix[i][j] = addBits(stateMatrix[i][j], keyMatrix[i][j]);
+                        }
+                    }
+                    explanation.innerHTML = `
+                        <p><strong>Додавання ключа раунду 2 (AddRoundKey) - останній раунд.</strong></p>
+                        <p>Фінальна операція XOR. Отримана матриця є зашифрованим текстом.</p>
+                    `;
+                    
+                    // Анімуємо XOR для першого елемента
+                    animateXOR(stateMatrix[0][0], keyMatrix[0][0], stateMatrix[0][0], "Додавання ключа раунду 2: XOR стану з ключем раунду");
+                    break;
+                    
+                case 11: // Завершено
+                    explanation.innerHTML = `
+                        <p><strong>Шифрування завершено!</strong></p>
+                        <p>Для дешифрування потрібно виконати обернені операції у <strong>зворотному порядку</strong>.</p>
+                        <p>Кнопка "Попередній крок" тепер дозволяє покроково відтворити цей процес назад.</p>
+                    `;
+                    break;
+            }
+            
+            // Оновлюємо відображення матриці, якщо не було асинхронної анімації
+            if (currentStep !== 4 && currentStep !== 8) {
+                updateMatrixDisplay();
+            }
+        }
+
+        // Функція для скидання симулятора
+        function resetSimulator() {
+            currentStep = 0;
+            history = []; // Очищуємо історію
+            
+            // Генеруємо нові випадкові матриці
+            stateMatrix = generateRandomMatrix();
+            originalKey = generateRandomMatrix();
+            keyMatrix = originalKey;
+            
+            // Глибоке копіювання початкового ключа
+            roundKeys[0] = originalKey.map(row => row.slice());
+            roundKeys[1] = [["0000", "0000"], ["0000", "0000"]];
+            roundKeys[2] = [["0000", "0000"], ["0000", "0000"]];
+            
+            updateMatrixDisplay(); // Початкове відображення
+            updateStep();
+            saveState(); // Зберігаємо початковий стан (Крок 0)
+        }
+        
+        // --- РЕФАКТОРИНГ: animateKeyExpansion та animateXOR для коректної роботи ---
+
+        function animateXOR(cell1, cell2, resultCell, description) {
+            // (Не змінюємо, використовує існуючий DOM)
+            animationArea.innerHTML = "";
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const desc = document.createElement("div");
+            desc.textContent = description;
+            desc.style.marginBottom = "15px";
+            desc.style.fontWeight = "bold";
+            container.appendChild(desc);
+            
+            const value1 = document.createElement("div");
+            value1.className = "matrix-cell";
+            value1.textContent = cell1;
+            value1.style.display = "inline-block";
+            
+            const plus = document.createElement("div");
+            plus.className = "arrow";
+            plus.textContent = "⊕";
+            plus.style.display = "inline-block";
+            plus.style.margin = "0 10px";
+            
+            const value2 = document.createElement("div");
+            value2.className = "matrix-cell key-cell";
+            value2.textContent = cell2;
+            value2.style.display = "inline-block";
+            
+            const equals = document.createElement("div");
+            equals.className = "arrow";
+            equals.textContent = "=";
+            equals.style.display = "inline-block";
+            equals.style.margin = "0 10px";
+            
+            const result = document.createElement("div");
+            result.className = "matrix-cell";
+            result.textContent = resultCell;
+            result.style.display = "inline-block";
+            result.style.backgroundColor = "#f39c12";
+            
+            container.appendChild(value1);
+            container.appendChild(plus);
+            container.appendChild(value2);
+            container.appendChild(equals);
+            container.appendChild(result);
+            
+            animationArea.appendChild(container);
+        }
+
+        function animateKeyExpansion(round) {
+            // (Код для анімації розширення ключа)
+            animationArea.innerHTML = "";
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("div");
+            title.textContent = `Розширення ключа для раунду ${round}:`;
+            title.style.marginBottom = "15px";
+            title.style.fontWeight = "bold";
+            
+            container.appendChild(title);
+            
+            const prevKey = roundKeys[round - 1]; 
+            const rcon = round === 1 ? "0001" : "0010";
+
+            const stepsContainer = document.createElement("div");
+            stepsContainer.className = "key-expansion-steps";
+            
+            const step1 = document.createElement("div");
+            step1.className = "expansion-step";
+            const step1Label = document.createElement("div");
+            step1Label.className = "step-label";
+            step1Label.textContent = `Ключ раунду ${round-1}:`;
+            step1.appendChild(step1Label);
+            const step1Matrix = document.createElement("div");
+            step1Matrix.className = "matrix";
+            step1Matrix.innerHTML = `
+                <div class="matrix-row">
+                    <div class="matrix-cell key-cell">${prevKey[0][0]}</div>
+                    <div class="matrix-cell key-cell">${prevKey[0][1]}</div>
+                </div>
+                <div class="matrix-row">
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${prevKey[1][0]}</div>
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${prevKey[1][1]}</div>
+                </div>
+            `;
+            step1.appendChild(step1Matrix);
+            stepsContainer.appendChild(step1);
+            
+            const arrow1 = document.createElement("div");
+            arrow1.className = "arrow";
+            arrow1.textContent = "→";
+            arrow1.style.display = "flex";
+            arrow1.style.alignItems = "center";
+            stepsContainer.appendChild(arrow1);
+            
+            const step3 = document.createElement("div");
+            step3.className = "expansion-step";
+            const step3Label = document.createElement("div");
+            step3Label.className = "step-label";
+            step3Label.textContent = "Після S-блоку:";
+            step3.appendChild(step3Label);
+            const step3Matrix = document.createElement("div");
+            step3Matrix.className = "matrix";
+            step3Matrix.innerHTML = `
+                <div class="matrix-row">
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${subBytes(prevKey[1][0])}</div>
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${subBytes(prevKey[1][1])}</div>
+                </div>
+            `;
+            step3.appendChild(step3Matrix);
+            stepsContainer.appendChild(step3);
+            
+            const arrow3 = document.createElement("div");
+            arrow3.className = "arrow";
+            arrow3.textContent = "→";
+            arrow3.style.display = "flex";
+            arrow3.style.alignItems = "center";
+            stepsContainer.appendChild(arrow3);
+            
+            const step4 = document.createElement("div");
+            step4.className = "expansion-step";
+            const step4Label = document.createElement("div");
+            step4Label.className = "step-label";
+            step4Label.textContent = `Після XOR з rcon (${rcon}):`;
+            step4.appendChild(step4Label);
+            const step4Matrix = document.createElement("div");
+            step4Matrix.className = "matrix";
+            step4Matrix.innerHTML = `
+                <div class="matrix-row">
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${addBits(subBytes(prevKey[1][0]), rcon)}</div>
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${subBytes(prevKey[1][1])}</div>
+                </div>
+            `;
+            step4.appendChild(step4Matrix);
+            stepsContainer.appendChild(step4);
+            
+            const arrow4 = document.createElement("div");
+            arrow4.className = "arrow";
+            arrow4.textContent = "→";
+            arrow4.style.display = "flex";
+            arrow4.style.alignItems = "center";
+            stepsContainer.appendChild(arrow4);
+            
+            const step5 = document.createElement("div");
+            step5.className = "expansion-step";
+            const step5Label = document.createElement("div");
+            step5Label.className = "step-label";
+            step5Label.textContent = "Перший рядок (XOR з 1м рядком):";
+            step5.appendChild(step5Label);
+            const step5Matrix = document.createElement("div");
+            step5Matrix.className = "matrix";
+            step5Matrix.innerHTML = `
+                <div class="matrix-row">
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${roundKeys[round][0][0]}</div>
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${roundKeys[round][0][1]}</div>
+                </div>
+            `;
+            step5.appendChild(step5Matrix);
+            stepsContainer.appendChild(step5);
+            
+            const arrow5 = document.createElement("div");
+            arrow5.className = "arrow";
+            arrow5.textContent = "→";
+            arrow5.style.display = "flex";
+            arrow5.style.alignItems = "center";
+            stepsContainer.appendChild(arrow5);
+            
+            const step6 = document.createElement("div");
+            step6.className = "expansion-step";
+            const step6Label = document.createElement("div");
+            step6Label.className = "step-label";
+            step6Label.textContent = "Другий рядок (XOR з 2м рядком):";
+            step6.appendChild(step6Label);
+            const step6Matrix = document.createElement("div");
+            step6Matrix.className = "matrix";
+            step6Matrix.innerHTML = `
+                <div class="matrix-row">
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${roundKeys[round][1][0]}</div>
+                    <div class="matrix-cell key-cell" style="background-color: #f39c12;">${roundKeys[round][1][1]}</div>
+                </div>
+            `;
+            step6.appendChild(step6Matrix);
+            stepsContainer.appendChild(step6);
+            
+            container.appendChild(stepsContainer);
+
+            const sBoxTitle = document.createElement("div");
+            sBoxTitle.textContent = "S-блок, що використовується для заміни байтів:";
+            sBoxTitle.style.fontWeight = "bold";
+            sBoxTitle.style.marginTop = "20px";
+            container.appendChild(sBoxTitle);
+
+            const sBoxTable = document.createElement("div");
+            sBoxTable.style.display = "grid";
+            sBoxTable.style.gridTemplateColumns = "repeat(4, 1fr)";
+            sBoxTable.style.gap = "5px";
+            sBoxTable.style.margin = "15px auto";
+            sBoxTable.style.maxWidth = "300px";
+            
+            for (let i = 0; i < 16; i++) {
+                const key = i.toString(2).padStart(4, '0');
+                const value = sBox[key];
+                
+                const cell = document.createElement("div");
+                cell.className = "matrix-cell";
+                cell.style.fontSize = "12px";
+                cell.style.padding = "5px";
+                cell.style.width = "unset";
+                cell.style.height = "unset";
+                cell.textContent = `${key}→${value}`;
+                
+                if (key === prevKey[1][0] || key === prevKey[1][1]) {
+                    cell.classList.add('highlight');
+                }
+                
+                sBoxTable.appendChild(cell);
+            }
+            container.appendChild(sBoxTable);
+            
+            const processExplanation = document.createElement("div");
+            processExplanation.style.marginTop = "15px";
+            processExplanation.style.textAlign = "left";
+            processExplanation.style.maxWidth = "600px";
+            processExplanation.style.margin = "15px auto";
+            
+            processExplanation.innerHTML = `
+                <p><strong>Процес розширення ключа:</strong></p>
+                <p>1. Беремо останній рядок попереднього ключа: [${prevKey[1][0]}, ${prevKey[1][1]}]</p>
+                <p>2. Застосовуємо S-блок до кожного елемента: [${subBytes(prevKey[1][0])}, ${subBytes(prevKey[1][1])}]</p>
+                <p>3. Додаємо константу раунду (${rcon}) до першого елемента за допомогою XOR: ${addBits(subBytes(prevKey[1][0]), rcon)}</p>
+                <p>4. Обчислюємо новий перший рядок: XOR з першим рядком попереднього ключа</p>
+                <p>5. Обчислюємо новий другий рядок: XOR першого рядка нового ключа з другим рядком попереднього ключа</p>
+                <p><strong>Константа раунду:</strong> Це спеціальне значення, яке гарантує, що ключі раундів відрізняються.</p>
+            `;
+            
+            container.appendChild(processExplanation);
+            
+            animationArea.appendChild(container);
+        }
+
+        function animateShiftRows() {
+            // (Не змінюємо, використовує існуючий DOM)
+            animationArea.innerHTML = "";
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("div");
+            title.textContent = "Перестановка рядків:";
+            title.style.marginBottom = "15px";
+            title.style.fontWeight = "bold";
+            
+            container.appendChild(title);
+            
+            const comparison = document.createElement("div");
+            comparison.style.display = "flex";
+            comparison.style.justifyContent = "center";
+
+            const beforeMatrix = document.createElement("div");
+            beforeMatrix.className = "matrix";
+            beforeMatrix.style.display = "inline-block";
+            const row1 = document.createElement("div"); row1.className = "matrix-row";
+            const cell00 = document.createElement("div"); cell00.className = "matrix-cell"; cell00.textContent = stateMatrix[0][0]; row1.appendChild(cell00);
+            const cell01 = document.createElement("div"); cell01.className = "matrix-cell"; cell01.textContent = stateMatrix[0][1]; row1.appendChild(cell01);
+            beforeMatrix.appendChild(row1);
+            const row2 = document.createElement("div"); row2.className = "matrix-row";
+            const cell10 = document.createElement("div"); cell10.className = "matrix-cell"; cell10.textContent = stateMatrix[1][0]; cell10.style.backgroundColor = "#f39c12"; row2.appendChild(cell10);
+            const cell11 = document.createElement("div"); cell11.className = "matrix-cell"; cell11.textContent = stateMatrix[1][1]; cell11.style.backgroundColor = "#f39c12"; row2.appendChild(cell11);
+            beforeMatrix.appendChild(row2);
+            comparison.appendChild(beforeMatrix);
+
+            const arrow = document.createElement("div");
+            arrow.className = "arrow";
+            arrow.textContent = "→";
+            arrow.style.display = "flex";
+            arrow.style.alignItems = "center";
+            arrow.style.fontSize = "30px";
+            comparison.appendChild(arrow);
+            
+            const afterMatrix = document.createElement("div");
+            afterMatrix.className = "matrix";
+            afterMatrix.style.display = "inline-block";
+            const row1After = document.createElement("div"); row1After.className = "matrix-row";
+            const cell00After = document.createElement("div"); cell00After.className = "matrix-cell"; cell00After.textContent = stateMatrix[0][0]; row1After.appendChild(cell00After);
+            const cell01After = document.createElement("div"); cell01After.className = "matrix-cell"; cell01After.textContent = stateMatrix[0][1]; row1After.appendChild(cell01After);
+            afterMatrix.appendChild(row1After);
+            const row2After = document.createElement("div"); row2After.className = "matrix-row";
+            const cell10After = document.createElement("div"); cell10After.className = "matrix-cell"; cell10After.textContent = stateMatrix[1][1]; cell10After.style.backgroundColor = "#f39c12"; row2After.appendChild(cell10After);
+            const cell11After = document.createElement("div"); cell11After.className = "matrix-cell"; cell11After.textContent = stateMatrix[1][0]; cell11After.style.backgroundColor = "#f39c12"; row2After.appendChild(cell11After);
+            afterMatrix.appendChild(row2After);
+            comparison.appendChild(afterMatrix);
+            
+            container.appendChild(comparison);
+            animationArea.appendChild(container);
+        }
+
+        function animateMixColumns() {
+            // (Не змінюємо, використовує існуючий DOM)
+            animationArea.innerHTML = "";
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("div");
+            title.textContent = "Змішування стовпців: Сурогатна дифузія (RotL + XOR)";
+            title.style.marginBottom = "15px";
+            title.style.fontWeight = "bold";
+            container.appendChild(title);
+
+            const rules = document.createElement("div");
+            rules.style.textAlign = "left";
+            rules.style.maxWidth = "600px";
+            rules.style.margin = "10px auto";
+            rules.style.backgroundColor = "#f8f9fa";
+            rules.style.padding = "10px";
+            rules.style.borderRadius = "5px";
+            rules.innerHTML = `
+                <p><strong>Важлива примітка:</strong> Це операція для демонстрації дифузії. Вона використовує циклічні зсуви (RotL) та XOR, щоб змішати біти, і є повністю оборотною.</p>
+                <p><strong>В реальному AES</strong> тут використовується <strong>множення на матрицю в Полі Галуа</strong> GF(2^8), яка апаратно може бути виконана за допомогою таких самих операцій XOR і зсувів.</p>
+                <hr>
+                <p style="text-align:center; font-weight: bold;">Правила нашого симулятора (для кожного стовпця):</p>
+                <p style="text-align:center; font-family: monospace;">1. <strong>s'<sub>0</sub> = s<sub>0</sub> ⊕ RotL(s<sub>1</sub>, 1)</strong></p>
+                <p style="text-align:center; font-family: monospace;">2. <strong>s'<sub>1</sub> = s<sub>1</sub> ⊕ RotL(s'<sub>0</sub>, 2)</strong></p>
+            `;
+            container.appendChild(rules);
+            
+            const columnsContainer = document.createElement("div");
+            columnsContainer.className = "mix-columns-container";
+            
+            for (let col = 0; col < 2; col++) {
+                const s0 = stateMatrix[0][col];
+                const s1 = stateMatrix[1][col];
+
+                const s1_rot1 = RotL(s1, 1);
+                const s0_prime = addBits(s0, s1_rot1);
+                const s0_prime_rot2 = RotL(s0_prime, 2);
+                const s1_prime = addBits(s1, s0_prime_rot2);
+
+                const columnDiv = document.createElement("div");
+                columnDiv.className = "mix-column";
+                
+                const colTitle = document.createElement("div");
+                colTitle.className = "column-title";
+                colTitle.textContent = `Стовпець ${col + 1}:`;
+                columnDiv.appendChild(colTitle);
+
+                const beforeMatrix = document.createElement("div");
+                beforeMatrix.className = "matrix";
+                beforeMatrix.innerHTML = `
+                    <div class="matrix-cell">${s0}</div>
+                    <div class="matrix-cell">${s1}</div>
+                `;
+                columnDiv.appendChild(beforeMatrix);
+
+                const arrowDown = document.createElement("div");
+                arrowDown.className = "arrow";
+                arrowDown.textContent = "↓";
+                columnDiv.appendChild(arrowDown);
+
+                const eqDiv = document.createElement("div");
+                eqDiv.style.fontFamily = "monospace";
+                eqDiv.style.margin = "10px 0";
+                eqDiv.innerHTML = `
+                    <p>${s0} ⊕ RotL(${s1}, 1) = ${s0} ⊕ ${s1_rot1} = <strong>${s0_prime}</strong></p>
+                    <p>${s1} ⊕ RotL(${s0_prime}, 2) = ${s1} ⊕ ${s0_prime_rot2} = <strong>${s1_prime}</strong></p>
+                `;
+                columnDiv.appendChild(eqDiv);
+
+                const afterMatrix = document.createElement("div");
+                afterMatrix.className = "matrix";
+                afterMatrix.innerHTML = `
+                    <div class="matrix-cell" style="background-color: #f39c12;">${s0_prime}</div>
+                    <div class="matrix-cell" style="background-color: #f39c12;">${s1_prime}</div>
+                `;
+                columnDiv.appendChild(afterMatrix);
+                
+                columnsContainer.appendChild(columnDiv);
+            }
+            
+            container.appendChild(columnsContainer);
+            animationArea.appendChild(container);
+        }
+
+        // Додаємо обробники подій
+        nextStepBtn.addEventListener("click", nextStep);
+        prevStepBtn.addEventListener("click", prevStep);
+        resetBtn.addEventListener("click", resetSimulator);
+
+        // Ініціалізація
+        resetSimulator();
+    </script>
+</body>
+</html>
