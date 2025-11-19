@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор ChaCha20 (4-бітна версія)</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .matrices-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .matrix-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px;
+        }
+        
+        .matrix {
+            display: inline-block;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            margin: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+        }
+        
+        .matrix-row {
+            display: flex;
+        }
+        
+        .matrix-cell {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #3498db;
+            margin: 5px;
+            font-weight: bold;
+            font-size: 14px;
+            background-color: white;
+            transition: all 0.5s ease;
+        }
+        
+        .binary {
+            font-family: monospace;
+            font-size: 12px;
+            color: #2c3e50;
+        }
+        
+        .decimal {
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        
+        .highlight {
+            background-color: #f39c12 !important;
+            transform: scale(1.1);
+        }
+        
+        .constant-cell {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .key-cell {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .counter-cell {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .nonce-cell {
+            background-color: #9b59b6;
+            color: white;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .arrow {
+            font-size: 24px;
+            margin: 0 10px;
+            color: #e74c3c;
+        }
+        
+        .explanation {
+            background-color: #d5edff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .step-indicator {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #3498db;
+        }
+        
+        .animation-area {
+            min-height: 150px;
+            border: 1px dashed #3498db;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            position: relative;
+        }
+        
+        .quarter-round {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #3498db;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        
+        .operation {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .operation-step {
+            margin: 0 5px;
+            font-weight: bold;
+        }
+        
+        .state-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .state-row {
+            display: flex;
+        }
+        
+        .state-cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #3498db;
+            margin: 2px;
+            font-weight: bold;
+            background-color: white;
+        }
+        
+        .highlight-operation {
+            background-color: #f39c12 !important;
+        }
+        
+        .quarter-rounds-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .color-legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #333;
+        }
+        
+        .legend-text {
+            font-size: 14px;
+        }
+		
+        /* ПОЯСНЕННЯ a, b, c, d */
+        .variable-mapping {
+            margin-top: 15px;
+            background-color: #f0f8ff;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #3498db;
+            width: 90%;
+            max-width: 600px;
+        }
+        .variable-mapping code {
+            background-color: #e0e0e0;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+		
+		.comparison-table {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .comparison-table th {
+            background: rgba(255,215,0,0.3);
+            font-weight: bold;
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+    </style>
+</head>
+<body>
+    <h3> ChaCha20 Симетричне шифрування (4-бітна версія)</h3>
+    
+    <div class="container">
+        <div class="color-legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #3498db;"></div>
+                <div class="legend-text">Константи (синій)</div>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #e74c3c;"></div>
+                <div class="legend-text">Ключ (червоний)</div>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #2ecc71;"></div>
+                <div class="legend-text">Лічильник (зелений)</div>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #9b59b6;"></div>
+                <div class="legend-text">Nonce (фіолетовий)</div>
+            </div>
+        </div>
+        
+        <div class="matrices-container">
+            <div class="matrix-wrapper">
+                <h2>Початковий стан (4x4)</h2>
+                <div class="matrix" id="state-matrix">
+                    </div>
+            </div>
+            
+            <div class="matrix-wrapper">
+                <h2>Ключ (32 біти)</h2>
+                <div class="matrix" id="key-matrix">
+                    </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="reset-btn">Почати заново</button>
+            <button id="prev-step" disabled>← Попередній крок</button>
+            <button id="next-step">Наступний крок →</button>
+        </div>
+        
+        <div class="step-indicator" id="step-indicator">Крок 0: Початковий стан</div>
+        
+        <div class="animation-area" id="animation-area">
+            </div>
+        
+        <div class="explanation" id="explanation">
+           
+            <p>ChaCha20 - це сучасний потоковий шифр, який використовує прості операції: додавання, XOR та циклічний зсув.</p>
+            <p>У цій спрощеній версії ми працюємо з 4-бітними словами (0-15) замість 32-бітних.</p>
+            <p>Натисніть "Наступний крок", щоб побачити процес шифрування покроково.</p>
+        </div>
+    </div>
+	
+	<div class="theory-section">
+    <h2>Теоретичні основи ChaCha20</h2>
+
+    <div class="theory-subsection">
+        <h3>Порівняння з методом одноразового блокноту</h3>
+        <p><strong>Метод одноразового блокноту (One-Time Pad)</strong> - це єдиний математично доведений абсолютно стійкий шифр, але він має практичні недоліки:</p>
+        <ul>
+            <li>Вимагає ключ такої ж довжини, як і повідомлення</li>
+            <li>Ключ можна використовувати лише один раз</li>
+            <li>Складність розповсюдження та зберігання довгих ключів</li>
+        </ul>
+        
+        <p><strong>ChaCha20 як практична альтернатива:</strong></p>
+        <ul>
+            <li>Використовує короткий ключ (256 біт) для генерації необмеженої кількості ключового потоку</li>
+            <li>Nonce забезпечує унікальність ключового потоку для кожного повідомлення</li>
+            <li>Практично стійкий при правильному використанні</li>
+            <li>Ефективний для шифрування потоків даних</li>
+        </ul>
+    </div>
+
+    <div class="theory-subsection">
+        <h3>Властивості ARX (Addition-Rotation-XOR)</h3>
+        <p>ARX - це криптографічна конструкція, що поєднує три прості операції:</p>
+        
+        <div class="arx-properties">
+            <div class="arx-item">
+                <h4>Додавання (Addition)</h4>
+                <ul>
+                    <li><strong>Нелінійність:</strong> Додавання за модулем 2ⁿ створює нелінійне перетворення</li>
+                    <li><strong>Перенесення:</strong> Впливає на старші біти, забезпечуючи дифузію</li>
+                    <li><strong>Асиметрія:</strong> Операція не є інволюцією</li>
+                </ul>
+            </div>
+            
+            <div class="arx-item">
+                <h4>Циклічний зсув (Rotation)</h4>
+                <ul>
+                    <li><strong>Дифузія:</strong> Поширює вплив кожного біта по всьому слову</li>
+                    <li><strong>Ефективність:</strong> Швидка операція на сучасних процесорах</li>
+                    <li><strong>Зв'язок бітів:</strong> З'єднує віддалені біти слова</li>
+                </ul>
+            </div>
+            
+            <div class="arx-item">
+                <h4>XOR (виключне АБО)</h4>
+                <ul>
+                    <li><strong>Лінійність:</strong> Забезпечує лінійне перемішування</li>
+                    <li><strong>Інволюція:</strong> Операція обернена сама собі</li>
+                    <li><strong>Баланс:</strong> Зберігає рівномірність розподілу</li>
+                </ul>
+            </div>
+        </div>
+        
+        <p><strong>Криптографічні властивості ARX у хешуванні:</strong></p>
+        <ul>
+            <li><strong>Стійкість до диференціального криптоаналізу</strong> через нелінійність додавання</li>
+            <li><strong>Швидка дифузія</strong> завдяки комбінації операцій</li>
+            <li><strong>Відсутність таблиць замін (S-блоків)</strong> - менша ймовірність side-channel атак</li>
+            <li><strong>Простота аналізу</strong> через елементарні операції</li>
+        </ul>
+    </div>
+
+    <div class="theory-subsection">
+        <h3>Застосування у сучасних технологіях</h3>
+        
+        <div class="applications">
+            <div class="application-item">
+                <h4>Інтернет-протоколи</h4>
+                <ul>
+                    <li><strong>TLS 1.2/1.3:</strong> ChaCha20-Poly1305 як альтернатива AES-GCM</li>
+                    <li><strong>QUIC:</strong> Основний шифр у протоколі Google</li>
+                    <li><strong>WireGuard VPN:</strong> Використовує ChaCha20 для високошвидкісного шифрування</li>
+                </ul>
+            </div>
+            
+            <div class="application-item">
+                <h4>Операційні системи</h4>
+                <ul>
+                    <li><strong>Linux:</strong> /dev/urandom використовує ChaCha20 як CSPRNG</li>
+                    <li><strong>Android:</strong> Шифрування файлової системи</li>
+                    <li><strong>iOS/macOS:</strong> Використання в криптографічних бібліотеках</li>
+                </ul>
+            </div>
+            
+            <div class="application-item">
+                <h4>Мобільні додатки</h4>
+                <ul>
+                    <li><strong>Signal:</strong> Шифрування повідомлень</li>
+                    <li><strong>WhatsApp:</strong> End-to-end шифрування</li>
+                    <li><strong>Багато інших месенджерів</strong> через його ефективність на мобільних пристроях</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="theory-subsection">
+        <h3>Порівняння з іншими методами шифрування</h3>
+        
+        <div class="comparison-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Характеристика</th>
+                        <th>ChaCha20</th>
+                        <th>AES</th>
+                        <th>RSA</th>
+                        <th>ECC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Тип шифру</td>
+                        <td>Потоковий</td>
+                        <td>Блочний</td>
+                        <td>Асиметричний</td>
+                        <td>Асиметричний</td>
+                    </tr>
+                    <tr>
+                        <td>Швидкість</td>
+                        <td>⭐⭐⭐⭐⭐</td>
+                        <td>⭐⭐⭐⭐</td>
+                        <td>⭐</td>
+                        <td>⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td>Розмір ключа</td>
+                        <td>256 біт</td>
+                        <td>128/192/256 біт</td>
+                        <td>2048+ біт</td>
+                        <td>256+ біт</td>
+                    </tr>
+                    <tr>
+                        <td>Область застосування</td>
+                        <td>Шифрування даних</td>
+                        <td>Шифрування даних</td>
+                        <td>Обмін ключами, підписи</td>
+                        <td>Обмін ключами, підписи</td>
+                    </tr>
+                    <tr>
+                        <td>Реалізація</td>
+                        <td>Програмна (швидка)</td>
+                        <td>Апаратна (швидка)</td>
+                        <td>Повільна</td>
+                        <td>Середня швидкість</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <p><strong>Переваги ChaCha20:</strong></p>
+        <ul>
+            <li>Висока швидкість на програмних реалізаціях</li>
+            <li>Стійкість до timing-атак</li>
+            <li>Простота реалізації та аналізу</li>
+            <li>Ефективність на мобільних пристроях</li>
+        </ul>
+    </div>
+
+    <div class="theory-subsection">
+        <h3>Генерація спільного ключа сеанса</h3>
+        
+        <p>Симетричні шифри, як ChaCha20, вимагають попереднього обміну секретним ключем. Для цього використовуються:</p>
+        
+        <div class="key-exchange-methods">
+            <div class="method">
+                <h4>Асиметричне шифрування</h4>
+                <ul>
+                    <li><strong>RSA:</strong> Одна сторона генерує сеансовий ключ і шифрує його публічним ключем другої сторони</li>
+                    <li><strong>Шифрування на основі ECC:</strong> Більш ефективне за RSA</li>
+                </ul>
+            </div>
+            
+            <div class="method">
+                <h4>Протоколи обміну ключами</h4>
+                <ul>
+                    <li><strong>Diffie-Hellman:</strong> Дозволяє двом сторонам створити спільний секрет через незахищений канал</li>
+                    <li><strong>ECDH:</strong> Еліптична версія Diffie-Hellman з кращою ефективністю</li>
+                </ul>
+            </div>
+            
+            <div class="method">
+                <h4>Гібридні системи</h4>
+                <ul>
+                    <li>Асиметричне шифрування для обміну симетричним ключем</li>
+                    <li>Симетричне шифрування (ChaCha20) для шифрування даних</li>
+                    <li>Поєднання безпеки та ефективності</li>
+                </ul>
+            </div>
+        </div>
+        
+        <p><strong>Типовий сценарій використання:</strong></p>
+        <ol>
+            <li>Клієнт і сервер виконують обмін ключами за допомогою ECDH</li>
+            <li>Створюється спільний сеансовий ключ</li>
+            <li>Для кожного повідомлення генерується унікальний nonce</li>
+            <li>Дані шифруються за допомогою ChaCha20 з сеансовим ключем</li>
+            <li>Після завершення сеансу ключ видаляється</li>
+        </ol>
+    </div>
+
+    <div class="theory-subsection">
+        <h3>Криптографічна стійкість</h3>
+        
+        <p>ChaCha20 демонструє високу криптографічну стійкість завдяки:</p>
+        <ul>
+            <li><strong>20 раундам перемішування</strong> - значно більше, ніж мінімально необхідно</li>
+            <li><strong>ARX конструкції</strong> - стійкості до багатьох видів криптоаналізу</li>
+            <li><strong>Простоти дизайну</strong> - легше аналізувати на наявність вразливостей</li>
+            <li><strong>Відсутності таблиць замін</strong> - унеможливлює багато side-channel атак</li>
+        </ul>
+        
+        <p>На даний момент не існує практичних атак на повну версію ChaCha20, що робить його одним з найбезпечніших сучасних шифрів.</p>
+    </div>
+</div>
+
+    <script>
+        // Константи для симулятора
+        const STEPS = [
+            "Початковий стан",
+            "Ініціалізація стану",
+            "Раунд 1: Quarter Round 1 (Стовпці)",
+            "Раунд 1: Quarter Round 2 (Стовпці)",
+            "Раунд 1: Quarter Round 3 (Стовпці)",
+            "Раунд 1: Quarter Round 4 (Стовпці)",
+            "Раунд 2: Quarter Round 1 (Діагоналі)",
+            "Раунд 2: Quarter Round 2 (Діагоналі)",
+            "Раунд 2: Quarter Round 3 (Діагоналі)",
+            "Раунд 2: Quarter Round 4 (Діагоналі)",
+            "Додавання початкового стану",
+            "Генерація ключового потоку",
+            "Шифрування повідомлення",
+            "Роль Лічильника: Наступний блок", // НОВИЙ КРОК
+            "Завершено"
+        ];
+
+        // Початкові значення
+        let currentStep = 0;
+        let initialState = [];
+        let currentState = [];
+        let key = [];
+        let nonce = [];
+        let counter = 0;
+        // Константи для 4-бітної версії (за модулем 2^4)
+        let constants = [6, 7, 8, 9]; // Спрощені константи
+
+        // Елементи DOM
+        const stepIndicator = document.getElementById("step-indicator");
+        const explanation = document.getElementById("explanation");
+        const animationArea = document.getElementById("animation-area");
+        const prevStepBtn = document.getElementById("prev-step");
+        const nextStepBtn = document.getElementById("next-step");
+        const resetBtn = document.getElementById("reset-btn");
+        const stateMatrix = document.getElementById("state-matrix");
+        const keyMatrix = document.getElementById("key-matrix");
+
+        // Функція для генерації випадкового 4-бітного числа
+        function generateRandom4Bit() {
+            return Math.floor(Math.random() * 16);
+        }
+
+        // Функція для ініціалізації стану
+        function initializeState() {
+            // Константи
+            initialState[0] = constants[0];
+            initialState[1] = constants[1];
+            initialState[2] = constants[2];
+            initialState[3] = constants[3];
+            
+            // Ключ (32 біти = 8 слів по 4 біти)
+            for (let i = 0; i < 8; i++) {
+                key[i] = generateRandom4Bit();
+                initialState[4 + i] = key[i];
+            }
+            
+            // Лічильник
+            counter = generateRandom4Bit();
+            initialState[12] = counter;
+            
+            // Nonce (12 біт = 3 слова по 4 біти)
+            for (let i = 0; i < 3; i++) {
+                nonce[i] = generateRandom4Bit();
+                initialState[13 + i] = nonce[i];
+            }
+            
+            // Копіюємо початковий стан для подальших обчислень
+            currentState = [...initialState];
+        }
+
+        // Функція для форматування 4-бітного числа у двійковому вигляді
+        function toBinary4Bit(value) {
+            return value.toString(2).padStart(4, '0');
+        }
+
+        // Функція для оновлення відображення матриці стану
+        function updateStateMatrix() {
+            stateMatrix.innerHTML = '';
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "matrix-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "matrix-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = currentState[index];
+                    
+                    // Додаємо двійкове та десяткове представлення
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    // Різне забарвлення для різних частин стану
+                    if (index < 4) {
+                        cell.classList.add("constant-cell");
+                    } else if (index < 12) {
+                        cell.classList.add("key-cell");
+                    } else if (index === 12) {
+                        cell.classList.add("counter-cell");
+                    } else {
+                        cell.classList.add("nonce-cell");
+                    }
+                    
+                    row.appendChild(cell);
+                }
+                
+                stateMatrix.appendChild(row);
+            }
+        }
+
+        // Функція для оновлення відображення ключа
+        function updateKeyMatrix() {
+            keyMatrix.innerHTML = '';
+            
+            for (let i = 0; i < 2; i++) {
+                const row = document.createElement("div");
+                row.className = "matrix-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "matrix-cell key-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = key[index];
+                    
+                    // Додаємо двійкове та десяткове представлення
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                keyMatrix.appendChild(row);
+            }
+        }
+
+        // Функція для циклічного зсуву вліво для 4-бітних чисел
+        function rotateLeft4Bit(value, shift) {
+            // Маска для 4 бітів
+            const mask = 0b1111;
+            // Обмежуємо зсув до 4 біт
+            shift = shift % 4;
+            // Виконуємо циклічний зсув
+            return ((value << shift) | (value >>> (4 - shift))) & mask;
+        }
+
+        // Функція для quarter round операції для 4-бітних чисел
+        function quarterRound4Bit(a, b, c, d) {
+            // Крок 1: a = a + b
+            a = (a + b) & 0b1111; // Модуль 2^4
+            // Крок 2: d = d ⊕ a
+            d = d ^ a;
+            // Крок 3: d = d <<< 2 (замість 16 у 32-бітній версії)
+            d = rotateLeft4Bit(d, 2);
+            
+            // Крок 4: c = c + d
+            c = (c + d) & 0b1111;
+            // Крок 5: b = b ⊕ c
+            b = b ^ c;
+            // Крок 6: b = b <<< 1 (замість 12 у 32-бітній версії)
+            b = rotateLeft4Bit(b, 1);
+            
+            // Крок 7: a = a + b
+            a = (a + b) & 0b1111;
+            // Крок 8: d = d ⊕ a
+            d = d ^ a;
+            // Крок 9: d = d <<< 1 (замість 8 у 32-бітній версії)
+            d = rotateLeft4Bit(d, 1);
+            
+            // Крок 10: c = c + d
+            c = (c + d) & 0b1111;
+            // Крок 11: b = b ⊕ c
+            b = b ^ c;
+            // Крок 12: b = b <<< 1 (замість 7 у 32-бітній версії)
+            b = rotateLeft4Bit(b, 1);
+            
+            return [a, b, c, d];
+        }
+
+
+        // Функція для анімації quarter round
+        // Додано 'stateBefore' для коректного відображення 'a, b, c, d'
+        function animateQuarterRound(roundNumber, quarterNumber, indices, operationType, stateBefore) {
+            animationArea.innerHTML = '';
+            
+            const container = document.createElement("div");
+            container.className = "quarter-round";
+            
+            const title = document.createElement("h3");
+            title.textContent = `Раунд ${roundNumber}: ${operationType} Quarter Round ${quarterNumber}`;
+            container.appendChild(title);
+            
+            // 3) ДОДАЄМО СХЕМУ QUARTER ROUND
+            const qrImage = document.createElement("div");
+            qrImage.style.textAlign = "center";
+            qrImage.style.padding = "10px";
+            qrImage.innerHTML = "";
+            container.appendChild(qrImage);
+
+            const stateContainer = document.createElement("div");
+            stateContainer.className = "state-container";
+            
+            // Відображаємо стан *ДО* операції
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = stateBefore[index]; // Використовуємо stateBefore
+                    
+                    // Додаємо двійкове та десяткове представлення
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    // Підсвічуємо елементи, що беруть участь у quarter round
+                    if (indices.includes(index)) {
+                        cell.classList.add("highlight-operation");
+                    }
+                    
+                    row.appendChild(cell);
+                }
+                
+                stateContainer.appendChild(row);
+            }
+            
+            container.appendChild(stateContainer);
+            
+            // 1) ПОЯСНЕННЯ a, b, c, d
+            const mapping = document.createElement("div");
+            mapping.className = "variable-mapping";
+            mapping.innerHTML = `
+                <h4>Відображення змінних:</h4>
+                <p>Для цього quarter round, <strong>до початку обчислень</strong>:</p>
+                <ul>
+                    <li><strong>a</strong> = <code>стан[${indices[0]}]</code> (значення: ${stateBefore[indices[0]]})</li>
+                    <li><strong>b</strong> = <code>стан[${indices[1]}]</code> (значення: ${stateBefore[indices[1]]})</li>
+                    <li><strong>c</strong> = <code>стан[${indices[2]}]</code> (значення: ${stateBefore[indices[2]]})</li>
+                    <li><strong>d</strong> = <code>стан[${indices[3]}]</code> (значення: ${stateBefore[indices[3]]})</li>
+                </ul>
+                <p>Формули (наприклад, <code>a = (a + b) mod 16</code>) використовують ці початкові значення, а потім оновлюють їх покроково.</p>
+            `;
+            container.appendChild(mapping);
+
+            // Операції quarter round
+            const operations = document.createElement("div");
+            operations.style.marginTop = "15px";
+            
+            const op1 = document.createElement("div");
+            op1.className = "operation";
+            op1.innerHTML = `
+                <span class="operation-step">a = (a + b) mod 16</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">d = d ⊕ a</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">d = d <<< 2</span>
+            `;
+            
+            const op2 = document.createElement("div");
+            op2.className = "operation";
+            op2.innerHTML = `
+                <span class="operation-step">c = (c + d) mod 16</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">b = b ⊕ c</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">b = b <<< 1</span>
+            `;
+            
+            const op3 = document.createElement("div");
+            op3.className = "operation";
+            op3.innerHTML = `
+                <span class="operation-step">a = (a + b) mod 16</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">d = d ⊕ a</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">d = d <<< 1</span>
+            `;
+            
+            const op4 = document.createElement("div");
+            op4.className = "operation";
+            op4.innerHTML = `
+                <span class="operation-step">c = (c + d) mod 16</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">b = b ⊕ c</span>
+                <span class="arrow">→</span>
+                <span class="operation-step">b = b <<< 1</span>
+            `;
+            
+            operations.appendChild(op1);
+            operations.appendChild(op2);
+            operations.appendChild(op3);
+            operations.appendChild(op4);
+            
+            container.appendChild(operations);
+            
+            // Пояснення операцій ARX
+            const arxExplanation = document.createElement("div");
+            arxExplanation.style.marginTop = "15px";
+            arxExplanation.style.textAlign = "left";
+            arxExplanation.style.maxWidth = "600px";
+            
+            arxExplanation.innerHTML = `
+                <p><strong>ARX операції (Addition-Rotation-XOR):</strong></p>
+                <ul>
+                    <li><strong>Додавання (Addition)</strong> - забезпечує нелінійність та дифузію</li>
+                    <li><strong>Циклічний зсув (Rotation)</strong> - поширює вплив бітів по всьому слову</li>
+                    <li><strong>XOR</strong> - забезпечує лінійне перемішування</li>
+                </ul>
+                <p><strong>d = d <<< 2</strong> означає циклічний зсув вліво на 2 біти. Наприклад, 1101 <<< 2 = 0111</p>
+                <p>Ці три операції разом створюють складне нелінійне перетворення, важке для криптоаналізу.</p>
+            `;
+            
+            container.appendChild(arxExplanation);
+            
+            animationArea.appendChild(container);
+        }
+
+        // Функція для анімації додавання початкового стану
+        function animateFinalAddition() {
+            animationArea.innerHTML = '';
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("h3");
+            title.textContent = "Додавання початкового стану до результату раундів";
+            container.appendChild(title);
+            
+            const explanation = document.createElement("div");
+            explanation.innerHTML = `
+                <p>Після 2 раундів (у спрощеній версії) ми додаємо початковий стан до отриманого результату.</p>
+                <p>Це робиться для того, щоб зробити процес оберненим для дешифрування.</p>
+            `;
+            container.appendChild(explanation);
+            
+            const additionContainer = document.createElement("div");
+            additionContainer.style.display = "flex";
+            additionContainer.style.justifyContent = "center";
+            additionContainer.style.alignItems = "center";
+            additionContainer.style.marginTop = "15px";
+            
+            const stateBefore = document.createElement("div");
+            stateBefore.className = "state-container";
+            stateBefore.style.marginRight = "20px";
+            
+            const stateBeforeTitle = document.createElement("div");
+            stateBeforeTitle.textContent = "Результат раундів:";
+            stateBefore.appendChild(stateBeforeTitle);
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = currentState[index];
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                stateBefore.appendChild(row);
+            }
+            
+            const plus = document.createElement("div");
+            plus.className = "arrow";
+            plus.textContent = "+";
+            plus.style.margin = "0 20px";
+            plus.style.fontSize = "24px";
+            
+            const initialStateDiv = document.createElement("div");
+            initialStateDiv.className = "state-container";
+            initialStateDiv.style.marginRight = "20px";
+            
+            const initialStateTitle = document.createElement("div");
+            initialStateTitle.textContent = "Початковий стан:";
+            initialStateDiv.appendChild(initialStateTitle);
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = initialState[index];
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                initialStateDiv.appendChild(row);
+            }
+            
+            const equals = document.createElement("div");
+            equals.className = "arrow";
+            equals.textContent = "=";
+            equals.style.margin = "0 20px";
+            equals.style.fontSize = "24px";
+            
+            const resultState = document.createElement("div");
+            resultState.className = "state-container";
+            
+            const resultTitle = document.createElement("div");
+            resultTitle.textContent = "Ключовий потік:";
+            resultState.appendChild(resultTitle);
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    cell.style.backgroundColor = "#f39c12";
+                    
+                    const index = i * 4 + j;
+                    const result = (currentState[index] + initialState[index]) & 0b1111;
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(result);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = result;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                resultState.appendChild(row);
+            }
+            
+            additionContainer.appendChild(stateBefore);
+            additionContainer.appendChild(plus);
+            additionContainer.appendChild(initialStateDiv);
+            additionContainer.appendChild(equals);
+            additionContainer.appendChild(resultState);
+            
+            container.appendChild(additionContainer);
+            animationArea.appendChild(container);
+        }
+
+        // Функція для анімації шифрування
+        function animateEncryption() {
+            animationArea.innerHTML = '';
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("h3");
+            title.textContent = "Шифрування повідомлення";
+            container.appendChild(title);
+            
+            const explanation = document.createElement("div");
+            explanation.innerHTML = `
+                <p>Для шифрування ми виконуємо XOR між ключовим потоком і відкритим текстом.</p>
+                <p>Це робить процес симетричним - для дешифрування потрібно виконати ту саму операцію з тим же ключовим потоком.</p>
+            `;
+            container.appendChild(explanation);
+            
+            const encryptionContainer = document.createElement("div");
+            encryptionContainer.style.display = "flex";
+            encryptionContainer.style.justifyContent = "center";
+            encryptionContainer.style.alignItems = "center";
+            encryptionContainer.style.marginTop = "15px";
+            
+            const keyStream = document.createElement("div");
+            keyStream.className = "state-container";
+            keyStream.style.marginRight = "20px";
+            
+            const keyStreamTitle = document.createElement("div");
+            keyStreamTitle.textContent = "Ключовий потік:";
+            keyStream.appendChild(keyStreamTitle);
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    cell.style.backgroundColor = "#e74c3c";
+                    
+                    const index = i * 4 + j;
+                    const result = (currentState[index] + initialState[index]) & 0b1111;
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(result);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = result;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                keyStream.appendChild(row);
+            }
+            
+            const xor = document.createElement("div");
+            xor.className = "arrow";
+            xor.textContent = "⊕";
+            xor.style.margin = "0 20px";
+            xor.style.fontSize = "24px";
+            
+            const plaintext = document.createElement("div");
+            plaintext.className = "state-container";
+            plaintext.style.marginRight = "20px";
+            
+            const plaintextTitle = document.createElement("div");
+            plaintextTitle.textContent = "Відкритий текст:";
+            plaintext.appendChild(plaintextTitle);
+            
+            // Генеруємо випадковий відкритий текст
+            const plaintextData = [];
+            for (let i = 0; i < 16; i++) {
+                plaintextData[i] = generateRandom4Bit();
+            }
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "matrix-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    cell.style.backgroundColor = "#3498db";
+                    
+                    const index = i * 4 + j;
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(plaintextData[index]);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = plaintextData[index];
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                plaintext.appendChild(row);
+            }
+            
+            const equals = document.createElement("div");
+            equals.className = "arrow";
+            equals.textContent = "=";
+            equals.style.margin = "0 20px";
+            equals.style.fontSize = "24px";
+            
+            const ciphertext = document.createElement("div");
+            ciphertext.className = "state-container";
+            
+            const ciphertextTitle = document.createElement("div");
+            ciphertextTitle.textContent = "Шифротекст:";
+            ciphertext.appendChild(ciphertextTitle);
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    cell.style.backgroundColor = "#2ecc71";
+                    
+                    const index = i * 4 + j;
+                    const keyStreamValue = (currentState[index] + initialState[index]) & 0b1111;
+                    const result = keyStreamValue ^ plaintextData[index];
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(result);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = result;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                
+                ciphertext.appendChild(row);
+            }
+            
+            encryptionContainer.appendChild(keyStream);
+            encryptionContainer.appendChild(xor);
+            encryptionContainer.appendChild(plaintext);
+            encryptionContainer.appendChild(equals);
+            encryptionContainer.appendChild(ciphertext);
+            
+            container.appendChild(encryptionContainer);
+            animationArea.appendChild(container);
+        }
+
+// Функція для анімації початкового стану
+        function animateInitialState() {
+            animationArea.innerHTML = '';
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("h3");
+            title.textContent = "Сформований Початковий Стан";
+            container.appendChild(title);
+            
+            const stateContainer = document.createElement("div");
+            stateContainer.className = "state-container";
+            stateContainer.style.display = "inline-flex"; // Щоб Scontainer був по центру
+            stateContainer.style.flexDirection = "column"; // Scontainer має бути колонкою
+            stateContainer.style.alignItems = "center";
+            stateContainer.style.marginTop = "15px";
+
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = initialState[index]; // Використовуємо initialState
+                    
+                    // Додаємо двійкове та десяткове представлення
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    // Розфарбовуємо відповідно до типу
+                    if (index < 4) {
+                        cell.classList.add("constant-cell");
+                    } else if (index < 12) {
+                        cell.classList.add("key-cell");
+                    } else if (index === 12) {
+                        cell.classList.add("counter-cell");
+                    } else {
+                        cell.classList.add("nonce-cell");
+                    }
+                    
+                    row.appendChild(cell);
+                }
+                stateContainer.appendChild(row);
+            }
+            
+            container.appendChild(stateContainer);
+            animationArea.appendChild(container);
+        }
+        // НОВА ФУНКЦІЯ для демонстрації Лічильника
+        function animateNextBlock() {
+            animationArea.innerHTML = '';
+            
+            const container = document.createElement("div");
+            container.style.textAlign = "center";
+            
+            const title = document.createElement("h3");
+            title.textContent = "Підготовка до наступного блоку";
+            container.appendChild(title);
+            
+            const nextBlockContainer = document.createElement("div");
+            nextBlockContainer.style.display = "flex";
+            nextBlockContainer.style.justifyContent = "center";
+            nextBlockContainer.style.alignItems = "center";
+            nextBlockContainer.style.marginTop = "15px";
+
+            // Стан для Блоку N (поточний)
+            const initialStateDiv = document.createElement("div");
+            initialStateDiv.className = "state-container";
+            initialStateDiv.style.marginRight = "20px";
+            
+            const initialStateTitle = document.createElement("div");
+            initialStateTitle.textContent = "Початковий стан (Блок N):";
+            initialStateDiv.appendChild(initialStateTitle);
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    
+                    const index = i * 4 + j;
+                    const value = initialState[index];
+                    
+                    if (index === 12) cell.classList.add("highlight-operation"); // Підсвічуємо лічильник
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                initialStateDiv.appendChild(row);
+            }
+
+            const arrow = document.createElement("div");
+            arrow.className = "arrow";
+            arrow.textContent = "→";
+            arrow.style.margin = "0 20px";
+            arrow.style.fontSize = "24px";
+
+            // Стан для Блоку N+1 (наступний)
+            const nextStateDiv = document.createElement("div");
+            nextStateDiv.className = "state-container";
+            
+            const nextStateTitle = document.createElement("div");
+            nextStateTitle.textContent = "Початковий стан (Блок N+1):";
+            nextStateDiv.appendChild(nextStateTitle);
+
+            const newCounter = (initialState[12] + 1) & 0b1111; // Збільшуємо лічильник
+            
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "state-row";
+                
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    
+                    const index = i * 4 + j;
+                    let value = initialState[index];
+
+                    if (index === 12) {
+                        value = newCounter; // Використовуємо новий лічильник
+                        cell.classList.add("highlight-operation");
+                    }
+                    
+                    const binary = document.createElement("div");
+                    binary.className = "binary";
+                    binary.textContent = toBinary4Bit(value);
+                    
+                    const decimal = document.createElement("div");
+                    decimal.className = "decimal";
+                    decimal.textContent = value;
+                    
+                    cell.appendChild(binary);
+                    cell.appendChild(decimal);
+                    
+                    row.appendChild(cell);
+                }
+                nextStateDiv.appendChild(row);
+            }
+
+            nextBlockContainer.appendChild(initialStateDiv);
+            nextBlockContainer.appendChild(arrow);
+            nextBlockContainer.appendChild(nextStateDiv);
+            
+            container.appendChild(nextBlockContainer);
+            animationArea.appendChild(container);
+        }
+
+        // Функція для виконання наступного кроку
+        function nextStep() {
+            if (currentStep >= STEPS.length - 1) return;
+            
+            currentStep++;
+            updateStep();
+        }
+
+
+
+
+        // Функція для виконання попереднього кроку
+        function prevStep() {
+            if (currentStep <= 0) return;
+            
+            currentStep--;
+            updateStep();
+        }
+
+        // Функція для оновлення стану на основі поточного кроку
+        function updateStep() {
+            // Оновлюємо індикатор кроку
+            stepIndicator.textContent = `Крок ${currentStep}: ${STEPS[currentStep]}`;
+            
+            // Оновлюємо стан кнопок
+            prevStepBtn.disabled = currentStep === 0;
+            nextStepBtn.disabled = currentStep === STEPS.length - 1;
+            
+            // Очищаємо анімаційну область
+            animationArea.innerHTML = "";
+            
+            // *** ВИПРАВЛЕНА ЛОГІКА СИМУЛЯЦІЇ ***
+            // Скидаємо стан до початкового
+            currentState = [...initialState];
+            
+            // Повторно виконуємо всі *попередні* кроки, щоб отримати стан
+            // *до* поточного кроку
+            if (currentStep > 2) {
+                [currentState[0], currentState[4], currentState[8], currentState[12]] = 
+                    quarterRound4Bit(currentState[0], currentState[4], currentState[8], currentState[12]);
+            }
+            if (currentStep > 3) {
+                [currentState[1], currentState[5], currentState[9], currentState[13]] = 
+                    quarterRound4Bit(currentState[1], currentState[5], currentState[9], currentState[13]);
+            }
+            if (currentStep > 4) {
+                [currentState[2], currentState[6], currentState[10], currentState[14]] = 
+                    quarterRound4Bit(currentState[2], currentState[6], currentState[10], currentState[14]);
+            }
+            if (currentStep > 5) {
+                [currentState[3], currentState[7], currentState[11], currentState[15]] = 
+                    quarterRound4Bit(currentState[3], currentState[7], currentState[11], currentState[15]);
+            }
+            if (currentStep > 6) {
+                [currentState[0], currentState[5], currentState[10], currentState[15]] = 
+                    quarterRound4Bit(currentState[0], currentState[5], currentState[10], currentState[15]);
+            }
+            if (currentStep > 7) {
+                [currentState[1], currentState[6], currentState[11], currentState[12]] = 
+                    quarterRound4Bit(currentState[1], currentState[6], currentState[11], currentState[12]);
+            }
+            if (currentStep > 8) {
+                [currentState[2], currentState[7], currentState[8], currentState[13]] = 
+                    quarterRound4Bit(currentState[2], currentState[7], currentState[8], currentState[13]);
+            }
+            if (currentStep > 9) {
+                [currentState[3], currentState[4], currentState[9], currentState[14]] = 
+                    quarterRound4Bit(currentState[3], currentState[4], currentState[9], currentState[14]);
+            }
+
+            // Зберігаємо стан *до* виконання поточного кроку для анімації
+            const beforeState = [...currentState];
+            
+            // Виконуємо дії залежно від поточного кроку
+            switch (currentStep) {
+                case 0: // Початковий стан
+                    explanation.innerHTML = `
+                        <p><strong>Початковий стан ChaCha20 (4-бітна версія).</strong></p>
+                        <p>ChaCha20 використовує матрицю 4x4 з 4-бітними словами для свого стану.</p>
+                        <p>Стан ініціалізується з:</p>
+                        <ul>
+                            <li><strong>Константи</strong> (синій): фіксовані значення [6, 7, 8, 9]</li>
+                            <li><strong>Ключа</strong> (червоний): 32 біти (8 слів по 4 біти)</li>
+                            <li><strong>Лічильника</strong> (зелений): починається з випадкового значення і збільшується для кожного блоку</li>
+                            <li><strong>Nonce</strong> (фіолетовий): унікальне значення для кожного повідомлення</li>
+                        </ul>
+                        <p><strong>Nonce</strong> (Number Used Once) - це унікальне значення, яке використовується один раз разом з ключем. 
+                           Воно гарантує, що навіть при використанні одного ключа для різних повідомлень, ключовий потік буде різним. 
+                           <strong>Критично важливо ніколи не використовувати ту саму пару (Ключ, Nonce) двічі!</strong></p>
+                        <p><strong>Лічильник</strong> (зелений) використовується для шифрування довгих повідомлень, які розбиваються на блоки. 
+                           Для першого блоку лічильник = 0 (або 1), для другого = 1 (або 2) і т.д. 
+                           Це гарантує, що кожен блок даних шифрується унікальним ключовим потоком, навіть якщо Ключ і Nonce однакові.</p>
+                        <p>У справжньому ChaCha20 використовуються 32-бітні слова за модулем 2^32, але для простоти ми використовуємо 4-бітні слова за модулем 16.</p>
+                    `;
+                    break;
+                    
+       case 1: // Ініціалізація стану
+                    explanation.innerHTML = `
+                        <p><strong>Ініціалізація стану ChaCha20.</strong></p>
+                        <p>Матриця стану 4x4 заповнюється за чітким порядком, "серіалізуючи" вхідні дані:</p>
+                        <ul>
+                            <li><strong><code>[0]</code>-<code>[3]</code> (перший рядок):</strong> Заповнюється <strong>Константами</strong> (синій).</li>
+                            <li><strong><code>[4]</code>-<code>[11]</code> (другий та третій рядки):</strong> Заповнюється 8-ма частинами <strong>Ключа</strong> (червоний).</li>
+                            <li><strong><code>[12]</code> (початок четвертого рядка):</strong> Заповнюється <strong>Лічильником</strong> (зелений).</li>
+                            <li><strong><code>[13]</code>-<code>[15]</code> (решта четвертого рядка):</strong> Заповнюється 3-ма частинами <strong>Nonce</strong> (фіолетовий).</li>
+                        </ul>
+                        <p>Ця структура гарантує, що кожен виклик ChaCha20 з різним nonce або лічильником 
+                           генерує абсолютно різний ключовий потік, навіть з тим самим ключем.</p>
+                        <p>В анімаційній зоні нижче показано цей початковий стан, який є відправною точкою для всіх раундів.</p>
+                    `;
+                    animateInitialState(); // ВИКЛИКАЄМО НОВУ ФУНКЦІЮ
+                    break;
+                    
+                case 2: // Раунд 1: Quarter Round 1
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 1: Стовпцевий Quarter Round 1.</strong></p>
+                        <p>Кожен раунд ChaCha20 складається з 8 quarter rounds (4 для стовпців і 4 для діагоналей).</p>
+                        <p>Quarter round - це серія операцій ARX (Addition-Rotation-XOR) над чотирма словами стану.</p>
+                        <p>У цьому першому "стовпцевому" раунді ми беремо перший стовпець матриці: 
+                            <code>a = стан[0]</code>, 
+                            <code>b = стан[4]</code>, 
+                            <code>c = стан[8]</code>, 
+                            <code>d = стан[12]</code>. 
+                            Анімація нижче показує, як ці значення оновлюються.</p>
+                    `;
+                    // Виконуємо QR
+                    [currentState[0], currentState[4], currentState[8], currentState[12]] = 
+                        quarterRound4Bit(beforeState[0], beforeState[4], beforeState[8], beforeState[12]);
+                    // Анімуємо (передаємо стан ДО)
+                    animateQuarterRound(1, 1, [0, 4, 8, 12], "Стовпцевий", beforeState);
+                    break;
+                    
+                case 3: // Раунд 1: Quarter Round 2
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 1: Стовпцевий Quarter Round 2.</strong></p>
+                        <p>Продовжуємо обробку стовпців. Тепер беремо другий стовпець:</p>
+                        <p><code>a = стан[1]</code>, 
+                           <code>b = стан[5]</code>, 
+                           <code>c = стан[9]</code>, 
+                           <code>d = стан[13]</code>.</p>
+                        <p>Кожен quarter round впливає на чотири слова стану, забезпечуючи дифузію.</p>
+                    `;
+                    [currentState[1], currentState[5], currentState[9], currentState[13]] = 
+                        quarterRound4Bit(beforeState[1], beforeState[5], beforeState[9], beforeState[13]);
+                    animateQuarterRound(1, 2, [1, 5, 9, 13], "Стовпцевий", beforeState);
+                    break;
+                    
+                case 4: // Раунд 1: Quarter Round 3
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 1: Стовпцевий Quarter Round 3.</strong></p>
+                        <p>Обробляємо третій стовпець:</p>
+                        <p><code>a = стан[2]</code>, 
+                           <code>b = стан[6]</code>, 
+                           <code>c = стан[10]</code>, 
+                           <code>d = стан[14]</code>.</p>
+                        <p>Операції додавання, XOR та циклічного зсуву забезпечують нелінійність, необхідну для безпечного шифрування.</p>
+                    `;
+                    [currentState[2], currentState[6], currentState[10], currentState[14]] = 
+                        quarterRound4Bit(beforeState[2], beforeState[6], beforeState[10], beforeState[14]);
+                    animateQuarterRound(1, 3, [2, 6, 10, 14], "Стовпцевий", beforeState);
+                    break;
+                    
+                case 5: // Раунд 1: Quarter Round 4
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 1: Стовпцевий Quarter Round 4.</strong></p>
+                        <p>Завершуємо обробку стовпців останнім стовпцем:</p>
+                        <p><code>a = стан[3]</code>, 
+                           <code>b = стан[7]</code>, 
+                           <code>c = стан[11]</code>, 
+                           <code>d = стан[15]</code>.</p>
+                        <p>Після обробки всіх стовпців переходимо до обробки діагоналей.</p>
+                    `;
+                    [currentState[3], currentState[7], currentState[11], currentState[15]] = 
+                        quarterRound4Bit(beforeState[3], beforeState[7], beforeState[11], beforeState[15]);
+                    animateQuarterRound(1, 4, [3, 7, 11, 15], "Стовпцевий", beforeState);
+                    break;
+                    
+                case 6: // Раунд 2: Quarter Round 1
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 2: Діагональний Quarter Round 1.</strong></p>
+                        <p>Після обробки стовпців починаємо обробку діагоналей матриці стану.</p>
+                        <p>Перша діагональ:</p>
+                        <p><code>a = стан[0]</code>, 
+                           <code>b = стан[5]</code>, 
+                           <code>c = стан[10]</code>, 
+                           <code>d = стан[15]</code>.</p>
+                        <p>Чергування обробки стовпців і діагоналей робить алгоритм стійким до криптоаналізу.</p>
+                    `;
+                    [currentState[0], currentState[5], currentState[10], currentState[15]] = 
+                        quarterRound4Bit(beforeState[0], beforeState[5], beforeState[10], beforeState[15]);
+                    animateQuarterRound(2, 1, [0, 5, 10, 15], "Діагональний", beforeState);
+                    break;
+                    
+                case 7: // Раунд 2: Quarter Round 2
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 2: Діагональний Quarter Round 2.</strong></p>
+                        <p>Обробляємо другу діагональ:</p>
+                        <p><code>a = стан[1]</code>, 
+                           <code>b = стан[6]</code>, 
+                           <code>c = стан[11]</code>, 
+                           <code>d = стан[12]</code>.</p>
+                    `;
+                    [currentState[1], currentState[6], currentState[11], currentState[12]] = 
+                        quarterRound4Bit(beforeState[1], beforeState[6], beforeState[11], beforeState[12]);
+                    animateQuarterRound(2, 2, [1, 6, 11, 12], "Діагональний", beforeState);
+                    break;
+                    
+                case 8: // Раунд 2: Quarter Round 3
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 2: Діагональний Quarter Round 3.</strong></p>
+                        <p>Обробляємо третю діагональ:</p>
+                        <p><code>a = стан[2]</code>, 
+                           <code>b = стан[7]</code>, 
+                           <code>c = стан[8]</code>, 
+                           <code>d = стан[13]</code>.</p>
+                    `;
+                    [currentState[2], currentState[7], currentState[8], currentState[13]] = 
+                        quarterRound4Bit(beforeState[2], beforeState[7], beforeState[8], beforeState[13]);
+                    animateQuarterRound(2, 3, [2, 7, 8, 13], "Діагональний", beforeState);
+                    break;
+                    
+                case 9: // Раунд 2: Quarter Round 4
+                    explanation.innerHTML = `
+                        <p><strong>Раунд 2: Діагональний Quarter Round 4.</strong></p>
+                        <p>Обробляємо четверту (останню) діагональ:</p>
+                        <p><code>a = стан[3]</code>, 
+                           <code>b = стан[4]</code>, 
+                           <code>c = стан[9]</code>, 
+                           <code>d = стан[14]</code>.</p>
+                        <p>Після завершення всіх раундів стан буде достатньо перемішаним.</p>
+                    `;
+                    [currentState[3], currentState[4], currentState[9], currentState[14]] = 
+                        quarterRound4Bit(beforeState[3], beforeState[4], beforeState[9], beforeState[14]);
+                    animateQuarterRound(2, 4, [3, 4, 9, 14], "Діагональний", beforeState);
+                    break;
+                    
+                case 10: // Додавання початкового стану
+                    explanation.innerHTML = `
+                        <p><strong>Додавання початкового стану.</strong></p>
+                        <p>Після завершення всіх раундів ми додаємо (за модулем 2^4) початковий стан до отриманого результату.</p>
+                        <p>Отримана сума є ключовим потоком, який використовується для шифрування.</p>
+                    `;
+                    animateFinalAddition();
+                    break;
+                    
+                case 11: // Генерація ключового потоку
+                    explanation.innerHTML = `
+                        <p><strong>Генерація ключового потоку.</strong></p>
+                        <p>Ключовий потік - це результат додавання початкового стану до стану після раундів.</p>
+                        <p>Цей потік буде абсолютно унікальним для кожної комбінації ключа, nonce та лічильника.</p>
+                        <p>Для шифрування наступного блоку даних ми збільшуємо лічильник і повторюємо процес.</p>
+                    `;
+                    animateFinalAddition(); // Показуємо ту саму анімацію, що й на кроці 10
+                    break;
+                    
+                case 12: // Шифрування повідомлення
+                    explanation.innerHTML = `
+                        <p><strong>Шифрування повідомлення.</strong></p>
+                        <p>Для шифрування ми виконуємо операцію XOR між ключовим потоком і відкритим текстом.</p>
+                        <p>XOR - це ідеальна операція для потокового шифрування, оскільки вона обернена сама собі:</p>
+                        <p>Відкритий текст ⊕ Ключовий потік = Шифротекст</p>
+                        <p>Шифротекст ⊕ Ключовий потік = Відкритий текст</p>
+                        <p>Це робить процес симетричним - той самий ключовий потік використовується для шифрування і дешифрування.</p>
+                    `;
+                    animateEncryption();
+                    break;
+                
+                case 13: // НОВИЙ КРОК: Роль Лічильника
+                    explanation.innerHTML = `
+                        <p><strong>Роль Лічильника (Counter) і Nonce.</strong></p>
+                        <p>Ми щойно згенерували 1 блок (16 слів) ключового потоку і зашифрували 1 блок даних.</p>
+                        <p>Що, якби наше повідомлення було довшим?</p>
+                        <p><strong>1. Nonce (фіолетовий):</strong> Nonce (Number Used Once) <strong>залишається тим самим</strong> для всього повідомлення. Його головна задача - гарантувати, що ми ніколи не використаємо той самий (Ключ, Nonce) для <em>іншого</em> повідомлення.</p>
+                        <p><strong>2. Лічильник (зелений):</strong> Лічильник <strong>збільшується на 1</strong> для кожного наступного блоку даних. Це гарантує, що кожен блок того самого повідомлення шифрується унікальним ключовим потоком.</p>
+                        <p>Нижче показано, як би ми ініціалізували стан для шифрування <strong>наступного</strong> блоку:</p>
+                    `;
+                    animateNextBlock();
+                    break;
+
+                case 14: // Завершено
+                    explanation.innerHTML = `
+                        <p><strong>Шифрування завершено!</strong></p>
+                        <p>ChaCha20 - це сучасний, безпечний та ефективний потоковий шифр.</p>
+                        <p>Його переваги:</p>
+                        <ul>
+                            <li>Простий у реалізації та аналізі</li>
+                            <li>Швидкий на різних платформах</li>
+                            <li>Стійкий до атак</li>
+                            <li>Не використовує складні операції (такі як S-блоки або множення в полях Галуа)</li>
+                            <li>Використовує ARX конструкцію (Addition-Rotation-XOR)</li>
+                        </ul>
+                        <p><strong>У справжньому ChaCha20:</strong></p>
+                        <ul>
+                            <li>Використовуються 32-бітні слова за модулем 2^32</li>
+                            <li>Ключ має 256 біт (8 слів по 32 біти)</li>
+                            <li>Виконується 20 раундів (10 подвійних раундів)</li>
+                            <li>Зсуви: 16, 12, 8, 7</li>
+                        </ul>
+                    `;
+                    break;
+            }
+            
+            // Оновлюємо відображення матриці стану
+            updateStateMatrix();
+            updateKeyMatrix();
+        }
+
+        // Функція для скидання симулятора
+        function resetSimulator() {
+            currentStep = 0;
+            initializeState();
+            updateStep();
+        }
+
+        // Додаємо обробники подій
+        nextStepBtn.addEventListener("click", nextStep);
+        prevStepBtn.addEventListener("click", prevStep);
+        resetBtn.addEventListener("click", resetSimulator);
+
+        // Ініціалізація
+        initializeState();
+        updateStep();
+    </script>
+</body>
+</html>

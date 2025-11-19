@@ -1,0 +1,1020 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Симулятор мереж Штейнера</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        .textured-canvas-wrapper {
+            background-image: url('background.png');
+            background-repeat: repeat;
+            background-color: transparent;
+        }
+        #totalCost {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .button-container button, .button-container label button {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4da8da;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            min-width: 120px;
+            text-align: center;
+        }
+        .button-container button:hover, .button-container label button:hover {
+            background-color: #3b8fc1;
+        }
+        #loadInput {
+            display: none;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        #bridgeMultiplier {
+            width: 60px;
+            padding: 5px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        details {
+            width: 800px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            padding: 5px;
+        }
+        details[open] summary {
+            margin-bottom: 5px;
+        }
+        details p, details ul {
+            margin: 0;
+            padding: 0 10px 10px;
+        }
+        details ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <details>
+        <summary>Гарячі клавіші</summary>
+        <ul>
+            <li><strong>Лівий клік</strong>: Додати точку графа (якщо не ближче 20 пікселів до інших) або точку перешкоди (в режимі перешкоди).</li>
+            <li><strong>Shift + клік</strong>: Виділити/зняти виділення точки графа (до 3-х) або точки перешкоди (помаранчеві, якщо видно).</li>
+            <li><strong>Shift відпускання (2 точки графа)</strong>: Додати ребро.</li>
+            <li><strong>Shift відпускання (3 точки графа)</strong>: Додати точку Ферма та ребра.</li>
+            <li><strong>Ctrl + клік на точці</strong>: Видалити точку графа/перешкоди (для перешкоди ≥4 точки, якщо видно).</li>
+            <li><strong>Ctrl + клік на ребрі</strong>: Видалити ребро.</li>
+            <li><strong>Ctrl + Z</strong>: Скасувати останню дію.</li>
+            <li><strong>Клік + перетягування червоної/помаранчевої точки</strong>: Перемістити виділені точки.</li>
+        </ul>
+    </details>
+    <div class="button-container">
+        <button id="connectButton">З'єднати</button>
+        <button id="optimizeButton">Оптимізувати</button>
+        <button id="disconnectButton">Роз'єднати</button>
+        <button id="clearButton">Очистити канву</button>
+        <button id="obstacleButton">Створити перешкоду</button>
+        <button id="saveButton">Зберегти</button>
+        <label for="loadInput">
+            <button id="loadBtn">Завантажити</button>
+        </label>
+        <input type="file" id="loadInput" accept=".json">
+        <div class="checkbox-container">
+            <input type="checkbox" id="allowBridges">
+            <label for="allowBridges">Дозволити мости</label>
+            <label for="bridgeMultiplier">Множник вартості:</label>
+            <input type="number" id="bridgeMultiplier" value="2" min="1" step="0.01">
+        </div>
+    </div>
+    <div id="totalCost">Вартість: 0</div>
+    <details>
+        <summary>Про задачу Торічеллі та мережі Штейнера</summary>
+        <p>Задача Торічеллі полягає у знаходженні точки (Ферма-Торічеллі), яка мінімізує суму відстаней до трьох точок. Ця точка утворює кути 120°, якщо всі кути трикутника <120°. Якщо кут ≥120°, точка збігається з вершиною.</p>
+        <p>Мережі Штейнера розширюють ідею, будуючи дерево мінімальної довжини з додаванням точок Штейнера, зменшуючи загальну суму.</p>
+        <p><strong>Застосування:</strong></p>
+        <ul>
+            <li>Телекомунікації: оптимізація кабелів.</li>
+            <li>Транспорт: планування доріг/залізниць.</li>
+            <li>Електромережі: проектування ліній.</li>
+            <li>Комп'ютерні мережі: розташування серверів.</li>
+        </ul>
+        <p><strong>Складність:</strong> Задача NP-складна через експоненціальне зростання комбінацій точок Штейнера.</p>
+    </details>
+    <script>
+        let points = [];
+        let edges = [];
+        let selectedPoints = [];
+        let totalLength = 0;
+        let history = [];
+        const POINT_RADIUS = 10;
+        const MIN_DISTANCE = POINT_RADIUS * 2; // 20px
+        let isDragging = false;
+        let dragOffsets = [];
+        let obstacleMode = false;
+        let obstaclePoints = [];
+        let selectedObstaclePoints = [];
+        let obstacleActive = false;
+        let showObstaclePoints = false;
+        let allowBridges = false;
+        let bridgeMultiplier = 2;
+
+        function setup() {
+            let canvas = createCanvas(800, 600);
+            canvas.class('textured-canvas-wrapper');
+            select('#connectButton').mousePressed(runKruskal);
+            select('#optimizeButton').mousePressed(optimizeWithFermat);
+            select('#disconnectButton').mousePressed(disconnect);
+            select('#clearButton').mousePressed(clearCanvas);
+            select('#obstacleButton').mousePressed(toggleObstacleMode);
+            select('#saveButton').mousePressed(saveConfig);
+            select('#loadBtn').mousePressed(() => select('#loadInput').elt.click());
+            select('#loadInput').changed(loadConfig);
+            select('#allowBridges').elt.onchange = () => {
+                allowBridges = select('#allowBridges').elt.checked;
+                updateTotalLength();
+                redraw();
+            };
+            select('#bridgeMultiplier').elt.oninput = () => {
+                bridgeMultiplier = parseFloat(select('#bridgeMultiplier').elt.value) || 2;
+                console.log('Множник змінено на:', bridgeMultiplier);
+                updateTotalLength();
+                redraw();
+            };
+        }
+
+        function draw() {
+            clear();
+            if (obstacleActive && obstaclePoints.length >= 3) {
+                fill(0, 0, 255, 100);
+                noStroke();
+                beginShape();
+                for (let p of obstaclePoints) {
+                    curveVertex(p.x, p.y);
+                }
+                curveVertex(obstaclePoints[0].x, obstaclePoints[0].y);
+                curveVertex(obstaclePoints[1].x, obstaclePoints[1].y);
+                curveVertex(obstaclePoints[2].x, obstaclePoints[2].y);
+                endShape();
+            }
+            if (showObstaclePoints) {
+                for (let p of obstaclePoints) {
+                    fill(p.selected ? 'orange' : 'yellow');
+                    circle(p.x, p.y, POINT_RADIUS);
+                }
+            }
+            for (let p of points) {
+                if (p.selected) {
+                    fill('red');
+                } else if (p.isFermat) {
+                    fill('green');
+                } else {
+                    fill('black');
+                }
+                circle(p.x, p.y, POINT_RADIUS);
+            }
+            for (let e of edges) {
+                let isBridge = intersectsObstacle(e.p1.x, e.p1.y, e.p2.x, e.p2.y, false);
+                if (isBridge) {
+                    console.log('Малюємо міст:', e.p1, e.p2);
+                    stroke(200, 0, 200);
+                } else {
+                    stroke(0, 0, 255);
+                }
+                line(e.p1.x, e.p1.y, e.p2.x, e.p2.y);
+            }
+        }
+
+        function toggleObstacleMode() {
+            obstacleMode = !obstacleMode;
+            if (obstacleMode) {
+                showObstaclePoints = true;
+                if (obstacleActive) {
+                    // Редагування існуючої перешкоди
+                } else {
+                    obstaclePoints = [];
+                    obstacleActive = false;
+                }
+            } else {
+                if (obstaclePoints.length >= 3) {
+                    obstacleActive = true;
+                    showObstaclePoints = false;
+                } else {
+                    obstaclePoints = [];
+                    obstacleActive = false;
+                    showObstaclePoints = false;
+                }
+            }
+            saveState();
+        }
+
+        function mousePressed() {
+            if (mouseY < 0 || mouseY > height || mouseX < 0 || mouseX > width) return;
+
+            if (obstacleMode) {
+                let closestObstaclePoint = findClosestObstaclePoint(mouseX, mouseY);
+                if (keyIsDown(SHIFT) && closestObstaclePoint && dist(mouseX, mouseY, closestObstaclePoint.x, closestObstaclePoint.y) < POINT_RADIUS / 2) {
+                    if (!closestObstaclePoint.selected) {
+                        closestObstaclePoint.selected = true;
+                        selectedObstaclePoints.push(closestObstaclePoint);
+                    } else {
+                        closestObstaclePoint.selected = false;
+                        selectedObstaclePoints = selectedObstaclePoints.filter(p => p !== closestObstaclePoint);
+                    }
+                    saveState();
+                    return;
+                }
+                if (keyIsDown(CONTROL) && closestObstaclePoint && dist(mouseX, mouseY, closestObstaclePoint.x, closestObstaclePoint.y) < POINT_RADIUS / 2 && obstaclePoints.length > 3) {
+                    obstaclePoints = obstaclePoints.filter(p => p !== closestObstaclePoint);
+                    selectedObstaclePoints = selectedObstaclePoints.filter(p => p !== closestObstaclePoint);
+                    obstacleActive = obstaclePoints.length >= 3;
+                    saveState();
+                    return;
+                }
+                if (!keyIsDown(SHIFT) && !keyIsDown(CONTROL) && showObstaclePoints && closestObstaclePoint && closestObstaclePoint.selected && dist(mouseX, mouseY, closestObstaclePoint.x, closestObstaclePoint.y) < POINT_RADIUS / 2) {
+                    isDragging = true;
+                    dragOffsets = selectedObstaclePoints.map(p => ({
+                        point: p,
+                        dx: p.x - mouseX,
+                        dy: p.y - mouseY,
+                        isObstacle: true
+                    }));
+                    return;
+                }
+                if (!keyIsDown(SHIFT) && !keyIsDown(CONTROL)) {
+                    let tooClose = obstaclePoints.some(p => dist(mouseX, mouseY, p.x, p.y) < MIN_DISTANCE) ||
+                                   points.some(p => dist(mouseX, mouseY, p.x, p.y) < MIN_DISTANCE);
+                    if (!tooClose) {
+                        obstaclePoints.push({ x: mouseX, y: mouseY, selected: false });
+                        saveState();
+                    } else {
+                        console.log('Точка перешкоди занадто близько, пропускаємо');
+                    }
+                    return;
+                }
+            }
+
+            let closestPoint = findClosestPoint(mouseX, mouseY);
+            let closestEdge = findClosestEdge(mouseX, mouseY);
+            if (keyIsDown(CONTROL)) {
+                if (closestPoint && dist(mouseX, mouseY, closestPoint.x, closestPoint.y) < POINT_RADIUS / 2) {
+                    points = points.filter(p => p !== closestPoint);
+                    edges = edges.filter(e => e.p1 !== closestPoint && e.p2 !== closestPoint);
+                    selectedPoints = selectedPoints.filter(p => p !== closestPoint);
+                    saveState();
+                } else if (closestEdge && closestEdge.dist < 10) {
+                    edges = edges.filter(e => e !== closestEdge.edge);
+                    saveState();
+                }
+            } else if (keyIsDown(SHIFT)) {
+                if (closestPoint && dist(mouseX, mouseY, closestPoint.x, closestPoint.y) < POINT_RADIUS / 2) {
+                    if (!closestPoint.selected && selectedPoints.length < 3) {
+                        closestPoint.selected = true;
+                        selectedPoints.push(closestPoint);
+                    } else if (closestPoint.selected) {
+                        closestPoint.selected = false;
+                        selectedPoints = selectedPoints.filter(p => p !== closestPoint);
+                    }
+                    saveState();
+                }
+            } else {
+                if (closestPoint && closestPoint.selected && dist(mouseX, mouseY, closestPoint.x, closestPoint.y) < POINT_RADIUS / 2) {
+                    isDragging = true;
+                    dragOffsets = selectedPoints.map(p => ({
+                        point: p,
+                        dx: p.x - mouseX,
+                        dy: p.y - mouseY,
+                        isObstacle: false
+                    }));
+                } else {
+                    let tooClose = points.some(p => dist(mouseX, mouseY, p.x, p.y) < MIN_DISTANCE) ||
+                                   obstaclePoints.some(p => dist(mouseX, mouseY, p.x, p.y) < MIN_DISTANCE);
+                    if (!tooClose) {
+                        let newPoint = { x: mouseX, y: mouseY, selected: false, isFermat: false };
+                        points.push(newPoint);
+                        saveState();
+                    } else {
+                        console.log('Нова точка занадто близько, пропускаємо');
+                    }
+                }
+            }
+            updateTotalLength();
+        }
+
+        function mouseDragged() {
+            if (isDragging && mouseY >= 0 && mouseY <= height && mouseX >= 0 && mouseX <= width) {
+                for (let offset of dragOffsets) {
+                    let newX = mouseX + offset.dx;
+                    let newY = mouseY + offset.dy;
+                    let tooClose = false;
+                    if (offset.isObstacle) {
+                        tooClose = obstaclePoints.some(p => p !== offset.point && dist(newX, newY, p.x, p.y) < MIN_DISTANCE) ||
+                                   points.some(p => dist(newX, newY, p.x, p.y) < MIN_DISTANCE);
+                    } else {
+                        tooClose = points.some(p => p !== offset.point && dist(newX, newY, p.x, p.y) < MIN_DISTANCE) ||
+                                   obstaclePoints.some(p => dist(newX, newY, p.x, p.y) < MIN_DISTANCE);
+                    }
+                    if (!tooClose) {
+                        offset.point.x = newX;
+                        offset.point.y = newY;
+                    }
+                }
+                updateTotalLength();
+            }
+        }
+
+        function mouseReleased() {
+            if (isDragging) {
+                isDragging = false;
+                dragOffsets = [];
+                saveState();
+            }
+        }
+
+        function keyReleased() {
+            if (keyCode === SHIFT) {
+                if (selectedPoints.length === 2) {
+                    addEdge(selectedPoints[0], selectedPoints[1]);
+                    clearSelection();
+                    saveState();
+                } else if (selectedPoints.length === 3) {
+                    addFermatPoint(selectedPoints[0], selectedPoints[1], selectedPoints[2]);
+                    clearSelection();
+                    saveState();
+                }
+            }
+        }
+
+        function keyPressed() {
+            if (keyIsDown(CONTROL) && keyCode === 90) {
+                undo();
+            }
+        }
+
+        function findClosestPoint(x, y) {
+            let minDist = Infinity;
+            let closest = null;
+            for (let p of points) {
+                let d = dist(x, y, p.x, p.y);
+                if (d < minDist) {
+                    minDist = d;
+                    closest = p;
+                }
+            }
+            return closest;
+        }
+
+        function findClosestObstaclePoint(x, y) {
+            if (!obstacleMode) return null;
+            let minDist = Infinity;
+            let closest = null;
+            for (let p of obstaclePoints) {
+                let d = dist(x, y, p.x, p.y);
+                if (d < minDist) {
+                    minDist = d;
+                    closest = p;
+                }
+            }
+            return closest;
+        }
+
+        function findClosestEdge(x, y) {
+            let minDist = Infinity;
+            let closestEdge = null;
+            for (let e of edges) {
+                let d = pointToLineDistance(x, y, e.p1.x, e.p1.y, e.p2.x, e.p2.y);
+                if (d < minDist) {
+                    minDist = d;
+                    closestEdge = e;
+                }
+            }
+            return { edge: closestEdge, dist: minDist };
+        }
+
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            let A = px - x1;
+            let B = py - y1;
+            let C = x2 - x1;
+            let D = y2 - y1;
+            let dot = A * C + B * D;
+            let len_sq = C * C + D * D;
+            let param = len_sq !== 0 ? dot / len_sq : -1;
+            let xx, yy;
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+            let dx = px - xx;
+            let dy = py - yy;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function approximateCurvePoints() {
+            if (obstaclePoints.length < 3) return [];
+            let curvePoints = [];
+            let steps = 10; // Кількість точок на сегмент кривої
+            let closedPoints = [...obstaclePoints, obstaclePoints[0], obstaclePoints[1], obstaclePoints[2]];
+
+            function catmullRom(t, p0, p1, p2, p3) {
+                let t2 = t * t;
+                let t3 = t2 * t;
+                let x = 0.5 * ((2 * p1.x) +
+                    (-p0.x + p2.x) * t +
+                    (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+                    (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+                let y = 0.5 * ((2 * p1.y) +
+                    (-p0.y + p2.y) * t +
+                    (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+                    (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+                return { x, y };
+            }
+
+            for (let i = 0; i < obstaclePoints.length; i++) {
+                let p0 = closedPoints[i];
+                let p1 = closedPoints[i + 1];
+                let p2 = closedPoints[i + 2];
+                let p3 = closedPoints[i + 3];
+                for (let t = 0; t <= 1; t += 1 / steps) {
+                    let point = catmullRom(t, p0, p1, p2, p3);
+                    curvePoints.push(point);
+                }
+            }
+            return curvePoints;
+        }
+
+        function isPointInsideObstacle(px, py) {
+            if (!obstacleActive || obstaclePoints.length < 3) return false;
+            let curvePoints = approximateCurvePoints();
+            if (curvePoints.length < 3) return false;
+            let inside = false;
+            for (let i = 0, j = curvePoints.length - 1; i < curvePoints.length; j = i++) {
+                let xi = curvePoints[i].x, yi = curvePoints[i].y;
+                let xj = curvePoints[j].x, yj = curvePoints[j].y;
+                let intersect = ((yi > py) !== (yj > py)) &&
+                    (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function intersectsObstacle(x1, y1, x2, y2, forOptimization = false) {
+            if (!obstacleActive || obstaclePoints.length < 3) return false;
+
+            function segmentsIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+                function orientation(px, py, qx, qy, rx, ry) {
+                    let val = (qy - py) * (rx - qx) - (qx - px) * (ry - qy);
+                    if (Math.abs(val) < 1e-10) return 0;
+                    return val > 0 ? 1 : 2;
+                }
+                let o1 = orientation(ax, ay, bx, by, cx, cy);
+                let o2 = orientation(ax, ay, bx, by, dx, dy);
+                let o3 = orientation(cx, cy, dx, dy, ax, ay);
+                let o4 = orientation(cx, cy, dx, dy, bx, by);
+                if (o1 !== o2 && o3 !== o4) return true;
+                return false;
+            }
+
+            // Якщо обидві точки ребра всередині перешкоди, це не міст
+            if (isPointInsideObstacle(x1, y1) && isPointInsideObstacle(x2, y2)) {
+                console.log('Ребро всередині перешкоди, не міст:', { x1, y1 }, { x2, y2 });
+                return false;
+            }
+
+            let curvePoints = approximateCurvePoints();
+            if (curvePoints.length < 2) return false;
+
+            let intersects = false;
+            for (let i = 0; i < curvePoints.length - 1; i++) {
+                let p1 = curvePoints[i];
+                let p2 = curvePoints[i + 1];
+                if (segmentsIntersect(x1, y1, x2, y2, p1.x, p1.y, p2.x, p2.y)) {
+                    intersects = true;
+                    console.log('Ребро перетинає криву:', { x1, y1 }, { x2, y2 }, 'at', p1, p2);
+                    if (forOptimization || !allowBridges) return true;
+                }
+            }
+            return allowBridges ? intersects : false;
+        }
+
+        function addEdge(p1, p2) {
+            if (p1 === p2 || edges.some(e => (e.p1 === p1 && e.p2 === p2) || (e.p1 === p2 && e.p2 === p1))) {
+                console.log('Ребро вже існує або некоректне, пропускаємо');
+                return;
+            }
+            let isBridge = intersectsObstacle(p1.x, p1.y, p2.x, p2.y, false);
+            if (isBridge && !allowBridges) {
+                console.log('Ребро перетинає перешкоду, пропускаємо');
+                return;
+            }
+            edges.push({ p1, p2, isUserBridge: isBridge });
+            updateTotalLength();
+        }
+
+        function clearSelection() {
+            for (let p of points) {
+                p.selected = false;
+            }
+            for (let p of obstaclePoints) {
+                p.selected = false;
+            }
+            selectedPoints = [];
+            selectedObstaclePoints = [];
+        }
+
+        function runKruskal() {
+            let userBridges = edges.filter(e => e.isUserBridge);
+            let possibleEdges = [];
+            for (let i = 0; i < points.length; i++) {
+                for (let j = i + 1; j < points.length; j++) {
+                    let p1 = points[i];
+                    let p2 = points[j];
+                    let isBridge = intersectsObstacle(p1.x, p1.y, p2.x, p2.y, false);
+                    if (!isBridge || allowBridges) {
+                        let d = dist(p1.x, p1.y, p2.x, p2.y);
+                        if (isBridge) d *= bridgeMultiplier;
+                        possibleEdges.push({ p1, p2, weight: d, isUserBridge: false });
+                    }
+                }
+            }
+            userBridges.forEach(e => {
+                let d = dist(e.p1.x, e.p1.y, e.p2.x, e.p2.y) * bridgeMultiplier;
+                possibleEdges.push({ p1: e.p1, p2: e.p2, weight: d, isUserBridge: true });
+            });
+            possibleEdges.sort((a, b) => a.weight - b.weight);
+
+            let parent = new Map();
+            function find(v) {
+                if (!parent.has(v)) parent.set(v, v);
+                if (parent.get(v) !== v) parent.set(v, find(parent.get(v)));
+                return parent.get(v);
+            }
+
+            function union(v1, v2) {
+                parent.set(find(v1), find(v2));
+            }
+
+            edges = [];
+            for (let e of possibleEdges) {
+                if (find(e.p1) !== find(e.p2)) {
+                    edges.push({ p1: e.p1, p2: e.p2, isUserBridge: e.isUserBridge });
+                    union(e.p1, e.p2);
+                }
+            }
+
+            let root = points.length > 0 ? find(points[0]) : null;
+            let isConnected = points.every(p => !root || find(p) === root);
+            if (!isConnected && !allowBridges && obstacleActive) {
+                console.log('Мережа незв’язна без мостів');
+                alert('Неможливо з’єднати мережу без мостів через перешкоду');
+            }
+
+            updateTotalLength();
+            saveState();
+        }
+
+        function optimizeWithFermat() {
+            let improved = true;
+            while (improved) {
+                improved = false;
+                let minAngle = 120 * Math.PI / 180;
+                let bestTriangle = null;
+
+                for (let i = 0; i < edges.length; i++) {
+                    for (let j = i + 1; j < edges.length; j++) {
+                        let e1 = edges[i];
+                        let e2 = edges[j];
+                        if (e1.isUserBridge || e2.isUserBridge) continue;
+                        let commonPoint = null;
+                        let p1, p2, p3;
+                        if (e1.p1 === e2.p1) {
+                            commonPoint = e1.p1;
+                            p1 = e1.p2;
+                            p2 = e2.p2;
+                        } else if (e1.p1 === e2.p2) {
+                            commonPoint = e1.p1;
+                            p1 = e1.p2;
+                            p2 = e2.p1;
+                        } else if (e1.p2 === e2.p1) {
+                            commonPoint = e1.p2;
+                            p1 = e1.p1;
+                            p2 = e2.p2;
+                        } else if (e1.p2 === e2.p2) {
+                            commonPoint = e1.p2;
+                            p1 = e1.p1;
+                            p2 = e2.p1;
+                        }
+                        if (commonPoint) {
+                            p3 = commonPoint;
+                            let angle = calculateAngle(p1, p3, p2);
+                            if (angle < minAngle) {
+                                let fermat = findFermatPoint(p1, p2, p3);
+                                if (fermat && !intersectsObstacle(p1.x, p1.y, fermat.x, fermat.y, true) &&
+                                    !intersectsObstacle(p2.x, p2.y, fermat.x, fermat.y, true) &&
+                                    !intersectsObstacle(p3.x, p3.y, fermat.x, fermat.y, true) &&
+                                    !isPointInsideObstacle(fermat.x, fermat.y)) {
+                                    minAngle = angle;
+                                    bestTriangle = { p1, p2, p3, e1, e2, fermat };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (bestTriangle) {
+                    let { p1, p2, p3, e1, e2, fermat } = bestTriangle;
+                    let oldLength = dist(p1.x, p1.y, p3.x, p3.y) + dist(p2.x, p2.y, p3.x, p3.y);
+                    let newLength = dist(p1.x, p1.y, fermat.x, fermat.y) +
+                                    dist(p2.x, p2.y, fermat.x, fermat.y) +
+                                    dist(p3.x, p3.y, fermat.x, fermat.y);
+                    if (newLength < oldLength) {
+                        points.push({ x: fermat.x, y: fermat.y, selected: false, isFermat: true });
+                        edges = edges.filter(e => e !== e1 && e !== e2);
+                        addEdge(p1, points[points.length - 1]);
+                        addEdge(p2, points[points.length - 1]);
+                        addEdge(p3, points[points.length - 1]);
+                        runKruskal();
+                        improved = true;
+                        saveState();
+                    }
+                }
+            }
+            updateTotalLength();
+        }
+
+        function calculateAngle(p1, p2, p3) {
+            let v1x = p1.x - p2.x;
+            let v1y = p1.y - p2.y;
+            let v2x = p3.x - p2.x;
+            let v2y = p3.y - p2.y;
+            let dot = v1x * v2x + v1y * v2y;
+            let mag1 = Math.sqrt(v1x * v1x + v1y * v1y);
+            let mag2 = Math.sqrt(v2x * v2x + v2y * v2y);
+            if (mag1 === 0 || mag2 === 0) return 0;
+            let cosTheta = dot / (mag1 * mag2);
+            return Math.acos(Math.max(-1, Math.min(1, cosTheta)));
+        }
+
+        function findFermatPoint(p1, p2, p3) {
+            let angleA = calculateAngle(p2, p1, p3);
+            let angleB = calculateAngle(p1, p2, p3);
+            let angleC = calculateAngle(p1, p3, p2);
+            if (angleA >= 120 * Math.PI / 180) return { x: p1.x, y: p1.y };
+            if (angleB >= 120 * Math.PI / 180) return { x: p2.x, y: p2.y };
+            if (angleC >= 120 * Math.PI / 180) return { x: p3.x, y: p3.y };
+
+            let x = (p1.x + p2.x + p3.x) / 3;
+            let y = (p1.y + p2.y + p3.y) / 3;
+            let step = 10;
+            let maxIterations = 1000;
+            let tolerance = 0.01;
+
+            function totalDistance(px, py) {
+                return dist(px, py, p1.x, p1.y) + dist(px, py, p2.x, p2.y) + dist(px, py, p3.x, p3.y);
+            }
+
+            for (let i = 0; i < maxIterations; i++) {
+                let currentDist = totalDistance(x, y);
+                let bestDist = currentDist;
+                let bestX = x;
+                let bestY = y;
+
+                let directions = [
+                    { dx: step, dy: 0 },
+                    { dx: -step, dy: 0 },
+                    { dx: 0, dy: step },
+                    { dx: 0, dy: -step }
+                ];
+
+                for (let dir of directions) {
+                    let newX = x + dir.dx;
+                    let newY = y + dir.dy;
+                    let newDist = totalDistance(newX, newY);
+                    if (newDist < bestDist) {
+                        bestDist = newDist;
+                        bestX = newX;
+                        bestY = newY;
+                    }
+                }
+
+                if (bestDist < currentDist) {
+                    x = bestX;
+                    y = bestY;
+                } else {
+                    step *= 0.5;
+                    if (step < tolerance) break;
+                }
+            }
+
+            let distances = [
+                dist(x, y, p1.x, p1.y),
+                dist(x, y, p2.x, p2.y),
+                dist(x, y, p3.x, p3.y)
+            ];
+            let tooCloseToExisting = points.some(p => dist(x, y, p.x, p.y) < MIN_DISTANCE && p !== p1 && p !== p2 && p !== p3) ||
+                                     obstaclePoints.some(p => dist(x, y, p.x, p.y) < MIN_DISTANCE);
+            if (distances.some(d => d < MIN_DISTANCE) || tooCloseToExisting) {
+                return null;
+            }
+
+            function isPointInTriangle(px, py, ax, ay, bx, by, cx, cy) {
+                let v0x = cx - ax, v0y = cy - ay;
+                let v1x = bx - ax, v1y = by - ay;
+                let v2x = px - ax, v2y = py - ay;
+
+                let dot00 = v0x * v0x + v0y * v0y;
+                let dot01 = v0x * v1x + v0y * v1y;
+                let dot02 = v0x * v2x + v0y * v2y;
+                let dot11 = v1x * v1x + v1y * v1y;
+                let dot12 = v1x * v2x + v1y * v2y;
+
+                let invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+                let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+                let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+                return u >= 0 && v >= 0 && u + v <= 1;
+            }
+
+            if (!isPointInTriangle(x, y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)) {
+                x = (p1.x + p2.x + p3.x) / 3;
+                y = (p1.y + p2.y + p3.y) / 3;
+            }
+
+            return { x, y };
+        }
+
+        function addFermatPoint(p1, p2, p3) {
+            let fermat = findFermatPoint(p1, p2, p3);
+            if (!fermat) {
+                console.log('Точка Ферма неможлива, пропускаємо');
+                return;
+            }
+            if (isPointInsideObstacle(fermat.x, fermat.y)) {
+                console.log('Точка Ферма всередині перешкоди, пропускаємо');
+                alert('Неможливо з’єднати точкою Ферма: точка потрапляє всередину перешкоди');
+                return;
+            }
+            if (intersectsObstacle(p1.x, p1.y, fermat.x, fermat.y, true) ||
+                intersectsObstacle(p2.x, p2.y, fermat.x, fermat.y, true) ||
+                intersectsObstacle(p3.x, p3.y, fermat.x, fermat.y, true)) {
+                console.log('Ребра до точки Ферма перетинають перешкоду, пропускаємо');
+                return;
+            }
+            points.push({ x: fermat.x, y: fermat.y, selected: false, isFermat: true });
+            addEdge(p1, points[points.length - 1]);
+            addEdge(p2, points[points.length - 1]);
+            addEdge(p3, points[points.length - 1]);
+        }
+
+        function disconnect() {
+            points = points.filter(p => !p.isFermat);
+            edges = [];
+            selectedPoints = points.filter(p => p.selected);
+            saveState();
+            updateTotalLength();
+        }
+
+        function updateTotalLength() {
+            totalLength = 0;
+            for (let e of edges) {
+                let d = dist(e.p1.x, e.p1.y, e.p2.x, e.p2.y);
+                if (e.isUserBridge) {
+                    d *= bridgeMultiplier;
+                    console.log('Міст:', e.p1, e.p2, 'Довжина:', d);
+                }
+                totalLength += d;
+            }
+            select('#totalCost').html(`Вартість: ${totalLength.toFixed(2)}`);
+        }
+
+        function saveState() {
+            history.push({
+                points: points.map(p => ({ ...p })),
+                edges: edges.map(e => ({ p1: { x: e.p1.x, y: e.p1.y, selected: e.p1.selected, isFermat: e.p1.isFermat }, p2: { x: e.p2.x, y: e.p2.y, selected: e.p2.selected, isFermat: e.p2.isFermat }, isUserBridge: e.isUserBridge })),
+                selectedPoints: selectedPoints.map(p => ({ ...p })),
+                obstaclePoints: obstaclePoints.map(p => ({ ...p })),
+                selectedObstaclePoints: selectedObstaclePoints.map(p => ({ ...p })),
+                obstacleActive: obstacleActive,
+                obstacleMode: obstacleMode,
+                showObstaclePoints: showObstaclePoints,
+                allowBridges: allowBridges,
+                bridgeMultiplier: bridgeMultiplier
+            });
+        }
+
+        function undo() {
+            if (history.length > 0) {
+                let state = history.pop();
+                points = state.points.map(p => ({ ...p }));
+                edges = state.edges.map(e => ({
+                    p1: points.find(p => p.x === e.p1.x && p.y === e.p1.y),
+                    p2: points.find(p => p.x === e.p2.x && p.y === e.p2.y),
+                    isUserBridge: e.isUserBridge
+                }));
+                selectedPoints = state.selectedPoints.map(p => points.find(pt => pt.x === p.x && pt.y === p.y)).filter(p => p);
+                obstaclePoints = state.obstaclePoints.map(p => ({ ...p }));
+                selectedObstaclePoints = state.selectedObstaclePoints.map(p => obstaclePoints.find(pt => pt.x === p.x && pt.y === p.y)).filter(p => p);
+                obstacleActive = state.obstacleActive;
+                obstacleMode = state.obstacleMode;
+                showObstaclePoints = state.showObstaclePoints;
+                allowBridges = state.allowBridges;
+                bridgeMultiplier = state.bridgeMultiplier;
+                select('#allowBridges').elt.checked = allowBridges;
+                select('#bridgeMultiplier').elt.value = bridgeMultiplier;
+                updateTotalLength();
+            }
+        }
+
+        function clearCanvas() {
+            points = [];
+            edges = [];
+            selectedPoints = [];
+            obstaclePoints = [];
+            selectedObstaclePoints = [];
+            obstacleActive = false;
+            obstacleMode = false;
+            showObstaclePoints = false;
+            allowBridges = false;
+            bridgeMultiplier = 2;
+            select('#allowBridges').elt.checked = false;
+            select('#bridgeMultiplier').elt.value = 2;
+            history = [];
+            updateTotalLength();
+            select('#loadInput').elt.value = '';
+        }
+
+        function saveConfig() {
+            const config = {
+                points: points.map(p => ({ x: p.x, y: p.y, isFermat: p.isFermat })),
+                edges: edges.map(e => ({
+                    p1: points.indexOf(e.p1),
+                    p2: points.indexOf(e.p2),
+                    isUserBridge: e.isUserBridge
+                })),
+                obstaclePoints: obstaclePoints.map(p => ({ x: p.x, y: p.y })),
+                allowBridges: allowBridges,
+                bridgeMultiplier: bridgeMultiplier,
+                showObstaclePoints: showObstaclePoints
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "steiner_config.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function loadConfig(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                console.log('Файл не вивірений');
+                alert('Файл не вибрано');
+                return;
+            }
+            console.log('Завантаження файлу:', file.name);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                console.log('Файл прочитано:', e.target.result);
+                try {
+                    const config = JSON.parse(e.target.result);
+                    console.log('JSON розпарсено:', config);
+                    if (!config.points || !Array.isArray(config.points) || !config.edges || !Array.isArray(config.edges)) {
+                        throw new Error("Некоректний формат JSON: потрібні масиви points та edges");
+                    }
+                    clearCanvas();
+                    points = config.points.map((p, i) => {
+                        if (typeof p.x !== 'number' || typeof p.y !== 'number') {
+                            throw new Error(`Некоректні координати точки ${i}`);
+                        }
+                        return {
+                            x: parseFloat(p.x),
+                            y: parseFloat(p.y),
+                            selected: false,
+                            isFermat: p.isFermat || false
+                        };
+                    });
+                    edges = config.edges
+                        ?.filter((e, i) => {
+                            if (!Number.isInteger(e.p1) || !Number.isInteger(e.p2) ||
+                                e.p1 < 0 || e.p1 >= points.length ||
+                                e.p2 < 0 || e.p2 >= points.length) {
+                                console.warn(`Некоректне ребро ${i}: p1=${e.p1}, p2=${e.p2}`);
+                                return false;
+                            }
+                            return true;
+                        })
+                        .map(e => ({
+                            p1: points[e.p1],
+                            p2: points[e.p2],
+                            isUserBridge: e.isUserBridge || false
+                        }));
+                    obstaclePoints = config.obstaclePoints ?
+                        config.obstaclePoints.map((p, i) => {
+                            if (typeof p.x !== 'number' || typeof p.y !== 'number') {
+                                throw new Error(`Некоректні координати точки перешкоди ${i}`);
+                            }
+                            return { x: parseFloat(p.x), y: parseFloat(p.y), selected: false };
+                        }) : [];
+                    obstacleActive = obstaclePoints.length >= 3;
+                    obstacleMode = false;
+                    showObstaclePoints = config.showObstaclePoints || false;
+                    selectedPoints = [];
+                    selectedObstaclePoints = [];
+                    allowBridges = config.allowBridges || false;
+                    bridgeMultiplier = parseFloat(config.bridgeMultiplier) || 2;
+                    select('#allowBridges').elt.checked = allowBridges;
+                    select('#bridgeMultiplier').elt.value = bridgeMultiplier;
+                    saveState();
+                    updateTotalLength();
+                    select('#loadInput').elt.value = '';
+                    console.log('Конфігурацію успішно завантажено, points:', points.length, 'edges:', edges.length, 'obstaclePoints:', obstaclePoints.length);
+                } catch (error) {
+                    console.error('Помилка завантаження:', error.message);
+                    alert('Помилка завантаження файлу: ' + error.message);
+                    select('#loadInput').elt.value = '';
+                }
+            };
+            reader.onerror = function() {
+                console.error('Помилка читання файлу');
+                alert('Помилка читання файлу');
+                select('#loadInput').elt.value = '';
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>

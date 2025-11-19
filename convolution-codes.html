@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Згорткового Кодера</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; color: #333; margin: 5px; font-size: 13px; }
+        h1, h2 { color: #2c3e50; margin-bottom: 4px; font-size: 1.5em; }
+        .main-wrapper { display: flex; flex-direction: column; align-items: center; width: 98%; max-width: 1200px; margin-top: 5px; }
+
+        .control-panel { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); padding: 10px; width: 100%; box-sizing: border-box; margin-bottom: 15px; }
+        .control-panel label { margin-right: 5px; font-weight: bold; }
+        .control-panel input[type="text"], .control-panel select { padding: 4px; border: 1px solid #ccc; border-radius: 4px; width: 100px; text-align: center; font-size: 0.85em; }
+        .control-panel button { padding: 6px 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; transition: background-color 0.3s ease; }
+        .control-panel button:hover { background-color: #0056b3; }
+        .message-container { margin-top: 5px; font-weight: bold; color: #d9534f; font-size: 0.85em; width: 100%; text-align: center; }
+
+        .input-controls { display: flex; align-items: center; gap: 8px; }
+        #currentInputBit { font-size: 1.8em; font-weight: bold; width: 40px; text-align: center; border: 2px solid #007bff; border-radius: 5px; padding: 3px; }
+        #resetButton { background-color: #dc3545; }
+        #resetButton:hover { background-color: #c82333; }
+
+        /* Integrated Encoder Section */
+        .integrated-encoder-section {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .encoder-flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin-top: 5px;
+            min-height: 120px; /* Ensure enough space */
+        }
+
+        .stream-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+        }
+        .stream-label { font-weight: bold; font-size: 0.9em; text-align: center; margin-bottom: 3px; }
+
+        .bit-stream {
+            display: flex;
+            border: 1px dashed #ccc;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 2px;
+            min-height: 30px;
+            align-items: center;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #a8c7fa #f0f2f5;
+            flex-shrink: 0;
+            min-width: 120px;
+        }
+        /* Specific override for right-to-left streams */
+        #inputStreamBits,
+        #encodedStreamY1,
+        #encodedStreamY2 {
+            flex-direction: row-reverse;
+        }
+        /* Received streams should be left-to-right */
+        #receivedStreamY1,
+        #receivedStreamY2 {
+            flex-direction: row; /* Default flex direction, explicitly set for clarity */
+        }
+
+        /* Channel with noise container - make it a column layout */
+        .channel-streams-container {
+            display: flex;
+            flex-direction: column; /* Stacks children vertically */
+            align-items: center; /* Centers children horizontally */
+            width: 100%;
+            gap: 5px; /* Spacing between streams */
+            margin-top: 5px;
+        }
+
+
+        .bit {
+            display: inline-block;
+            padding: 3px 6px;
+            border-radius: 3px;
+            background-color: #d1e7dd;
+            margin: 1px;
+            font-weight: bold;
+            font-size: 0.8em;
+            flex-shrink: 0;
+            /* Transition for bit movement (disappearing) */
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out, margin-left 0.3s ease-out;
+        }
+        .error-bit { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info-bit { background-color: #cce5ff; border: 1px solid #b8daff; }
+        .received-bit-interactive:hover {
+            cursor: pointer;
+            border: 1px solid #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+
+
+        /* Encoder Core - Place for image */
+        .encoder-image-container {
+            margin: 0 5px;
+            text-align: center;
+            flex-shrink: 0;
+            display: flex; /* Use flex to center current bit and image */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Center vertically within its space */
+            min-width: 150px; /* Provide some minimum width */
+        }
+        .encoder-image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        /* Display current state of the register under the image */
+        #encoderRegisterState {
+            margin-top: 5px;
+            font-weight: bold;
+            color: #007bff;
+            font-size: 0.9em;
+        }
+
+
+        /* Trellis Diagram */
+        .trellis-diagram { margin-top: 15px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); padding: 15px; width: 100%; box-sizing: border-box; }
+        .trellis-state { width: 28px; height: 28px; border-radius: 50%; background-color: #007bff; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; position: relative; z-index: 15; font-size: 0.75em;}
+        .trellis-path { position: absolute; height: 2px; z-index: 1; transform-origin: left top; }
+        .path-solid { border-top: 2px solid #a8c7fa; }
+        .path-dashed { border-top: 2px dashed #a8c7fa; }
+
+        /* Higher z-index for highlights so they appear on top of base paths */
+        .trellis-path-highlight { height: 3px; border: none; }
+        .path-true-solid { border-top: 3px solid #dc3545; z-index: 5; } /* Red for true path - lower z-index if green is on top */
+        .path-true-dashed { border-top: 3px dashed #dc3545; z-index: 5; }
+        .path-highlight-solid { border-top: 3px solid #28a745; z-index: 10; } /* Green for decoded path - higher z-index */
+        .path-highlight-dashed { border-top: 3px dashed #28a745; z-index: 10; }
+
+        .trellis-col { display: flex; flex-direction: column; align-items: center; justify-content: space-around; flex: 1; min-height: 120px; /* Increased vertical spacing */ }
+        .distance-label { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 0.65em; font-weight: bold; color: #444; z-index: 25;}
+        .path-label {
+            position: absolute;
+            font-size: 0.7em;
+            font-weight: bold;
+            color: #666;
+            background-color: #f0f2f5; /* Background to make text readable over lines */
+            padding: 1px 3px;
+            border-radius: 3px;
+            z-index: 20; /* Above paths but below states */
+            white-space: nowrap; /* Prevent label from breaking */
+            pointer-events: none; /* Allow clicks to pass through to elements behind */
+        }
+        .trellis-legend { text-align: center; margin-top: 15px; font-size: 0.85em; }
+        .trellis-legend span { display: inline-block; margin: 0 8px; }
+        .legend-color-box { width: 18px; height: 6px; display: inline-block; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+        .legend-green { background-color: #28a745; }
+        .legend-red { background-color: #dc3545; }
+
+
+        /* General Info Section */
+        .info-section {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 15px;
+            margin-top: 15px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 0.9em;
+        }
+        .info-section h3 { margin-top: 0; margin-bottom: 8px; color: #2c3e50; font-size: 1.2em; }
+        .info-section ul { text-align: left; margin-bottom: 10px; padding-left: 20px; }
+        .info-section ul li { margin-bottom: 3px; }
+        .info-section p { margin-bottom: 8px; }
+
+        .math-formula {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.1em;
+            margin: 2px 0;
+            text-align: center;
+        }
+				
+				.math-formula mjx-container[display="true"] {
+				margin-top: 1px !important; /* Відступ зверху */
+				margin-bottom: 1px !important; /* Відступ знизу */
+				}
+				
+				
+				
+        .code-example {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-left: 3px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        hr { width: 90%; border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <h2>Симулятор згорткового кода</h2>
+
+    <div class="main-wrapper">
+        <div class="control-panel">
+            <label for="encoderSelect">Виберіть кодер:</label>
+            <select id="encoderSelect">
+                <option value="encoder1">Кодер 1 (K=2)</option>
+                <option value="encoder2">Кодер 2 (K=3)</option>
+            </select>
+
+            <label for="binaryInput">Вхідний потік:</label>
+            <input type="text" id="binaryInput" value="101101111" maxlength="12" pattern="[01]*">
+            <label for="errorProbability">Ймовірність помилки в каналі:</label>
+            <input type="text" id="errorProbability" value="0.1" step="0.01" min="0" max="0.5">
+            <div class="input-controls">
+                <span style="font-weight: bold;">Наступний біт:</span>
+                <span id="currentInputBit"></span>
+                <button id="pushBitButton" onclick="pushBit()">Пропустити біт</button>
+                <button id="resetButton" onclick="resetSimulation()">Скинути</button>
+            </div>
+            <div class="message-container" id="messageContainer"></div>
+        </div>
+
+        <div class="integrated-encoder-section">
+            <h3>Кодер та Бітові Потоки</h3>
+            <div class="encoder-flow-container">
+                <div class="stream-wrapper" style="margin-right: 15px;">
+                    <div class="stream-label">Вхідний потік:</div>
+                    <div id="inputStreamBits" class="bit-stream"></div>
+                </div>
+
+                <div class="encoder-image-container">
+				<img id="coderImage" src="coder.png" alt="Схема згорткового кодера" style="max-width: 250px; border: 1px solid #ccc; border-radius: 5px;">
+                  
+                    <div id="encoderRegisterState">Регістр (D): 0</div>
+                    <div id="encoderFormulas" class="math-formula"></div>
+                </div>
+
+                <div class="stream-wrapper" style="margin-left: 15px;">
+                    <div class="stream-label">Кодований \(Y_1\):</div>
+                    <div id="encodedStreamY1" class="bit-stream"></div>
+                    <div class="stream-label" style="margin-top: 8px;">Кодований \(Y_2\):</div>
+                    <div id="encodedStreamY2" class="bit-stream"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="integrated-encoder-section">
+            <h4>Канал із Завадами (Клікніть на біт для зміни)</h4>
+            <div class="channel-streams-container"> <div class="stream-wrapper">
+                    <div class="stream-label">Отриманий \(Y_1\):</div>
+                    <div id="receivedStreamY1" class="bit-stream"></div>
+                </div>
+                <div class="stream-wrapper">
+                    <div class="stream-label">Отриманий \(Y_2\):</div>
+                    <div id="receivedStreamY2" class="bit-stream"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="trellis-diagram">
+            <h3>Трелліс-Діаграма</h3>
+            <div id="trellisVisualization"></div>
+            <div class="trellis-legend">
+                <span><span class="legend-color-box legend-green"></span>Декодований шлях (Вітербі)</span>
+                <span><span class="legend-color-box legend-red"></span>Шлях, де декодер не впорався</span>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>Пояснення</h3>
+            <p>Цей симулятор демонструє роботу згорткового кодера зі швидкістю кодування \(1/2\).</p>
+            <ul>
+                <li><strong>Схема Кодера:</strong>
+                    <p>Нижче представлена схема обраного кодера. Вхідний біт позначається як \(x[n]\). Регістри затримки зберігають попередні вхідні біти. Операція XOR (виключне АБО) комбінує біти для отримання вихідного потоку \(Y_2\).</p>
+                    <p style="text-align: center; margin: 15px 0;">
+                        <img id="infoCoderImage" src="coder.png" alt="Схема згорткового кодера" style="max-width: 150px; border: 1px solid #ccc; border-radius: 5px;">
+                    </p>
+                    <ul>
+                        <li><strong>Регістр (\(R_i[n-j]\)):</strong> Зберігає попередні вхідні біти. Стан кодера визначається вмістом всіх регістрів.</li>
+                        <li><strong>XOR:</strong> Виконує операцію виключного АБО.</li>
+                        <li><strong>Вхідний біт (\(x[n]\)):</strong> Поточний біт, що надходить у кодер.</li>
+                    </ul>
+                </li>
+                <li><strong>Правила формування вихідних бітів:</strong>
+                    <div id="infoEncoderFormulas" class="math-formula"></div>
+                </li>
+                <li><strong>Рух Бітів:</strong>
+                    <ul>
+                        <li>Вхідний та кодовані потоки: відображаються <strong>справа наліво</strong>. Найновіший біт з'являється з правого краю, а попередні біти зміщуються ліворуч.</li>
+                        <li>Отримані потоки (Канал із Завадами): відображаються <strong>зліва направо</strong>. Найновіший біт з'являється з лівого краю, а попередні біти зміщуються праворуч.</li>
+                    </ul>
+                </li>
+                <li><strong>Канал із Завадами:</strong> Імітує випадкові помилки під час передачі бітів через канал з заданою ймовірністю помилки. Біти, в яких сталася помилка, виділені червоним. Додатково, ви можете клікнути на будь-який отриманий біт, щоб інвертувати його значення та спостерігати, як це впливає на процес декодування.</li>
+                <li><strong>Трелліс-Діаграма:</strong>
+                    <ul>
+                        <li>Показує можливі переходи між станами кодера. Стан кодера визначається вмістом його регістрів.</li>
+                        <li>Перехід, що відповідає вхідному біту <strong>0</strong>, позначений <span style="border-bottom: 2px solid #a8c7fa; padding-bottom: 2px;">суцільною лінією</span>.</li>
+                        <li>Перехід, що відповідає вхідному біту <strong>1</strong>, позначений <span style="border-bottom: 2px dashed #a8c7fa; padding-bottom: 2px;">пунктирною лінією</span>.</li>
+                        <li><strong>Підписи на ребрах:</strong> Формат підпису: \(x[n] / Y_1Y_2\). Наприклад, \(0/00\) означає, що на вхід подано \(0\), а на виході отримано \(00\).</li>
+                        <li><strong>Декодований шлях (зелений):</strong> Показує найбільш ймовірний шлях декодування за <strong>алгоритмом Вітербі</strong> на основі отриманих бітів. "D" вказує кумулятивну відстань Хеммінга до цього стану.</li>
+                        <li><strong>Шлях, де декодер не впорався (червоний):</strong> Це ділянки істинного кодованого шляху, які <em>не</em> співпали з декодованим (зеленим) шляхом. Це означає, що алгоритм Вітербі припустився помилки декодування на цій ділянці.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Алгоритм Вітербі: Розрахунок Кумулятивної Відстані та Побудова Шляху</h3>
+            <p>Алгоритм Вітербі використовується для знаходження найбільш ймовірного шляху (послідовності станів) через трелліс-діаграму, що відповідає отриманій послідовності символів, при наявності шуму в каналі. Він мінімізує кумулятивну відстань Хеммінга.</p>
+            <ul>
+                <li><strong>Відстань Хеммінга (\(d_H\)):</strong> Це кількість позицій, в яких два бінарні вектори різної довжини відрізняються. Для кожної гілки на трелліс-діаграмі (що відповідає парі переданих бітів, наприклад, \(Y_1Y_2\)), розраховується відстань Хеммінга між очікуваними вихідними бітами кодера та фактично отриманими бітами з каналу.
+                    $$d_H(V_1, V_2) = \sum_{i=1}^{L} (V_{1,i} \oplus V_{2,i})$$
+                    Де \(V_1\), \(V_2\) - бінарні вектори, \(L\) - їх довжина, \(\oplus\) - XOR. У нашому випадку, \(L=2\) (для пари \(Y_1Y_2\)).
+                </li>
+                <li><strong>Кумулятивна Відстань (\(D\)):</strong> Для кожного стану на кожному часовому кроці (колонці трелліс-діаграми) зберігається мінімальна кумулятивна відстань Хеммінга від початкового стану до цього поточного стану. Коли новий біт надходить, алгоритм розглядає всі можливі переходи до нових станів:
+                    $$D_{\text{новий_стан}} = D_{\text{попередній_стан}} + d_{H(\text{вихід_гілки}, \text{ отриманий_символ})}$$
+                    Якщо кілька гілок ведуть до одного стану, вибирається та, що дає мінімальну кумулятивну відстань.
+                </li>
+                <li><strong>Побудова Шляху (Backtracking):</strong> Після обробки всіх вхідних бітів, алгоритм знаходить стан з мінімальною кумулятивною відстанню в останній колонці трелліс-діаграми. Потім він рухається назад (від останньої колонки до першої), використовуючи збережені "вказівники" (\(paths\)) на те, яка гілка була обрана як оптимальна для досягнення кожного стану. Це дозволяє реконструювати найбільш ймовірну послідовність вхідних бітів, яка була відправлена кодером. Виділений зеленим кольором шлях і є результатом цього зворотного проходу.</li>
+            </ul>
+            
+            <h3>Згорткові Коди</h3>
+            <p>Згорткові коди широко використовуються в сучасних комунікаційних системах, таких як стільниковий зв'язок, супутниковий зв'язок, бездротові мережі (Wi-Fi), та цифрове телебачення. Їх ефективність у виправленні помилок робить їх ключовим елементом надійних систем передачі даних.</p>
+            <p>У цьому симуляторі реалізовано два згорткові кодери зі швидкістю кодування \(R = 1/2\):</p>
+            <ul>
+                <li><strong>Кодер 1 (K=2):</strong> має 1 регістр затримки і 2 можливих стани.</li>
+                <li><strong>Кодер 2 (K=3):</strong> має 2 регістри затримки і 4 можливих стани.</li>
+            </ul>
+            <p>Нижче наведено приклади інших, більш складних згорткових кодів.</p>
+
+            <h4>Основні Характеристики Згорткових Кодів:</h4>
+            <ul>
+                <li><strong>Швидкість кодування (\(R = k/n\)):</strong> Відношення кількості вхідних бітів до кількості вихідних бітів за один такт. Що менша швидкість (наприклад, \(1/3\) замість \(1/2\)), то більше надмірності додається і потенційно краща корекція помилок, але за рахунок пропускної здатності.</li>
+                <li><strong>Довжина обмеження (\(K\)):</strong> Кількість регістрів затримки плюс один, що визначає "пам'ять" кодера. Що більша \(K\), то більше станів у кодера, і тим краща його корекція помилок, але й складнішим стає декодування (трелліс-діаграма стає ширшою).</li>
+                <li><strong>Утворюючі поліноми (Generating Polynomials):</strong> Ці поліноми визначають, як вхідні та регістрові біти комбінуються за допомогою операцій XOR для формування вихідних бітів. Вони зазвичай представлені у восьмеричному форматі.</li>
+            </ul>
+
+            <h4>Приклади найпростіших кодів:</h4>
+
+            <h5>1. Згортковий Кодер з Довжиною Обмеження \(K=2\) (1 регістр затримки, 2 стани)</h5>
+            <p><strong>Швидкість:</strong> \(R = 1/2\)</p>
+            <p><strong>Утворюючі поліноми:</strong> \(G_1 = (1)_2 = (1)_8\), \(G_2 = (11)_2 = (3)_8\)</p>
+            <p>Формули для цього кодера:</p>
+            $$Y_1[n] = x[n]$$
+            $$Y_2[n] = x[n] \oplus R[n-1]$$
+            <p style="text-align: center; margin: 2px 0;">
+                <img src="coder.png" alt="Схема згорткового кодера K=2" style="max-width: 150px; border: 1px solid #ccc; border-radius: 5px;">
+            </p>
+
+            <h5>2. Згортковий Кодер з Довжиною Обмеження \(K=3\) (2 регістри затримки, 4 стани)</h5>
+            <p>Цей кодер має \(2^{K-1} = 2^{3-1} = 2^2 = 4\) стани. Стан кодера визначається вмістом двох регістрів затримки: \(R_1[n-1]R_2[n-2]\).</p>
+            <p><strong>Швидкість:</strong> \(R = 1/2\)</p>
+            <p><strong>Утворюючі поліноми:</strong> \(G_1 = (111)_2 = (7)_8\), \(G_2 = (101)_2 = (5)_8\)</p>
+            <p>Ці поліноми визначають зв'язки таким чином:</p>
+            $$Y_1[n] = x[n] \oplus R_1[n-1] \oplus R_2[n-2]$$
+            $$Y_2[n] = x[n] \oplus R_2[n-2]$$
+            <p>Де \(R_1[n-1]\) і \(R_2[n-2]\) - вміст першого та другого регістрів затримки відповідно.</p>
+            
+            <p style="text-align: center; margin: 2px 0;">
+                <img src="coder2.png" alt="Схема згорткового кодера K=3" style="max-width: 250px; border: 1px solid #ccc; border-radius: 5px;">
+            </p>
+
+            <h5>3. Приклад Згорткового Кодера зі Швидкістю \(R = 1/3\)</h5>
+            <p>Кодери з нижчою швидкістю кодування додають більше надмірності, що дозволяє виправляти більше помилок, але зменшує корисну пропускну здатність каналу. Цей тип кодера не реалізований у поточному симуляторі, але є прикладом більш складних конфігурацій.</p>
+            <p><strong>Швидкість:</strong> \(R = 1/3\)</p>
+            <p><strong>Довжина обмеження:</strong> Залежить від конкретної реалізації, наприклад, \(K=3\).</p>
+            <p><strong>Утворюючі поліноми (приклад для \(K=3\), \(R=1/3\)):</strong> \(G_1 = (111)_2 = (7)_8\), \(G_2 = (101)_2 = (5)_8\), \(G_3 = (011)_2 = (3)_8\)</p>
+            <p>Відповідні формули виходів:</p>
+            $$Y_1[n] = x[n] \oplus R_1[n-1] \oplus R_2[n-2]$$
+            $$Y_2[n] = x[n] \oplus R_2[n-2]$$
+            $$Y_3[n] = R_1[n-1] \oplus R_2[n-2]$$
+
+            <p style="text-align: center; margin: 15px 0;">
+                <img src="coder3.png" alt="Схема згорткового кодера R=1/3" style="max-width: 250px; border: 1px solid #ccc; border-radius: 5px;">
+            </p>
+
+            <h4>Переваги та Застосування:</h4>
+            <ul>
+                <li><strong>Покращена корекція помилок:</strong> Збільшення довжини обмеження або зменшення швидкості кодування покращує здатність кодера виправляти помилки, оскільки кожен вихідний біт залежить від більшої кількості попередніх вхідних бітів.</li>
+                <li><strong>Декодування Вітербі:</strong> Хоча складність декодування за алгоритмом Вітербі зростає експоненційно зі збільшенням довжини обмеження (кількості станів), сучасні обчислювальні потужності дозволяють ефективно декодувати коди з \(K\) до 7-9.</li>
+              
+                <li><strong>Турбо-коди та LDPC-коди:</strong> Це більш сучасні та складні ітераційні коди, які можуть наближатися до теоретичної межі Шеннона. Вони часто використовують згорткові компоненти або принципи, але мають значно складнішу структуру та алгоритми декодування.</li>
+            </ul>
+
+            <h3>Вибір Генеруючих Поліномів</h3>
+            <p>Вибір генеруючих поліномів для згорткового кодера є критично важливим, оскільки він безпосередньо впливає на корегуючу здатність коду. Генеруючі поліноми (або їх коефіцієнти) визначають з'єднання між елементами регістру зсуву та суматорами по модулю 2, які формують вихідні біти кодера.</p>
+            <ul>
+                <li><b>Максимізація вільної відстані (free distance, \(d_{free}\) або \(d_f\))</b>: Головна мета при виборі генеруючих поліномів — це досягнення максимально можливої вільної відстані для даної швидкості кодування (\(k/n\)) та довжини обмеження (\(K\)). Вільна відстань є мінімальною відстанню Хеммінга між будь-якими двома можливими кодовими послідовностями, що виробляються кодером. Чим більша вільна відстань, тим краща корегуюча здатність коду.</li>
+                <li><b>Методи пошуку</b>: Часто оптимальні генеруючі поліноми знаходять за допомогою вичерпних (exhaustive) методів пошуку або обмежених алгоритмів пошуку, які перевіряють різні комбінації з'єднань з метою виявлення тих, що дають найбільшу вільну відстань.</li>
+                <li><b>Вплив на BER</b>: Продуктивність згорткового коду (наприклад, показник бітових помилок - BER) значною мірою залежить від вибору генеруючих поліномів для конкретної довжини обмеження.</li>
+                <li><b>Кількість поліномів</b>: Для кодера зі швидкістю \(k/n\) (де \(k\) - кількість вхідних бітів, \(n\) - кількість вихідних бітів) існує \(n\) генеруючих поліномів, по одному для кожного вихідного біта.</li>
+            </ul>
+
+            <h3>Пояснення нотації Генеруючих Поліномів</h3>
+            <p>Генеруючі поліноми можуть бути представлені у бінарному, восьмеричному або поліноміальному вигляді.</p>
+            <ul>
+                <li><b>G_1 = (111)_2</b>: Це бінарне представлення генеруючого полінома для першого вихідного біта (G1). Кожна цифра '1' у цьому бінарному рядку вказує на наявність з'єднання (відводу) від відповідного елемента регістру зсуву (або поточного вхідного біта) до суматора по модулю 2, який генерує цей вихідний біт. Найлівіший біт '1' зазвичай відповідає поточному вхідному біту, а наступні біти '1' відповідають відводам від попередніх станів пам'яті (елементів зсувного регістру). У поліноміальній формі, це часто відповідає \(1 + D + D^2\), де \(D\) є оператором затримки.</li>
+                <li><b>(7)_8</b>: Це восьмеричне представлення того ж самого генеруючого полінома. Восьмеричне число є компактним способом запису бінарних чисел. Число `7` у восьмеричній системі числення еквівалентне `111` у двійковій системі числення. Таким чином, \(G_1 = (111)_2\) є тим самим, що й \(G_1 = (7)_8\).</li>
+            </ul>
+
+            <h3>Оцінка Корегуючої Здатності Коду</h3>
+            <p>Корегуючу здатність згорткового коду можна оцінити кількома способами:</p>
+            <ul>
+                <li><b>Вільна відстань (Free Distance, \(d_{free}\))</b>: Це найважливіша метрика. Вона представляє мінімальну відстань Хеммінга між будь-якими двома кодовими словами, що розходяться в якийсь момент часу. Чим більша вільна відстань, тим більше помилок може виправити код. Збільшення довжини обмеження (\(K\)) кодера, як правило, збільшує вільну відстань і, відповідно, покращує корегуючу здатність.</li>
+                <li><b>Алгоритм Вітербі (Viterbi Algorithm)</b>: Цей алгоритм є стандартним методом декодування згорткових кодів. Він знаходить найбільш ймовірний шлях (послідовність станів) через решітчасту діаграму (trellis diagram), що відповідає отриманій послідовності символів, навіть за наявності шуму в каналі. Корегуюча здатність коду при декодуванні Вітербі безпосередньо пов'язана з його вільною відстанню: чим більша вільна відстань, тим краще алгоритм Вітербі може розрізняти правильні та помилкові шляхи.</li>
+                <li><b>Показник бітових помилок (Bit Error Rate, BER)</b>: Корегуючу здатність також оцінюють шляхом вимірювання BER за різних співвідношень сигнал/шум (SNR). Нижчий BER при певному SNR свідчить про кращу корегуючу здатність коду.</li>
+                <li><b>Активна пакетна відстань (Active Burst Distance)</b>: Деякі дослідження використовують цю метрику для оцінки здатності згорткових кодів виправляти помилки або стерті символи, що виникають пакетами (серіями).</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const messageContainer = document.getElementById('messageContainer');
+        const binaryInputEl = document.getElementById('binaryInput');
+        const errorProbabilityEl = document.getElementById('errorProbability');
+        const currentInputBitEl = document.getElementById('currentInputBit');
+        const pushBitButton = document.getElementById('pushBitButton');
+        const encoderRegisterStateEl = document.getElementById('encoderRegisterState');
+        const inputStreamBitsDiv = document.getElementById('inputStreamBits');
+
+        const encodedStreamY1Div = document.getElementById('encodedStreamY1');
+        const encodedStreamY2Div = document.getElementById('encodedStreamY2');
+        const receivedStreamY1Div = document.getElementById('receivedStreamY1');
+        const receivedStreamY2Div = document.getElementById('receivedStreamY2');
+        const trellisVisualizationDiv = document.getElementById('trellisVisualization');
+
+        const encoderSelect = document.getElementById('encoderSelect');
+        const coderImage = document.getElementById('coderImage');
+        const infoCoderImage = document.getElementById('infoCoderImage'); // Image in info section
+        const encoderFormulasDiv = document.getElementById('encoderFormulas');
+        const infoEncoderFormulasDiv = document.getElementById('infoEncoderFormulas'); // Formulas in info section
+
+
+        let originalInputSequence = [];
+        let trueEncodedY1History = [];
+        let trueEncodedY2History = [];
+        let trueInputBitHistory = [];
+        let trueRegisterStatesHistory = []; // Now stores array of states
+        let currentIndex = 0;
+        let registerState; // Can be a single bit or an array/string for K > 2
+        let allEncodedY1 = [];
+        let allEncodedY2 = [];
+        let allReceivedY1 = [];
+        let allReceivedY2 = [];
+        let currentEncoderId = 'encoder1'; // Default encoder
+
+        // Define different encoders
+        const encoders = {
+            'encoder1': { // K=2, 1 register (0-1 states)
+                numRegisters: 1,
+                numStates: 2, // 2^1 states (0, 1)
+                image: 'coder.png',
+                formulas: `$$Y_1[n] = x[n]$$<br>$$Y_2[n] = x[n] \\oplus R[n-1]$$`,
+                // Transitions: [current_register_state, input_bit] -> {next_state, output_Y1, output_Y2, pathOutput}
+                // current_register_state is a single bit (0 or 1)
+                // next_state is a single bit (0 or 1)
+                transitions: {
+                    '0_0': { nextState: 0, outputY1: 0, outputY2: 0 ^ 0, pathOutput: '0/00' },
+                    '0_1': { nextState: 1, outputY1: 1, outputY2: 1 ^ 0, pathOutput: '1/11' },
+                    '1_0': { nextState: 0, outputY1: 0, outputY2: 0 ^ 1, pathOutput: '0/01' },
+                    '1_1': { nextState: 1, outputY1: 1, outputY2: 1 ^ 1, pathOutput: '1/10' }
+                },
+                getRegisterStateString: (reg) => `Регістр (D): ${reg}`,
+                // Convert state index (0-1) to object for Viterbi
+                stateIndexToRegister: (index) => index,
+                // Convert register array to state index (0-1) for Viterbi
+                registerToStateIndex: (reg) => reg
+            },
+            'encoder2': { // K=3, 2 registers (00-11 states)
+                numRegisters: 2,
+                numStates: 4, // 2^2 states (00, 01, 10, 11)
+                image: 'coder2.png',
+                formulas: `$$Y_1[n] = x[n] \\oplus R_1[n-1] \\oplus R_2[n-2]$$<br>$$Y_2[n] = x[n] \\oplus R_2[n-2]$$`,
+                // Transitions: [R1_R2_input] -> {next_R1, next_R2, output_Y1, output_Y2, pathOutput}
+                // R1_R2: represents the state (R[n-1]R[n-2])
+                // next_R1, next_R2: new register contents after input (x[n] becomes R[n-1], old R[n-1] becomes R[n-2])
+                transitions: {
+                    '00_0': { nextR1: 0, nextR2: 0, outputY1: 0 ^ 0 ^ 0, outputY2: 0 ^ 0, pathOutput: '0/00' }, // R1=0, R2=0, input=0 -> x=0, R1=0, R2=0 -> Y1=0, Y2=0
+                    '00_1': { nextR1: 1, nextR2: 0, outputY1: 1 ^ 0 ^ 0, outputY2: 1 ^ 0, pathOutput: '1/11' }, // R1=0, R2=0, input=1 -> x=1, R1=0, R2=0 -> Y1=1, Y2=1
+
+                    '01_0': { nextR1: 0, nextR2: 1, outputY1: 0 ^ 0 ^ 1, outputY2: 0 ^ 1, pathOutput: '0/11' }, // R1=0, R2=1, input=0 -> x=0, R1=0, R2=1 -> Y1=1, Y2=1
+                    '01_1': { nextR1: 1, nextR2: 1, outputY1: 1 ^ 0 ^ 1, outputY2: 1 ^ 1, pathOutput: '1/00' }, // R1=0, R2=1, input=1 -> x=1, R1=0, R2=1 -> Y1=0, Y2=0
+
+                    '10_0': { nextR1: 0, nextR2: 0, outputY1: 0 ^ 1 ^ 0, outputY2: 0 ^ 0, pathOutput: '0/10' }, // R1=1, R2=0, input=0 -> x=0, R1=1, R2=0 -> Y1=1, Y2=0
+                    '10_1': { nextR1: 1, nextR2: 0, outputY1: 1 ^ 1 ^ 0, outputY2: 1 ^ 0, pathOutput: '1/01' }, // R1=1, R2=0, input=1 -> x=1, R1=1, R2=0 -> Y1=0, Y2=1
+
+                    '11_0': { nextR1: 0, nextR2: 1, outputY1: 0 ^ 1 ^ 1, outputY2: 0 ^ 1, pathOutput: '0/01' }, // R1=1, R2=1, input=0 -> x=0, R1=1, R2=1 -> Y1=0, Y2=1
+                    '11_1': { nextR1: 1, nextR2: 1, outputY1: 1 ^ 1 ^ 1, outputY2: 1 ^ 1, pathOutput: '1/10' }  // R1=1, R2=1, input=1 -> x=1, R1=1, R2=1 -> Y1=1, Y2=0
+                },
+                getRegisterStateString: (regs) => `Регістр (D): ${regs.join('')}`,
+                // Convert state index (0-3) to object for Viterbi (e.g., 0 -> [0,0], 1 -> [0,1], 2 -> [1,0], 3 -> [1,1])
+                stateIndexToRegister: (index) => {
+                    const r2 = index & 1; // Last bit
+                    const r1 = (index >> 1) & 1; // Second to last bit
+                    return [r1, r2];
+                },
+                // Convert register array to state index (0-3) for Viterbi
+                registerToStateIndex: (regs) => (regs[0] << 1) | regs[1]
+            }
+        };
+
+        function validateInput(input, type) {
+            if (type === 'binary') {
+                if (!/^[01]*$/.test(input)) {
+                    messageContainer.textContent = 'Будь ласка, введіть тільки 0 або 1 для бінарного потоку.';
+                    return false;
+                }
+            } else if (type === 'probability') {
+                const prob = parseFloat(input);
+                if (isNaN(prob) || prob < 0 || prob > 1) {
+                    messageContainer.textContent = 'Ймовірність помилки має бути числом від 0.0 до 1.0.';
+                    return false;
+                }
+            }
+            messageContainer.textContent = ''; // Clear error message
+            return true;
+        }
+
+        function initializeSimulation() {
+            currentEncoderId = encoderSelect.value;
+            const currentEncoder = encoders[currentEncoderId];
+
+            resetSimulation(false); // Reset without re-initializing input seq for select change
+
+            // Set initial register state based on the selected encoder
+            if (currentEncoder.numRegisters === 1) {
+                registerState = 0; // Single bit for K=2
+                trueRegisterStatesHistory = [0];
+            } else if (currentEncoder.numRegisters === 2) {
+                registerState = [0, 0]; // Array for K=3, [R1, R2]
+                trueRegisterStatesHistory = [[0, 0]];
+            }
+            encoderRegisterStateEl.textContent = currentEncoder.getRegisterStateString(registerState);
+
+            // Populate input stream visually (add to end, flex-direction: row-reverse will place it on the right)
+            originalInputSequence = binaryInputEl.value.split('').map(Number);
+            inputStreamBitsDiv.innerHTML = '';
+            originalInputSequence.forEach(bit => {
+                const bitSpan = document.createElement('span');
+                bitSpan.className = 'bit info-bit';
+                bitSpan.textContent = bit;
+                inputStreamBitsDiv.appendChild(bitSpan);
+            });
+            inputStreamBitsDiv.scrollLeft = inputStreamBitsDiv.scrollWidth; // Ensure scroll is at the end (rightmost visible)
+
+            updateCurrentInputBitDisplay();
+            updateEncoderDisplay(); // Update image and formulas
+            // Re-render MathJax after content changes
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typeset();
+            }
+        }
+
+        function resetSimulation(reinitInput = true) {
+            currentIndex = 0;
+            allEncodedY1 = [];
+            allEncodedY2 = [];
+            allReceivedY1 = [];
+            allReceivedY2 = [];
+            trueEncodedY1History = [];
+            trueEncodedY2History = [];
+            trueInputBitHistory = [];
+            
+            const currentEncoder = encoders[currentEncoderId];
+            if (currentEncoder.numRegisters === 1) {
+                registerState = 0;
+                trueRegisterStatesHistory = [0];
+            } else if (currentEncoder.numRegisters === 2) {
+                registerState = [0, 0];
+                trueRegisterStatesHistory = [[0, 0]];
+            }
+            encoderRegisterStateEl.textContent = currentEncoder.getRegisterStateString(registerState);
+
+            inputStreamBitsDiv.innerHTML = '';
+            encodedStreamY1Div.innerHTML = '';
+            encodedStreamY2Div.innerHTML = '';
+            receivedStreamY1Div.innerHTML = '';
+            receivedStreamY2Div.innerHTML = '';
+            trellisVisualizationDiv.innerHTML = '';
+            messageContainer.textContent = '';
+
+            if (reinitInput) {
+                originalInputSequence = binaryInputEl.value.split('').map(Number);
+                originalInputSequence.forEach(bit => {
+                    const bitSpan = document.createElement('span');
+                    bitSpan.className = 'bit info-bit';
+                    bitSpan.textContent = bit;
+                    inputStreamBitsDiv.appendChild(bitSpan);
+                });
+                inputStreamBitsDiv.scrollLeft = inputStreamBitsDiv.scrollWidth;
+            }
+
+            updateCurrentInputBitDisplay();
+            drawTrellis(); // Redraw initial trellis state
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typeset(); // Ensure MathJax re-renders after reset
+            }
+        }
+
+        async function pushBit() {
+            if (!validateInput(binaryInputEl.value, 'binary') || !validateInput(errorProbabilityEl.value, 'probability')) {
+                return;
+            }
+
+            if (inputStreamBitsDiv.children.length === 0) {
+                messageContainer.textContent = 'Кінець вхідного потоку. Натисніть "Скинути" для нової симуляції.';
+                pushBitButton.disabled = true;
+                return;
+            }
+
+            pushBitButton.disabled = true;
+
+            const currentInputBit = parseInt(inputStreamBitsDiv.firstChild.textContent);
+            const disappearingBitEl = inputStreamBitsDiv.firstChild;
+            if (disappearingBitEl) {
+                disappearingBitEl.style.transform = 'translateX(50px) scale(0)';
+                disappearingBitEl.style.opacity = '0';
+                await new Promise(resolve => setTimeout(resolve, 300));
+                inputStreamBitsDiv.removeChild(disappearingBitEl);
+            }
+
+            const errorProbability = parseFloat(errorProbabilityEl.value);
+            const currentEncoder = encoders[currentEncoderId];
+            let y1, y2, nextRegisterState;
+
+            if (currentEncoderId === 'encoder1') {
+                const transitionKey = `${registerState}_${currentInputBit}`;
+                const transition = currentEncoder.transitions[transitionKey];
+                y1 = transition.outputY1;
+                y2 = transition.outputY2;
+                nextRegisterState = transition.nextState;
+            } else if (currentEncoderId === 'encoder2') {
+                // For K=3, registerState is [R1, R2]
+                const R1 = registerState[0];
+                const R2 = registerState[1];
+                const transitionKey = `${R1}${R2}_${currentInputBit}`;
+                const transition = currentEncoder.transitions[transitionKey];
+                
+                // Calculate outputs based on current input and register state
+                y1 = currentInputBit ^ R1 ^ R2;
+                y2 = currentInputBit ^ R2;
+                
+                // Determine next register state
+                // x[n] becomes R1, R1 becomes R2
+                nextRegisterState = [currentInputBit, R1];
+            }
+
+
+            trueEncodedY1History.push(y1);
+            trueEncodedY2History.push(y2);
+            trueInputBitHistory.push(currentInputBit);
+
+            allEncodedY1.push(y1);
+            allEncodedY2.push(y2);
+
+            let receivedY1Bit = y1;
+            let errorY1 = false;
+            if (Math.random() < errorProbability) {
+                receivedY1Bit = 1 - receivedY1Bit;
+                errorY1 = true;
+            }
+            allReceivedY1.push(receivedY1Bit);
+
+            let receivedY2Bit = y2;
+            let errorY2 = false;
+            if (Math.random() < errorProbability) {
+                receivedY2Bit = 1 - receivedY2Bit;
+                errorY2 = true;
+            }
+            allReceivedY2.push(receivedY2Bit);
+
+            registerState = nextRegisterState; // Update global register state
+            trueRegisterStatesHistory.push(registerState); // Track true state for true path
+            encoderRegisterStateEl.textContent = currentEncoder.getRegisterStateString(registerState);
+
+            const encodedY1Span = document.createElement('span');
+            encodedY1Span.className = 'bit';
+            encodedY1Span.textContent = y1;
+            encodedStreamY1Div.appendChild(encodedY1Span);
+
+            const encodedY2Span = document.createElement('span');
+            encodedY2Span.className = 'bit';
+            encodedY2Span.textContent = y2;
+            encodedStreamY2Div.appendChild(encodedY2Span);
+
+            const receivedY1Span = document.createElement('span');
+            receivedY1Span.className = errorY1 ? 'bit error-bit received-bit-interactive' : 'bit received-bit-interactive';
+            receivedY1Span.textContent = receivedY1Bit;
+            receivedY1Span.dataset.stream = 'Y1';
+            receivedY1Span.dataset.index = allReceivedY1.length - 1;
+            receivedY1Span.addEventListener('click', toggleReceivedBit);
+            receivedStreamY1Div.appendChild(receivedY1Span);
+
+            const receivedY2Span = document.createElement('span');
+            receivedY2Span.className = errorY2 ? 'bit error-bit received-bit-interactive' : 'bit received-bit-interactive';
+            receivedY2Span.textContent = receivedY2Bit;
+            receivedY2Span.dataset.stream = 'Y2';
+            receivedY2Span.dataset.index = allReceivedY2.length - 1;
+            receivedY2Span.addEventListener('click', toggleReceivedBit);
+            receivedStreamY2Div.appendChild(receivedY2Span);
+
+            currentIndex++;
+            updateCurrentInputBitDisplay();
+            pushBitButton.disabled = false;
+
+            drawTrellis();
+        }
+
+        function toggleReceivedBit(event) {
+            const bitSpan = event.target;
+            const stream = bitSpan.dataset.stream;
+            const index = parseInt(bitSpan.dataset.index);
+
+            if (stream === 'Y1') {
+                allReceivedY1[index] = 1 - allReceivedY1[index];
+                bitSpan.textContent = allReceivedY1[index];
+            } else if (stream === 'Y2') {
+                allReceivedY2[index] = 1 - allReceivedY2[index];
+                bitSpan.textContent = allReceivedY2[index];
+            }
+
+            // Update error class based on comparison with true encoded bit
+            const trueBit = (stream === 'Y1' ? trueEncodedY1History[index] : trueEncodedY2History[index]);
+            const currentBit = parseInt(bitSpan.textContent);
+
+            if (currentBit !== trueBit) {
+                bitSpan.classList.add('error-bit');
+            } else {
+                bitSpan.classList.remove('error-bit');
+            }
+            drawTrellis(); // Redraw trellis after bit inversion
+        }
+
+
+        function drawTrellis() {
+            trellisVisualizationDiv.innerHTML = '';
+            const currentEncoder = encoders[currentEncoderId];
+            const trellisStates = currentEncoder.numStates;
+            const trellisLevels = allReceivedY1.length + 1;
+
+            if (trellisLevels <= 1) { // Only show placeholder if no bits processed yet
+                 const placeholder = document.createElement('p');
+                 placeholder.style.fontSize = '0.9em';
+                 placeholder.textContent = 'Трелліс-діаграма буде побудована по мірі обробки бітів.';
+                 trellisVisualizationDiv.appendChild(placeholder);
+                 return;
+            }
+
+            let pathMetrics = Array(trellisLevels).fill(null).map(() => Array(trellisStates).fill(Infinity));
+            let paths = Array(trellisLevels).fill(null).map(() => Array(trellisStates).fill(null));
+
+            // Start state is always 0 (all registers initialized to 0)
+            pathMetrics[0][0] = 0;
+
+            const trellisContainer = document.createElement('div');
+            trellisContainer.style.display = 'flex';
+            trellisContainer.style.justifyContent = 'space-between';
+            trellisContainer.style.alignItems = 'flex-start';
+            trellisContainer.style.width = '100%';
+            trellisContainer.style.position = 'relative';
+            trellisVisualizationDiv.appendChild(trellisContainer);
+
+            // Draw states column by column
+            for (let t = 0; t < trellisLevels; t++) {
+                const col = document.createElement('div');
+                col.className = 'trellis-col';
+                col.style.position = 'relative';
+
+                for (let s = 0; s < trellisStates; s++) {
+                    const stateEl = document.createElement('div');
+                    stateEl.className = 'trellis-state';
+                    // Display state as binary string for K=3
+                    if (currentEncoder.numRegisters === 1) {
+                        stateEl.textContent = s; // 0 or 1
+                    } else if (currentEncoder.numRegisters === 2) {
+                        stateEl.textContent = s.toString(2).padStart(2, '0'); // 00, 01, 10, 11
+                    }
+                    
+                    const distLabel = document.createElement('div');
+                    distLabel.className = 'distance-label';
+                    distLabel.textContent = '';
+                    stateEl.appendChild(distLabel);
+                    col.appendChild(stateEl);
+                }
+                trellisContainer.appendChild(col);
+            }
+
+            // Calculate paths and metrics for the next stage (t+1) using Viterbi
+            for (let t = 0; t < allReceivedY1.length; t++) {
+                const currentReceivedY1Bit = allReceivedY1[t];
+                const currentReceivedY2Bit = allReceivedY2[t];
+
+                for (let prevStateIdx = 0; prevStateIdx < trellisStates; prevStateIdx++) {
+                    if (pathMetrics[t][prevStateIdx] === Infinity) continue;
+
+                    let prevStateRegisters;
+                    if (currentEncoder.numRegisters === 1) {
+                        prevStateRegisters = currentEncoder.stateIndexToRegister(prevStateIdx);
+                    } else if (currentEncoder.numRegisters === 2) {
+                        prevStateRegisters = currentEncoder.stateIndexToRegister(prevStateIdx); // [R1, R2]
+                    }
+
+                    for (let input = 0; input < 2; input++) {
+                        let expectedOutputY1, expectedOutputY2, nextStateIdx;
+
+                        if (currentEncoderId === 'encoder1') {
+                            const transitionKey = `${prevStateRegisters}_${input}`;
+                            const transition = currentEncoder.transitions[transitionKey];
+                            expectedOutputY1 = transition.outputY1;
+                            expectedOutputY2 = transition.outputY2;
+                            nextStateIdx = currentEncoder.registerToStateIndex(transition.nextState);
+                        } else if (currentEncoderId === 'encoder2') {
+                            const R1 = prevStateRegisters[0];
+                            const R2 = prevStateRegisters[1];
+                            
+                            expectedOutputY1 = input ^ R1 ^ R2;
+                            expectedOutputY2 = input ^ R2;
+                            
+                            const nextR1 = input;
+                            const nextR2 = R1;
+                            nextStateIdx = currentEncoder.registerToStateIndex([nextR1, nextR2]);
+                        } else {
+                            continue; // Should not happen
+                        }
+
+                        // Calculate Hamming distance
+                        let hammingDistance = 0;
+                        if (expectedOutputY1 !== currentReceivedY1Bit) hammingDistance++;
+                        if (expectedOutputY2 !== currentReceivedY2Bit) hammingDistance++;
+
+                        const newPathCost = pathMetrics[t][prevStateIdx] + hammingDistance;
+
+                        if (newPathCost < pathMetrics[t + 1][nextStateIdx]) {
+                            pathMetrics[t + 1][nextStateIdx] = newPathCost;
+                            paths[t + 1][nextStateIdx] = {
+                                prevStateIdx: prevStateIdx, // Store index of previous state
+                                inputBit: input,
+                                outputY1: expectedOutputY1,
+                                outputY2: expectedOutputY2,
+                                cost: hammingDistance
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Draw lines and labels after all columns are rendered
+            setTimeout(() => {
+                const trellisCols = trellisContainer.children;
+                const trellisRect = trellisContainer.getBoundingClientRect();
+
+                // Update distance labels
+                for(let t = 0; t < trellisLevels; t++) {
+                    const colEl = trellisCols[t];
+                    const stateEls = colEl.querySelectorAll('.trellis-state');
+                    for(let s = 0; s < trellisStates; s++) {
+                        const distLabelEl = stateEls[s].querySelector('.distance-label');
+                        if (distLabelEl) {
+                            distLabelEl.textContent = pathMetrics[t][s] === Infinity ? '' : `D: ${pathMetrics[t][s]}`;
+                        }
+                    }
+                }
+
+                // Draw all possible paths (faded background paths) AND their labels
+                for (let t = 0; t < allReceivedY1.length; t++) {
+                    const currentColumnEl = trellisCols[t];
+                    const nextColumnEl = trellisCols[t + 1];
+
+                    if (!currentColumnEl || !nextColumnEl) continue;
+
+                    const prevStateEls = currentColumnEl.querySelectorAll('.trellis-state');
+                    const nextStateEls = nextColumnEl.querySelectorAll('.trellis-state');
+
+                    for (let prevStateIdx = 0; prevStateIdx < trellisStates; prevStateIdx++) {
+                        const prevStateEl = prevStateEls[prevStateIdx];
+                        if (!prevStateEl) continue;
+
+                        const prevStateRect = prevStateEl.getBoundingClientRect();
+
+                        let prevStateRegisters;
+                        if (currentEncoder.numRegisters === 1) {
+                            prevStateRegisters = currentEncoder.stateIndexToRegister(prevStateIdx);
+                        } else if (currentEncoder.numRegisters === 2) {
+                            prevStateRegisters = currentEncoder.stateIndexToRegister(prevStateIdx);
+                        }
+
+                        for (let input = 0; input < 2; input++) {
+                            let expectedOutputY1, expectedOutputY2, nextStateIdx, pathLabelText;
+
+                            if (currentEncoderId === 'encoder1') {
+                                const transition = currentEncoder.transitions[`${prevStateRegisters}_${input}`];
+                                expectedOutputY1 = transition.outputY1;
+                                expectedOutputY2 = transition.outputY2;
+                                nextStateIdx = currentEncoder.registerToStateIndex(transition.nextState);
+                                pathLabelText = transition.pathOutput;
+                            } else if (currentEncoderId === 'encoder2') {
+                                const R1 = prevStateRegisters[0];
+                                const R2 = prevStateRegisters[1];
+                                expectedOutputY1 = input ^ R1 ^ R2;
+                                expectedOutputY2 = input ^ R2;
+                                const nextR1 = input;
+                                const nextR2 = R1;
+                                nextStateIdx = currentEncoder.registerToStateIndex([nextR1, nextR2]);
+                                pathLabelText = `${input}/${expectedOutputY1}${expectedOutputY2}`;
+                            } else {
+                                continue;
+                            }
+
+                            const nextStateEl = nextStateEls[nextStateIdx];
+                            if (!nextStateEl) continue;
+
+                            const nextStateRect = nextStateEl.getBoundingClientRect();
+
+                            const startX = prevStateRect.left + prevStateRect.width / 2 - trellisRect.left;
+                            const startY = prevStateRect.top + prevStateRect.height / 2 - trellisRect.top;
+                            const endX = nextStateRect.left + nextStateRect.width / 2 - trellisRect.left;
+                            const endY = nextStateRect.top + nextStateRect.height / 2 - trellisRect.top;
+
+                            const pathEl = document.createElement('div');
+                            pathEl.className = 'trellis-path';
+                            pathEl.classList.add(input === 0 ? 'path-solid' : 'path-dashed');
+
+                            const dx = endX - startX;
+                            const dy = endY - startY;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            const angleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                            pathEl.style.width = `${length}px`;
+                            pathEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${angleDeg}deg)`;
+                            pathEl.style.transformOrigin = '0 0';
+
+                            trellisContainer.appendChild(pathEl);
+
+                            const pathLabelEl = document.createElement('div');
+                            pathLabelEl.className = 'path-label';
+                            pathLabelEl.textContent = pathLabelText;
+                            
+                            const labelPosX = startX + dx * 0.3;
+                            const labelPosY = startY + dy * 0.3;
+
+                            pathLabelEl.style.left = `${labelPosX}px`;
+                            pathLabelEl.style.top = `${labelPosY}px`;
+                            pathLabelEl.style.transform = `translate(-50%, -50%)`;
+
+                            trellisContainer.appendChild(pathLabelEl);
+                        }
+                    }
+                }
+
+                // --- Draw True Encoded Path (RED) ---
+                // trueRegisterStatesHistory now stores arrays/single values
+                let currentTrueStateRegisters = trueRegisterStatesHistory[0]; // Start from initial state (e.g., 0 or [0,0])
+
+                for (let t = 0; t < currentIndex; t++) {
+                    const trueInputBit = trueInputBitHistory[t];
+                    
+                    let truePrevStateIdx;
+                    if (currentEncoder.numRegisters === 1) {
+                        truePrevStateIdx = currentEncoder.registerToStateIndex(currentTrueStateRegisters);
+                    } else if (currentEncoder.numRegisters === 2) {
+                        truePrevStateIdx = currentEncoder.registerToStateIndex(currentTrueStateRegisters);
+                    }
+
+                    let nextTrueStateRegisters;
+                    let transitionData;
+
+                    if (currentEncoderId === 'encoder1') {
+                        transitionData = currentEncoder.transitions[`${truePrevStateIdx}_${trueInputBit}`];
+                        nextTrueStateRegisters = transitionData.nextState;
+                    } else if (currentEncoderId === 'encoder2') {
+                        const R1 = currentTrueStateRegisters[0];
+                        const R2 = currentTrueStateRegisters[1];
+                        nextTrueStateRegisters = [trueInputBit, R1];
+                    }
+
+                    const trueNextStateIdx = currentEncoder.registerToStateIndex(nextTrueStateRegisters);
+
+                    const currentColumnEl = trellisCols[t];
+                    const nextColumnEl = trellisCols[t + 1];
+
+                    const prevStateEl = currentColumnEl.querySelectorAll('.trellis-state')[truePrevStateIdx];
+                    const nextStateEl = nextColumnEl.querySelectorAll('.trellis-state')[trueNextStateIdx];
+
+                    if (!prevStateEl || !nextStateEl) {
+                        console.error(`Missing state elements for true path at level ${t}.`);
+                        break;
+                    }
+
+                    const prevStateRect = prevStateEl.getBoundingClientRect();
+                    const nextStateRect = nextStateEl.getBoundingClientRect();
+                    const startX = prevStateRect.left + prevStateRect.width / 2 - trellisRect.left;
+                    const startY = prevStateRect.top + prevStateRect.height / 2 - trellisRect.top;
+                    const endX = nextStateRect.left + nextStateRect.width / 2 - trellisRect.left;
+                    const endY = nextStateRect.top + nextStateRect.height / 2 - trellisRect.top;
+
+                    const dx = endX - startX;
+                    const dy = endY - startY;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                    const truePathEl = document.createElement('div');
+                    truePathEl.className = 'trellis-path trellis-path-highlight';
+                    truePathEl.classList.add(trueInputBit === 0 ? 'path-true-solid' : 'path-true-dashed');
+                    truePathEl.style.width = `${length}px`;
+                    truePathEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${angle}deg)`;
+                    truePathEl.style.transformOrigin = '0 0';
+                    truePathEl.style.zIndex = '5';
+                    trellisContainer.appendChild(truePathEl);
+
+                    currentTrueStateRegisters = nextTrueStateRegisters; // Update for next iteration
+                }
+
+
+                // --- Find and Draw Best Viterbi Path (GREEN) ---
+                let bestPath = [];
+                let minCost = Infinity;
+                let lastStateIdx = -1;
+
+                for (let s = 0; s < trellisStates; s++) {
+                    if (pathMetrics[trellisLevels - 1][s] < minCost) {
+                        minCost = pathMetrics[trellisLevels - 1][s];
+                        lastStateIdx = s;
+                    }
+                }
+
+                if (lastStateIdx !== -1) {
+                    let currentStateIdx = lastStateIdx;
+                    for (let t = trellisLevels - 1; t > 0; t--) {
+                        const prevInfo = paths[t][currentStateIdx];
+                        if (prevInfo) {
+                            bestPath.unshift({
+                                level: t,
+                                prevStateIdx: prevInfo.prevStateIdx,
+                                currentStateIdx: currentStateIdx,
+                                inputBit: prevInfo.inputBit,
+                                outputY1: prevInfo.outputY1,
+                                outputY2: prevInfo.outputY2,
+                                cost: prevInfo.cost
+                            });
+                            currentStateIdx = prevInfo.prevStateIdx;
+                        } else {
+                            console.warn(`No Viterbi path found to state ${currentStateIdx} at level ${t}. Path reconstruction stopped.`);
+                            break;
+                        }
+                    }
+                }
+
+                bestPath.forEach(segment => {
+                    const currentColumnEl = trellisCols[segment.level - 1];
+                    const nextColumnEl = trellisCols[segment.level];
+
+                    const prevStateEl = currentColumnEl.querySelectorAll('.trellis-state')[segment.prevStateIdx];
+                    const nextStateEl = nextColumnEl.querySelectorAll('.trellis-state')[segment.currentStateIdx];
+
+                    if (!prevStateEl || !nextStateEl) return;
+
+                    const prevStateRect = prevStateEl.getBoundingClientRect();
+                    const nextStateRect = nextStateEl.getBoundingClientRect();
+
+                    const startX = prevStateRect.left + prevStateRect.width / 2 - trellisRect.left;
+                    const startY = prevStateRect.top + prevStateRect.height / 2 - trellisRect.top;
+                    const endX = nextStateRect.left + nextStateRect.width / 2 - trellisRect.left;
+                    const endY = nextStateRect.top + nextStateRect.height / 2 - trellisRect.top;
+
+                    const dx = endX - startX;
+                    const dy = endY - startY;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                    const pathHighlightEl = document.createElement('div');
+                    pathHighlightEl.className = 'trellis-path trellis-path-highlight';
+                    pathHighlightEl.classList.add(segment.inputBit === 0 ? 'path-highlight-solid' : 'path-highlight-dashed');
+                    pathHighlightEl.style.width = `${length}px`;
+                    pathHighlightEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${angle}deg)`;
+                    pathHighlightEl.style.transformOrigin = '0 0';
+                    pathHighlightEl.style.zIndex = '10';
+                    trellisContainer.appendChild(pathHighlightEl);
+                });
+
+                if (typeof MathJax !== 'undefined') {
+                    MathJax.typesetPromise();
+                }
+
+            }, 50);
+        }
+
+        function updateCurrentInputBitDisplay() {
+            if (inputStreamBitsDiv.children.length > 0) {
+                currentInputBitEl.textContent = inputStreamBitsDiv.firstChild.textContent;
+                pushBitButton.disabled = false;
+            } else {
+                currentInputBitEl.textContent = '-';
+                pushBitButton.disabled = true;
+                if (originalInputSequence.length > 0) {
+                    messageContainer.textContent = 'Всі біти оброблені. Натисніть "Скинути" для нової симуляції.';
+                }
+            }
+        }
+
+        function updateEncoderDisplay() {
+            const selectedEncoder = encoders[currentEncoderId];
+            coderImage.src = selectedEncoder.image;
+            infoCoderImage.src = selectedEncoder.image; // Update image in info section as well
+            encoderFormulasDiv.innerHTML = selectedEncoder.formulas;
+            infoEncoderFormulasDiv.innerHTML = selectedEncoder.formulas; // Update formulas in info section
+            
+            // Re-render MathJax
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typesetPromise([encoderFormulasDiv, infoEncoderFormulasDiv]);
+            }
+        }
+
+        // Event listeners
+        encoderSelect.addEventListener('change', initializeSimulation);
+        binaryInputEl.addEventListener('input', initializeSimulation);
+
+        // Initial setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof MathJax !== 'undefined') {
+                MathJax.startup.promise.then(() => {
+                    initializeSimulation();
+                }).catch((err) => {
+                    console.error("MathJax startup failed:", err);
+                    initializeSimulation(); // Proceed without MathJax rendering if it fails
+                });
+            } else {
+                console.warn("MathJax not loaded, proceeding without math rendering.");
+                initializeSimulation();
+            }
+        });
+
+    </script>
+</body>
+</html>

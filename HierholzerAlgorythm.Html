@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Алгоритму Гіргольцера</title>
+    <style>
+        :root {
+            --primary-color: #0277BD; /* Blue 700 */
+            --primary-hover: #01579B;
+            --hierholzer-color: #0277BD; 
+            
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #555;
+            
+            --visited-node-color: #b3e5fc; /* Light Blue */
+            --current-node-color: #ffc107; /* Amber */
+            --path-color: #4CAF50;    /* Green */
+            --current-edge-color: #F44336; /* Red */
+            --used-edge-color: #bdbdbd;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+        }
+        .main-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 1280px;
+        }
+        .simulator-container, .theory-container {
+            background-color: var(--white-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .step-counter {
+            text-align: center;
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 15px;
+            height: 1.2em;
+        }
+        h2.hierholzer-title { color: var(--hierholzer-color); }
+        .controls, .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .input-group label { display: flex; align-items: center; gap: 5px; }
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            width: 60px;
+        }
+        input[type="checkbox"] { transform: scale(1.2); margin-right: 5px; }
+        .visualization {
+            width: 100%;
+            height: 500px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .commentary {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 50px;
+            font-size: 1.1em;
+            text-align: center;
+            word-wrap: break-word;
+            line-height: 1.5;
+            margin-top: 15px;
+            color: var(--comment-color);
+        }
+        svg { width: 100%; height: 100%; }
+
+        .node circle { stroke: #333; stroke-width: 2px; fill: var(--white-bg); transition: fill 0.3s, stroke 0.3s; }
+        .node text.node-id { text-anchor: middle; dominant-baseline: central; font-size: 16px; font-weight: bold; pointer-events: none; fill: #333; }
+        .node text.node-label { text-anchor: middle; dominant-baseline: central; font-size: 14px; font-weight: normal; pointer-events: none; fill: var(--primary-color); transform: translateY(-22px); }
+        .node:hover { cursor: grab; }
+        .node:active { cursor: grabbing; }
+
+        .edge { stroke: #ccc; stroke-width: 3px; fill: none; transition: stroke 0.3s, stroke-width 0.3s; }
+
+        .node.visited circle { fill: var(--visited-node-color); }
+        .node.current circle { fill: var(--current-node-color); stroke: #a67c00; }
+        .node.path circle { fill: var(--path-color); stroke: var(--path-color); }
+        .node.path text.node-id { fill: white; }
+        
+        .edge.path { stroke: var(--path-color); stroke-width: 5px;}
+        .edge.current-edge { stroke: var(--current-edge-color); stroke-width: 5px;}
+        .edge.used { stroke: var(--used-edge-color); stroke-dasharray: 5 5; stroke-width: 2px; }
+        
+        .ds-box { fill: #f8f9fa; stroke: #aaa; stroke-width: 1px; }
+        .ds-text { text-anchor: middle; dominant-baseline: central; font-size: 14px; }
+        .ds-label { font-size: 14px; font-weight: bold; text-anchor: start; }
+        
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px 25px;
+            margin: 10px 0 0 0;
+            flex-wrap: wrap;
+            font-size: 0.9em;
+            color: #555;
+            padding: 10px;
+            background: #fdfdfd;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-item .legend-line {
+            display: inline-block;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+
+
+        .theory-container { max-width: 1280px; }
+        details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
+        summary { font-size: 1.2em; font-weight: bold; cursor: pointer; color: var(--primary-color); }
+        details[open] summary { margin-bottom: 15px; }
+        .theory-content h3 { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .theory-content p, .theory-content li { line-height: 1.7; color: var(--text-color); }
+        .theory-content code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+        .theory-content strong { color: var(--hierholzer-color); }
+    </style>
+</head>
+<body>
+<div class="input-group">
+    <label>К-сть вершин:</label>
+    <input type="number" id="node-count" value="7" min="4" max="20">
+    <label>
+        <input type="checkbox" id="directed-graph-checkbox">
+        Орієнтований
+    </label>
+    <button id="generate-graph-btn">Згенерувати Новий Граф</button>
+</div>
+
+<div class="main-container">
+    <div class="simulator-container">
+        <h2 class="hierholzer-title">Алгоритм Гіргольцера (Пошук Ейлерового шляху)</h2>
+        <div class="step-counter" id="hierholzer-step-counter"></div>
+        <div class="visualization">
+            <svg id="hierholzer-svg"></svg>
+        </div>
+        
+        <div class="controls">
+            <button id="hierholzer-prev-btn" disabled>Крок назад</button>
+            <button id="hierholzer-next-btn" disabled>Крок вперед</button>
+        </div>
+
+        <div class="legend-container">
+            <div class="legend-item"><span class="legend-line" style="background-color: var(--current-edge-color); width: 30px; height: 5px;"></span> Поточний крок DFS</div>
+            <div class="legend-item"><span class="legend-line" style="background-color: var(--path-color); width: 30px; height: 5px;"></span> Ребро фінального шляху</div>
+            <div class="legend-item"><span class="legend-line" style="background: none; border-top: 3px dashed var(--used-edge-color); width: 30px; height: 1px;"></span> Використане ребро</div>
+            <div class="legend-item"><span class="legend-line" style="background-color: #ccc; width: 30px; height: 3px;"></span> Невикористане ребро</div>
+        </div>
+
+        <div class="commentary" id="hierholzer-commentary">Налаштуйте параметри та згенеруйте граф.</div>
+    </div>
+</div>
+
+<div class="theory-container">
+    <details open>
+        <summary>Теоретична довідка по Алгоритму Гіргольцера</summary>
+        <div class="theory-content">
+            <h3>Що таке Алгоритм Гіргольцера?</h3>
+            <p>
+                Алгоритм Гіргольцера — це ефективний алгоритм для знаходження <b>Ейлерового шляху</b> або <b>Ейлерового циклу</b> в графі. 
+            </p>
+            <ul>
+                <li><b>Ейлерів шлях</b> — це шлях у графі, який проходить через кожне <strong>ребро</strong> рівно один раз.</li>
+                <li><b>Ейлерів цикл (або ланцюг)</b> — це Ейлерів шлях, який починається і закінчується в одній і тій самій вершині.</li>
+            </ul>
+            <p>
+                На відміну від алгоритмів (Dijkstra, BFS/DFS), які фокусуються на відвідуванні *вершин* або пошуку шляхів, алгоритм Гіргольцера фокусується на відвідуванні *ребер*.
+            </p>
+
+            <h3>Умови існування</h3>
+            <p>Щоб у зв'язному графі існував Ейлерів шлях або цикл, вершини повинні мати певну кількість ребер (ступінь):</p>
+            <ul>
+                <li><b>Для неорієнтованого графу:</b>
+                    <ul>
+                        <li><b>Цикл</b> існує, якщо <strong>всі</strong> вершини мають <strong>парний</strong> ступінь.</li>
+                        <li><b>Шлях</b> існує, якщо <strong>рівно дві</strong> вершини мають <strong>непарний</strong> ступінь (це будуть початок і кінець шляху).</li>
+                    </ul>
+                </li>
+                <li><b>Для орієнтованого графу:</b> (Граф також має бути *сильно зв'язним* для циклу)
+                    <ul>
+                        <li><b>Цикл</b> існує, якщо для <strong>кожної</strong> вершини <code>вхідний ступінь == вихідний ступінь</code>.</li>
+                        <li><b>Шлях</b> існує, якщо для однієї вершини <code>вихідний - вхідний = 1</code> (старт), для іншої <code>вхідний - вихідний = 1</code> (фініш), а для всіх інших <code>вхідний == вихідний</code>.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Як він працює?</h3>
+            <p>
+                Алгоритм Гіргольцера використовує ідею, схожу на пошук в глибину (DFS), але з ключовою відмінністю: він "спалює" (використовує) ребра під час проходження.
+            </p>
+            <ol>
+                <li><b>Перевірка умов:</b> Спочатку перевіряються ступені вершин, щоб визначити, чи існує цикл/шлях, і знайти стартову вершину.</li>
+                <li><b>Вибір старту:</b>
+                    <ul>
+                        <li>Якщо існує шлях (є 2 "непарні" вершини), починаємо з однієї з них.</li>
+                        <li>Якщо існує цикл (всі "парні" вершини), починаємо з будь-якої вершини, що має ребра.</li>
+                    </ul>
+                </li>
+                <li><b>Ітеративний DFS:</b>
+                    <ul>
+                        <li>Ми використовуємо стек (<code>stack</code>) для DFS. Починаємо зі стартової вершини.</li>
+                        <li>Поки стек не порожній, дивимось на вершину <code>u</code> на його вершині.</li>
+                        <li>Якщо <code>u</code> має невикористане ребро, що веде до <code>v</code>:
+                            <ul>
+                                <li>Помічаємо ребро <code>(u, v)</code> як використане.</li>
+                                <li>Додаємо <code>v</code> у стек. (Переходимо до <code>v</code>).</li>
+                            </ul>
+                        </li>
+                        <li>Якщо <code>u</code> <strong>не має</strong> невикористаних ребер (<b>"ми застрягли"</b>):
+                            <ul>
+                                <li>Це означає, що ми зайшли в "глухий кут" або завершили локальний цикл.</li>
+                                <li>Видаляємо <code>u</code> зі стеку DFS.</li>
+                                <li>Додаємо <code>u</code> на <strong>початок</strong> фінального списку <code>circuit</code>.</li>
+                                <li>Алгоритм "повертається" до попередньої вершини (яка тепер на верхівці стеку) і продовжує шукати ребра звідти.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li><b>Результат:</b> Коли стек DFS стає порожнім, список <code>circuit</code> містить повний Ейлерів шлях/цикл.</li>
+            </ol>
+            
+            <h3 style="color: #D32F2F;">Проблема неоднозначності та секвенування ДНК</h3>
+            <p>
+                Ключова проблема в графах з <strong>"розгалуженнями"</strong> (вершинами, ступінь яких > 2) полягає в тому, що <strong>Ейлерів шлях не є унікальним</strong>.
+            </p>
+            <p>
+                Коли алгоритм (DFS) потрапляє у таку вершину, він має декілька варіантів, куди рухатись далі. Вибір, який він зробить (зазвичай, просто перший доступний у списку суміжності), визначає, який з багатьох можливих шляхів буде знайдено. 
+                (<i>У цьому симуляторі список суміжності перемішується при кожному запуску, тому ви можете бачити різні шляхи на одному й тому ж графі!</i>)
+            </p>
+            <p>
+                Це критично для таких задач, як <strong>секвенування ДНК (збирання геному)</strong>. У цій задачі, короткі фрагменти ДНК ("k-мери") представляються як ребра, а їхні з'єднання — як вершини (утворюючи так званий граф де БРейна). Якщо у графі є розгалуження (спричинені повторами у послідовності ДНК), існує багато *можливих* способів зібрати геном.
+            </p>
+             <p>
+                Простий алгоритм Гіргольцера знайде лише *один* з них, який може не відповідати біологічній реальності. Тому в біоінформатиці використовуються складніші алгоритми, які намагаються "розв'язати" ці неоднозначності, використовуючи додаткову інформацію (наприклад, довші фрагменти ДНК).
+            </p>
+            
+            <hr>
+            <h3>Практичне застосування</h3>
+            <ul>
+                <li><b>Розв'язання проблеми Кенігсберзьких мостів:</b> Оригінальна задача, яка дала початок теорії графів.</li>
+                <li><b>Маршрутизація:</b> Планування оптимальних маршрутів для служб, яким треба проїхати кожною вулицею (наприклад, збирання сміття, інспекція доріг, доставка пошти).</li>
+                <li><b>Біоінформатика:</b> Збирання геному (побудова послідовності ДНК з фрагментів).</li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+<script>
+// --- GLOBAL STATE ---
+let graph = { nodes: [], edges: [], adj: new Map(), isDirected: false };
+let hierholzerState = { steps: [], currentStep: -1 };
+let physicsAnimationId = null;
+let draggedNode = null;
+
+// --- DOM ELEMENTS ---
+const nodeCountInput = document.getElementById('node-count');
+const generateBtn = document.getElementById('generate-graph-btn');
+const directedCheckbox = document.getElementById('directed-graph-checkbox');
+
+const hierholzerSVG = document.getElementById('hierholzer-svg');
+const hierholzerPrevBtn = document.getElementById('hierholzer-prev-btn');
+const hierholzerNextBtn = document.getElementById('hierholzer-next-btn');
+const hierholzerCommentary = document.getElementById('hierholzer-commentary');
+const hierholzerStepCounter = document.getElementById('hierholzer-step-counter');
+
+// --- CONSTANTS ---
+const NODE_RADIUS = 18;
+
+// --- UTILITY ---
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// ===================================================================
+// MAIN CONTROL FUNCTIONS
+// ===================================================================
+function generateAndStart() {
+    generateBtn.disabled = true;
+    generateBtn.textContent = "Генерація...";
+    
+    if (graph.nodes.length === 0 || parseInt(nodeCountInput.value) !== graph.nodes.length || directedCheckbox.checked !== graph.isDirected) {
+        generateGraphStructure(parseInt(nodeCountInput.value));
+        runPhysicsLayout(() => {
+            runHierholzer();
+            generateBtn.disabled = false;
+            generateBtn.textContent = "Згенерувати Новий Граф";
+        });
+    } else {
+        runHierholzer();
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Перезапустити Алгоритм"; 
+    }
+}
+
+function generateGraphStructure(n) {
+    graph.nodes = [];
+    graph.edges = [];
+    graph.adj.clear();
+    graph.isDirected = directedCheckbox.checked;
+    const width = hierholzerSVG.clientWidth;
+    const height = hierholzerSVG.clientHeight;
+
+    for (let i = 1; i <= n; i++) {
+        graph.nodes.push({ id: i, x: Math.random() * (width - 40) + 20, y: Math.random() * (height - 40) + 20, vx: 0, vy: 0 });
+        graph.adj.set(i, []);
+    }
+    
+    // 1. Generate a weakly connected graph
+    // (For directed, this creates a tree where all nodes are reachable from 1)
+    const visited = new Set([1]);
+    let unvisited = Array.from({length: n-1}, (_, i) => i + 2);
+
+    while(unvisited.length > 0) {
+      const u = [...visited][Math.floor(Math.random() * visited.size)];
+      const vIndex = Math.floor(Math.random() * unvisited.length);
+      const v = unvisited[vIndex];
+      visited.add(v);
+      unvisited.splice(vIndex, 1);
+      
+      const edge = { source: u, target: v, id: graph.edges.length };
+      graph.edges.push(edge);
+      graph.adj.get(u).push({ node: v, edgeId: edge.id });
+      if (!graph.isDirected) graph.adj.get(v).push({ node: u, edgeId: edge.id });
+    }
+    
+    // 2. Add extra edges
+    const extraEdges = Math.floor(n * 1.8);
+    for(let i=0; i<extraEdges; i++) {
+        let u = Math.floor(Math.random() * n) + 1;
+        let v = Math.floor(Math.random() * n) + 1;
+        const exists = graph.edges.some(e => (e.source === u && e.target === v) || (!graph.isDirected && e.source === v && e.target === u));
+        if(u !== v && !exists) {
+            const edge = { source: u, target: v, id: graph.edges.length };
+            graph.edges.push(edge);
+            graph.adj.get(u).push({ node: v, edgeId: edge.id });
+            if (!graph.isDirected) graph.adj.get(v).push({ node: u, edgeId: edge.id });
+        }
+    }
+
+    // 3. --- HIERHOLZER FIX-UP ---
+    if (graph.isDirected) {
+        const balance = new Map(); // balance = out - in
+        graph.nodes.forEach(n => balance.set(n.id, 0));
+        
+        graph.edges.forEach(({source, target}) => {
+            balance.set(source, balance.get(source) + 1);
+            balance.set(target, balance.get(target) - 1);
+        });
+        
+        let sources = graph.nodes.filter(n => balance.get(n.id) > 0).map(n => n.id);
+        let sinks = graph.nodes.filter(n => balance.get(n.id) < 0).map(n => n.id);
+
+        while(sources.length > 0 || sinks.length > 0) {
+            if (sources.length === 0) sources.push(sinks[Math.floor(Math.random() * sinks.length)]);
+            if (sinks.length === 0) sinks.push(sources[Math.floor(Math.random() * sources.length)]);
+            
+            // *** CRITICAL FIX HERE ***
+            // source (u) has excess out-degree (balance > 0)
+            // sink (v) has excess in-degree (balance < 0)
+            // We must add an edge from SINK (v) to SOURCE (u) to balance.
+            
+            let u = sources[0]; // The source
+            let v = sinks[0];   // The sink
+            
+            // Add edge from v -> u
+            const edge = { source: v, target: u, id: graph.edges.length };
+            graph.edges.push(edge);
+            graph.adj.get(v).push({ node: u, edgeId: edge.id });
+
+            // Update balances
+            // v (sink): out-degree++ => balance (out-in) increases by 1 (moves toward 0)
+            balance.set(v, balance.get(v) + 1); 
+            // u (source): in-degree++ => balance (out-in) decreases by 1 (moves toward 0)
+            balance.set(u, balance.get(u) - 1); 
+            
+            // Check if they are now balanced
+            if (balance.get(v) === 0) sinks.shift();
+            if (balance.get(u) === 0) sources.shift();
+        }
+
+    } else { // Undirected
+        const degrees = new Map();
+        graph.nodes.forEach(n => degrees.set(n.id, 0));
+        graph.adj.forEach((neighbors, nodeId) => {
+            degrees.set(nodeId, neighbors.length);
+        });
+
+        let oddNodes = graph.nodes.filter(n => degrees.get(n.id) % 2 !== 0).map(n => n.id);
+
+        while (oddNodes.length > 2) {
+            const u = oddNodes.pop();
+            const v = oddNodes.pop();
+            
+            const edge = { source: u, target: v, id: graph.edges.length };
+            graph.edges.push(edge);
+            graph.adj.get(u).push({ node: v, edgeId: edge.id });
+            graph.adj.get(v).push({ node: u, edgeId: edge.id });
+        }
+    }
+}
+
+// ===================================================================
+// ALGORITHM (Hierholzer)
+// ===================================================================
+function runHierholzer() {
+    hierholzerState = { steps: [], currentStep: -1 };
+    
+    // 1. Create a modifiable, SHUFFLED copy of the adjacency list
+    let adjCopy = new Map();
+    graph.nodes.forEach(n => {
+        const originalAdj = graph.adj.get(n.id) || [];
+        const mappedAdj = originalAdj.map(edge => ({...edge}));
+        adjCopy.set(n.id, shuffle(mappedAdj));
+    });
+
+    // 2. Calculate degrees and find start node
+    const degrees = new Map(); // For undirected
+    const inDegrees = new Map();
+    const outDegrees = new Map();
+    
+    graph.nodes.forEach(n => {
+        degrees.set(n.id, (graph.adj.get(n.id) || []).length);
+        inDegrees.set(n.id, 0);
+        outDegrees.set(n.id, 0);
+    });
+
+    let startNode = graph.nodes.length > 0 ? graph.nodes[0].id : 1;
+    let commentary = "";
+
+    if (graph.isDirected) {
+        graph.edges.forEach(({source, target}) => {
+            outDegrees.set(source, outDegrees.get(source) + 1);
+            inDegrees.set(target, inDegrees.get(target) + 1);
+        });
+        
+        let sources = [];
+        let sinks = [];
+        graph.nodes.forEach(n => {
+            const balance = outDegrees.get(n.id) - inDegrees.get(n.id);
+            if (balance === 1) sources.push(n.id);
+            else if (balance === -1) sinks.push(n.id);
+        });
+
+        if (sources.length === 1 && sinks.length === 1) {
+            startNode = sources[0];
+            commentary = `Знайдено Ейлерів шлях. Починаємо з <b>${startNode}</b> (вихід > вхід).`;
+        } else {
+            const nodeWithEdge = graph.nodes.find(n => outDegrees.get(n.id) > 0);
+            if (nodeWithEdge) startNode = nodeWithEdge.id;
+            else if (graph.nodes.length > 0) startNode = graph.nodes[0].id; // Handle isolated nodes graph
+            commentary = `Знайдено Ейлерів цикл. Починаємо з <b>${startNode}</b>.`;
+        }
+
+    } else { // Undirected
+        let oddNodes = graph.nodes.filter(n => degrees.get(n.id) % 2 !== 0).map(n => n.id);
+        if (oddNodes.length > 0) {
+            startNode = oddNodes[0];
+            commentary = `Знайдено Ейлерів шлях (2 непарні вершини). Починаємо з <b>${startNode}</b>.`;
+        } else {
+            const nodeWithEdge = graph.nodes.find(n => degrees.get(n.id) > 0);
+            if (nodeWithEdge) startNode = nodeWithEdge.id;
+            else if (graph.nodes.length > 0) startNode = graph.nodes[0].id; // Handle isolated nodes graph
+            commentary = `Знайдено Ейлерів цикл (0 непарних вершин). Починаємо з <b>${startNode}</b>.`;
+        }
+    }
+    
+    // Ensure startNode exists
+    if (!graph.nodes.some(n => n.id === startNode)) {
+        startNode = graph.nodes.length > 0 ? graph.nodes[0].id : 1;
+    }
+    
+    const saveStep = (type, commentary, state) => {
+        hierholzerState.steps.push({ type, commentary, ...state });
+    };
+
+    let initialState = {
+        stack: [],
+        circuit: [],
+        usedEdges: new Set(),
+        current: null,
+        lastEdge: null,
+    };
+    
+    saveStep("init", `Ініціалізація. ${commentary}`, initialState);
+
+    let stack = [startNode];
+    let circuit = [];
+    let usedEdges = new Set(); // Stores edge IDs
+    let current = startNode;
+    
+    saveStep("start", `Додаємо <b>${startNode}</b> у стек DFS.`, {
+        ...initialState,
+        stack: [...stack],
+        current: current,
+    });
+
+    while (stack.length > 0) {
+        current = stack[stack.length - 1]; // Peek
+        let adj = adjCopy.get(current);
+
+        if (adj && adj.length > 0) {
+            const edge = adj.shift(); // Get and remove edge
+            const v = edge.node;
+            
+            if (!graph.isDirected) {
+                const reverseAdj = adjCopy.get(v);
+                if (reverseAdj) {
+                    const reverseEdgeIndex = reverseAdj.findIndex(e => e.edgeId === edge.edgeId);
+                    if (reverseEdgeIndex !== -1) {
+                        reverseAdj.splice(reverseEdgeIndex, 1);
+                    }
+                }
+            }
+            
+            usedEdges.add(edge.edgeId);
+            stack.push(v);
+            
+            saveStep("dfs", `Рухаємось з <b>${current}</b> до <b>${v}</b>. Ребро (id: ${edge.edgeId}) використано.`, {
+                stack: [...stack],
+                circuit: [...circuit],
+                usedEdges: new Set(usedEdges),
+                current: v,
+                lastEdge: { u: current, v: v, id: edge.edgeId }
+            });
+
+        } else {
+            // No unused edges, backtrack
+            const node = stack.pop();
+            circuit.unshift(node);
+            
+            // *** NEW: Improved Comment ***
+            const nextNode = stack.length > 0 ? stack[stack.length - 1] : null;
+            const nextNodeText = nextNode 
+                ? `до вершини <b>${nextNode}</b>, яка тепер є новою верхівкою стеку` 
+                : "до порожнього стеку";
+            
+            saveStep("backtrack", `<b>"Застрягли"</b> у <b>${node}</b> (всі ребра використані).<br>Видаляємо <b>${node}</b> зі стеку і додаємо на <b>початок</b> фінального шляху.<br>Алгоритм "відкочується" назад ${nextNodeText}, щоб шукати невикористані ребра звідти.`, {
+                stack: [...stack],
+                circuit: [...circuit],
+                usedEdges: new Set(usedEdges),
+                current: nextNode,
+                lastEdge: null
+            });
+        }
+    }
+
+    saveStep("done", `Завершено. Ейлерів цикл/шлях знайдено!`, {
+        stack: [],
+        circuit: [...circuit],
+        usedEdges: new Set(usedEdges),
+        current: null,
+        lastEdge: null
+    });
+
+    hierholzerState.currentStep = 0;
+    updateHierholzerView();
+}
+
+
+function updateHierholzerView() {
+    const step = hierholzerState.steps[hierholzerState.currentStep];
+    if (!step) return;
+    updateVisualization(hierholzerSVG, step);
+    hierholzerCommentary.innerHTML = step.commentary;
+    hierholzerStepCounter.textContent = `Крок: ${hierholzerState.currentStep + 1} / ${hierholzerState.steps.length}`;
+    hierholzerPrevBtn.disabled = hierholzerState.currentStep === 0;
+    hierholzerNextBtn.disabled = hierholzerState.currentStep === hierholzerState.steps.length - 1;
+}
+
+// ===================================================================
+// DRAWING, PHYSICS & INTERACTION
+// ===================================================================
+function drawGraphLayout(svgElement) {
+    svgElement.innerHTML = ''; 
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <marker id="arrowhead" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#999" /></marker>
+        <marker id="arrowhead-path" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--path-color')}" /></marker>
+        <marker id="arrowhead-current" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--current-edge-color')}" /></marker>
+    `;
+    svgElement.appendChild(defs);
+
+    const edgeSet = new Set(graph.edges.map(e => `${e.source}-${e.target}`));
+    const drawnEdges = new Set();
+    
+    graph.edges.forEach(({ source, target, id }) => { 
+        const edgeKey = `${source}-${target}-${id}`;
+        if (drawnEdges.has(edgeKey)) return;
+
+        const nodeU = graph.nodes.find(n => n.id === source);
+        const nodeV = graph.nodes.find(n => n.id === target);
+        
+        // Handle missing nodes gracefully if graph generation fails
+        if (!nodeU || !nodeV) return;
+
+        const hasReciprocal = graph.isDirected && edgeSet.has(`${target}-${source}`);
+        
+        if (hasReciprocal) {
+            drawCurvedEdge(svgElement, nodeU, nodeV, id, 1);
+            const reciprocalEdge = graph.edges.find(e => e.source === target && e.target === source);
+            if (reciprocalEdge) {
+                drawCurvedEdge(svgElement, nodeV, nodeU, reciprocalEdge.id, 1);
+                drawnEdges.add(`${target}-${source}-${reciprocalEdge.id}`);
+            }
+        } else {
+            drawStraightEdge(svgElement, nodeU, nodeV, id);
+        }
+        drawnEdges.add(edgeKey);
+    });
+
+    graph.nodes.forEach(node => {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('data-id', node.id);
+        group.classList.add('node');
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', NODE_RADIUS);
+        
+        const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idText.setAttribute('x', node.x);
+        idText.setAttribute('y', node.y);
+        idText.textContent = node.id;
+        idText.classList.add('node-id');
+
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.setAttribute('x', node.x);
+        labelText.setAttribute('y', node.y);
+        labelText.classList.add('node-label');
+        labelText.textContent = ''; // Label text is no longer set
+
+        group.appendChild(circle);
+        group.appendChild(idText);
+        group.appendChild(labelText);
+        svgElement.appendChild(group);
+
+        group.addEventListener('mousedown', startDrag);
+    });
+}
+
+function drawStraightEdge(svg, u, v, edgeId) { 
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('data-u', u.id);
+    line.setAttribute('data-v', v.id);
+    line.setAttribute('data-id', edgeId);
+    line.classList.add('edge');
+    
+    const dx = v.x - u.x;
+    const dy = v.y - u.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    let endX = v.x, endY = v.y;
+    if (graph.isDirected) {
+        const ratio = (dist - NODE_RADIUS - 2) / dist;
+        endX = u.x + dx * ratio;
+        endY = u.y + dy * ratio;
+        line.setAttribute('marker-end', 'url(#arrowhead)');
+    }
+    
+    line.setAttribute('d', `M ${u.x} ${u.y} L ${endX} ${endY}`);
+    svg.appendChild(line);
+}
+
+function drawCurvedEdge(svg, u, v, edgeId, direction) { 
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('data-u', u.id);
+    path.setAttribute('data-v', v.id);
+    path.setAttribute('data-id', edgeId);
+    path.classList.add('edge');
+
+    const dx = v.x - u.x;
+    const dy = v.y - u.y;
+    
+    const midX = u.x + dx * 0.5;
+    const midY = u.y + dy * 0.5;
+    const CURVATURE = 0.2 * direction;
+    
+    const ctrlX = midX - CURVATURE * dy;
+    const ctrlY = midY + CURVATURE * dx;
+    
+    let endX = v.x, endY = v.y;
+    const dxEnd = v.x - ctrlX;
+    const dyEnd = v.y - ctrlY;
+    const distEnd = Math.sqrt(dxEnd*dxEnd + dyEnd*dyEnd);
+    if(distEnd > 0) {
+        endX = v.x - dxEnd * (NODE_RADIUS + 2) / distEnd;
+        endY = v.y - dyEnd * (NODE_RADIUS + 2) / distEnd;
+    }
+    
+    path.setAttribute('d', `M ${u.x} ${u.y} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`);
+    if (graph.isDirected) path.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(path);
+}
+
+function updateVisualization(svgElement, step) {
+    drawGraphLayout(svgElement); // Redraw the base graph
+    
+    const { stack, circuit, usedEdges, current, lastEdge } = step;
+    
+    // Highlight edges in the final circuit
+    const pathEdges = new Set();
+    if (circuit) {
+        for (let i = 0; i < circuit.length - 1; i++) {
+            const u = circuit[i];
+            const v = circuit[i+1];
+            // Find the specific edge that was used
+            const edge = graph.edges.find(e => 
+                (e.source === u && e.target === v) ||
+                (!graph.isDirected && e.source === v && e.target === u)
+            );
+            if (edge) pathEdges.add(edge.id);
+        }
+    }
+
+    svgElement.querySelectorAll('.edge').forEach(edge => {
+        const edgeId = parseInt(edge.getAttribute('data-id'));
+        
+        // At the final step, all used edges should be path edges
+        if (step.type === 'done' && usedEdges.has(edgeId)) {
+             edge.classList.add('path');
+             if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-path)');
+        }
+        else if (pathEdges.has(edgeId)) {
+            edge.classList.add('path');
+            if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-path)');
+        } else if (lastEdge && lastEdge.id === edgeId) {
+            edge.classList.add('current-edge');
+            if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-current)');
+        } else if (usedEdges.has(edgeId)) {
+            edge.classList.add('used');
+        }
+    });
+
+    svgElement.querySelectorAll('.node').forEach(group => {
+        const nodeId = parseInt(group.getAttribute('data-id'));
+        if (circuit && circuit.includes(nodeId)) {
+            group.classList.add('path');
+        }
+        if (nodeId === current) {
+            group.classList.add('current');
+        }
+    });
+
+    drawDataStructure(svgElement, stack, circuit);
+}
+
+function drawDataStructure(svg, stack, circuit) {
+    const BOX_WIDTH = 30, BOX_HEIGHT = 25, PADDING = 10, SPACING = 5;
+    const dsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    
+    // --- Draw Stack ---
+    const stackLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    stackLabel.setAttribute('x', PADDING);
+    stackLabel.setAttribute('y', PADDING + 10);
+    stackLabel.classList.add('ds-label');
+    stackLabel.textContent = "Стек DFS (Вершина):";
+    dsGroup.appendChild(stackLabel);
+
+    (stack || []).forEach((item, i) => {
+        const x = PADDING + i * (BOX_WIDTH + SPACING);
+        const y = PADDING + 20;
+        const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        box.setAttribute('x', x);
+        box.setAttribute('y', y);
+        box.setAttribute('width', BOX_WIDTH);
+        box.setAttribute('height', BOX_HEIGHT);
+        box.classList.add('ds-box');
+        dsGroup.appendChild(box);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x + BOX_WIDTH / 2);
+        text.setAttribute('y', y + BOX_HEIGHT / 2);
+        text.classList.add('ds-text');
+        text.textContent = item;
+        dsGroup.appendChild(text);
+    });
+    
+    // --- Draw Circuit ---
+    const circuitY = PADDING + 20 + BOX_HEIGHT + 20;
+    const circuitLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    circuitLabel.setAttribute('x', PADDING);
+    circuitLabel.setAttribute('y', circuitY - 10);
+    circuitLabel.classList.add('ds-label');
+    circuitLabel.textContent = "Фінальний Цикл (будується з кінця):";
+    dsGroup.appendChild(circuitLabel);
+    
+    (circuit || []).forEach((item, i) => {
+        const x = PADDING + i * (BOX_WIDTH + SPACING);
+        const y = circuitY;
+        const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        box.setAttribute('x', x);
+        box.setAttribute('y', y);
+        box.setAttribute('width', BOX_WIDTH);
+        box.setAttribute('height', BOX_HEIGHT);
+        box.classList.add('ds-box');
+        dsGroup.appendChild(box);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x + BOX_WIDTH / 2);
+        text.setAttribute('y', y + BOX_HEIGHT / 2);
+        text.classList.add('ds-text');
+        text.textContent = item;
+        dsGroup.appendChild(text);
+    });
+    
+    svg.appendChild(dsGroup);
+}
+
+function runPhysicsLayout(onComplete) {
+    if (physicsAnimationId) cancelAnimationFrame(physicsAnimationId);
+    let iterations = 150;
+    function step() {
+        physicsStep();
+        drawGraphLayout(hierholzerSVG); // Redraw base layout
+        if (hierholzerState.currentStep >= 0) {
+             updateVisualization(hierholzerSVG, hierholzerState.steps[hierholzerState.currentStep]); // Overlay current state
+        }
+        if (--iterations > 0) {
+            physicsAnimationId = requestAnimationFrame(step);
+        } else {
+            onComplete();
+        }
+    }
+    step();
+}
+
+function physicsStep() {
+    const REPULSION = 4000, SPRING_K = 0.05, SPRING_LEN = 250, DAMPING = 0.85;
+    const width = hierholzerSVG.clientWidth, height = hierholzerSVG.clientHeight;
+    
+    graph.nodes.forEach(n => { n.fx = 0; n.fy = 0; });
+
+    for (let i = 0; i < graph.nodes.length; i++) {
+        for (let j = i + 1; j < graph.nodes.length; j++) {
+            const n1 = graph.nodes[i], n2 = graph.nodes[j];
+            const dx = n1.x - n2.x, dy = n1.y - n2.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > 1) {
+                const dist = Math.sqrt(distSq);
+                const force = REPULSION / distSq;
+                n1.fx += (dx / dist) * force; n1.fy += (dy / dist) * force;
+                n2.fx -= (dx / dist) * force; n2.fy -= (dy / dist) * force;
+            }
+        }
+    }
+
+    graph.edges.forEach(({ source, target }) => {
+        const n1 = graph.nodes.find(n => n.id === source);
+        const n2 = graph.nodes.find(n => n.id === target);
+        if (!n1 || !n2) return;
+        const dx = n1.x - n2.x, dy = n1.y - n2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const force = SPRING_K * (dist - SPRING_LEN);
+        n1.fx -= (dx / dist) * force; n1.fy -= (dy / dist) * force;
+        n2.fx += (dx / dist) * force; n2.fy += (dy / dist) * force;
+    });
+
+    graph.nodes.forEach(n => {
+        if (n === draggedNode) return; 
+        n.vx = (n.vx + n.fx) * DAMPING;
+        n.vy = (n.vy + n.fy) * DAMPING;
+        n.x += n.vx;
+        n.y += n.vy;
+
+        n.x = Math.max(NODE_RADIUS, Math.min(width - NODE_RADIUS, n.x));
+        n.y = Math.max(NODE_RADIUS + 80, Math.min(height - NODE_RADIUS, n.y)); // Keep nodes away from data structures
+    });
+}
+
+// --- DRAGGING LOGIC ---
+function getSVGPoint(event) {
+    const pt = hierholzerSVG.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    return pt.matrixTransform(hierholzerSVG.getScreenCTM().inverse());
+}
+
+function startDrag(event) {
+    const nodeId = parseInt(event.currentTarget.getAttribute('data-id'));
+    draggedNode = graph.nodes.find(n => n.id === nodeId);
+    if (draggedNode) {
+        event.preventDefault();
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('mouseup', endDrag);
+    }
+}
+
+function drag(event) {
+    if (draggedNode) {
+        event.preventDefault();
+        const coords = getSVGPoint(event);
+        draggedNode.x = coords.x;
+        draggedNode.y = coords.y;
+        updateHierholzerView(); // Redraw graph while dragging
+    }
+}
+
+function endDrag(event) {
+    draggedNode = null;
+    window.removeEventListener('mousemove', drag);
+    window.removeEventListener('mouseup', endDrag);
+}
+
+// --- EVENT LISTENERS ---
+generateBtn.addEventListener('click', generateAndStart);
+directedCheckbox.addEventListener('change', () => {
+    graph.nodes = []; // Force regen
+    generateAndStart();
+    generateBtn.textContent = "Згенерувати Новий Граф";
+});
+nodeCountInput.addEventListener('change', () => {
+    graph.nodes = []; // Force regen
+    generateAndStart();
+    generateBtn.textContent = "Згенерувати Новий Граф";
+});
+
+hierholzerNextBtn.addEventListener('click', () => { if (hierholzerState.currentStep < hierholzerState.steps.length - 1) { hierholzerState.currentStep++; updateHierholzerView(); }});
+hierholzerPrevBtn.addEventListener('click', () => { if (hierholzerState.currentStep > 0) { hierholzerState.currentStep--; updateHierholzerView(); }});
+
+window.addEventListener('load', generateAndStart);
+</script>
+</body>
+</html>

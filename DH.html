@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симетричне шифрування з обміном ключами</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.5;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 15px;
+            background-color: #f5f5f5;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .step {
+            display: none;
+            padding: 12px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 12px;
+            background-color: #f8f9fa;
+        }
+        .step.active {
+            display: block;
+        }
+        .step-number {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 25px;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .visualization {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #ecf0f1;
+            border-radius: 6px;
+        }
+        .person {
+            text-align: center;
+        }
+        .person-name {
+            margin-top: 5px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .person-keys {
+            margin-top: 8px;
+            font-size: 12px;
+            background-color: #fff;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .formula {
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            border-left: 3px solid #3498db;
+            font-style: italic;
+            font-size: 14px;
+        }
+        .key-display {
+            display: flex;
+            justify-content: space-around;
+            margin: 12px 0;
+        }
+        .key {
+            background-color: #e8f4fc;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #3498db;
+            text-align: center;
+            min-width: 130px;
+            font-size: 14px;
+        }
+        .calculation {
+            background-color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+        .info-box {
+            background-color: #e8f4fc;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 12px 0;
+            border-left: 4px solid #3498db;
+            font-size: 14px;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 12px 0;
+            border-left: 4px solid #ffc107;
+            font-size: 14px;
+        }
+        .spoiler {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+        .spoiler summary {
+            padding: 8px 12px;
+            background-color: #e9ecef;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .spoiler-content {
+            padding: 12px;
+            border-top: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .analogy {
+            background-color: #fff;
+            border: 2px solid #9b59b6;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+        .analogy-title {
+            color: #9b59b6;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .input-group {
+            margin: 8px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .input-group input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 90px;
+            font-size: 14px;
+        }
+        .interactive-task {
+            background-color: #e8f6ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+            border-left: 4px solid #3498db;
+            font-size: 14px;
+        }
+        .task-button {
+            background-color: #2ecc71;
+            margin-top: 8px;
+        }
+        .task-button:hover {
+            background-color: #27ae60;
+        }
+        .result {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .answer-spoiler {
+            margin-top: 8px;
+        }
+        .correct-answer {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .shared-secret {
+            background-color: #2ecc71;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            margin: 12px 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .paint-can {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 5px;
+        }
+        .paint-can-visual {
+            width: 70px;
+            height: 85px;
+            background-color: #f8f9fa;
+            border: 2px solid #333;
+            border-radius: 0 0 15px 15px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .paint-fill {
+            width: 100%;
+            position: absolute;
+            bottom: 0;
+            transition: height 1s;
+        }
+        .paint-label {
+            margin-top: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .paint-exchange {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .paint-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .exchange-arrow {
+            font-size: 20px;
+            margin: 0 10px;
+        }
+        .exchange-direction {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .exchange-direction .arrow {
+            font-size: 20px;
+            margin: 0 8px;
+        }
+        .color-display {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .color-box {
+            width: 100px;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <h3>Генерація спільного ключа для симетричне шифрування</h3>
+    <p>Цей симулятор демонструє принцип роботи симетричного шифрування з обміном ключами за протоколом Діффі-Хеллмана.</p>
+
+    <div class="analogy">
+        <div class="analogy-title">🎨 Аналогія обміну ключами Діффі-Хеллмана</div>
+        
+        <h4>Обмін ключами (протокол Діффі-Хеллмана у фізичному світі):</h4>
+        
+        <div class="color-display">
+            <div class="color-box" id="base-color" style="background-color: #3498db;">
+                Базова фарба<br>(публічний параметр)
+            </div>
+            <div class="color-box" id="alice-secret-color" style="background-color: #e74c3c;">
+                Секрет Аліси
+            </div>
+            <div class="color-box" id="bob-secret-color" style="background-color: #f39c12;">
+                Секрет Боба
+            </div>
+            <button onclick="generateNewColors()" style="margin-left: 10px;">🎨 Нові кольори</button>
+        </div>
+        
+        <div class="paint-exchange">
+            <!-- Перший рядок: Аліса готує ключ -->
+            <div class="paint-row">
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="alice-base" style="background-color: #3498db; height: 60%"></div>
+                    </div>
+                    <div class="paint-label">База (g)</div>
+                </div>
+                
+                <div class="exchange-arrow">+</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="alice-secret" style="background-color: #e74c3c; height: 40%"></div>
+                    </div>
+                    <div class="paint-label">Секрет Аліси (a)</div>
+                </div>
+                
+                <div class="exchange-arrow">=</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="alice-public" style="background-color: #9b59b6; height: 70%"></div>
+                    </div>
+                    <div class="paint-label">A = g<sup>a</sup> mod p</div>
+                </div>
+            </div>
+            
+            <div class="exchange-direction">
+                <div>👧 Аліса відправляє Бобу → A</div>
+                <div class="arrow">⇄</div>
+                <div>B ← Боб відправляє Алісі 👦</div>
+            </div>
+            
+            <!-- Другий рядок: Боб готує ключ -->
+            <div class="paint-row">
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="bob-base" style="background-color: #3498db; height: 60%"></div>
+                    </div>
+                    <div class="paint-label">База (g)</div>
+                </div>
+                
+                <div class="exchange-arrow">+</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="bob-secret" style="background-color: #f39c12; height: 40%"></div>
+                    </div>
+                    <div class="paint-label">Секрет Боба (b)</div>
+                </div>
+                
+                <div class="exchange-arrow">=</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="bob-public" style="background-color: #8e44ad; height: 70%"></div>
+                    </div>
+                    <div class="paint-label">B = g<sup>b</sup> mod p</div>
+                </div>
+            </div>
+            
+            <div class="exchange-direction" style="margin-top: 15px;">
+                <div>Обидва обчислюють спільний секрет:</div>
+            </div>
+            
+            <!-- Третій рядок: Аліса обчислює спільний секрет -->
+            <div class="paint-row">
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="alice-received" style="background-color: #8e44ad; height: 70%"></div>
+                    </div>
+                    <div class="paint-label">Отримана B</div>
+                </div>
+                
+                <div class="exchange-arrow">+</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="alice-secret2" style="background-color: #e74c3c; height: 40%"></div>
+                    </div>
+                    <div class="paint-label">Секрет Аліси (a)</div>
+                </div>
+                
+                <div class="exchange-arrow">=</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="alice-shared" style="background-color: #2ecc71; height: 100%"></div>
+                    </div>
+                    <div class="paint-label">S = B<sup>a</sup> mod p</div>
+                </div>
+            </div>
+            
+            <!-- Четвертий рядок: Боб обчислює спільний секрет -->
+            <div class="paint-row">
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="bob-received" style="background-color: #9b59b6; height: 70%"></div>
+                    </div>
+                    <div class="paint-label">Отримана A</div>
+                </div>
+                
+                <div class="exchange-arrow">+</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="bob-secret2" style="background-color: #f39c12; height: 40%"></div>
+                    </div>
+                    <div class="paint-label">Секрет Боба (b)</div>
+                </div>
+                
+                <div class="exchange-arrow">=</div>
+                
+                <div class="paint-can">
+                    <div class="paint-can-visual">
+                        <div class="paint-fill" id="bob-shared" style="background-color: #2ecc71; height: 100%"></div>
+                    </div>
+                    <div class="paint-label">S = A<sup>b</sup> mod p</div>
+                </div>
+            </div>
+        </div>
+        
+        <ul>
+            <li><strong>Аліса та Боб домовляються про спільну базову фарбу</strong> (public parameters) - це не секрет</li>
+            <li><strong>Кожен змішує свою секретну фарбу</strong> (private key) з базовою</li>
+            <li>Вони обмінюються отриманими сумішами - навіть якщо хтось перехопить їх, він не зможе відокремити секретні компоненти</li>
+            <li><strong>Кожен додає свою секретну фарбу</strong> до отриманої суміші</li>
+            <li>В результаті обидва отримують ідентичну фінальну фарбу - спільний секретний ключ!</li>
+            <li>Перехоплювач, маючи всі проміжні суміші, не може відтворити кінцевий колір</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>🔐 Симетричне шифрування з обміном ключами</h2>
+        <p>Аліса та Боб хочуть створити спільний секретний ключ для симетричного шифрування за допомогою протоколу Діффі-Хеллмана.</p>
+        
+        <div class="visualization">
+            <div class="person">
+                <div>👧</div>
+                <div class="person-name">Аліса</div>
+                <div class="person-keys">
+                    <div>Секретне число: <span id="alice-secret-value">6</span></div>
+                    <div>Публічне значення: <span id="alice-public-value">8</span></div>
+                </div>
+            </div>
+            
+            <div class="exchange-direction">
+                <div>A = <span id="display-a">8</span></div>
+                <div class="arrow">→</div> <div class="arrow">←</div>
+                <div>B = <span id="display-b">19</span></div>
+               
+            </div>
+            
+            <div class="person">
+                <div>👦</div>
+                <div class="person-name">Боб</div>
+                <div class="person-keys">
+                    <div>Секретне число: <span id="bob-secret-value">15</span></div>
+                    <div>Публічне значення: <span id="bob-public-value">19</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="step active" id="step1">
+            <h3><span class="step-number">1</span> Встановлення спільних параметрів</h3>
+            <p>Аліса та Боб домовляються про спільні публічні параметри, які можуть бути відомі всім.</p>
+            
+            <div class="input-group">
+                <label>Введіть спільні параметри (прості числа):</label>
+                <input type="number" id="input-p" placeholder="p" value="23" min="2" max="97">
+                <input type="number" id="input-g" placeholder="g" value="5" min="2" max="97">
+                <button onclick="calculatePublicValues()" class="task-button">Обчислити публічні значення</button>
+            </div>
+            
+            <div class="info-box">
+                <p><strong>Кроки встановлення параметрів:</strong></p>
+                <ol>
+                    <li>Вибираємо просте число p = <span id="p-value">23</span> (модуль)</li>
+                    <li>Вибираємо основу g = <span id="g-value">5</span> (основа степеня)</li>
+                    <li>Аліса обирає секретне число a = <span id="a-value">6</span></li>
+                    <li>Боб обирає секретне число b = <span id="b-value">15</span></li>
+                </ol>
+            </div>
+            
+            <div class="interactive-task">
+                <p><strong>Спробуйте самостійно:</strong> Обчисліть публічне значення Аліси A = g<sup>a</sup> mod p</p>
+                <p>g = <span id="task-g">5</span>, a = <span id="task-a">6</span>, p = <span id="task-p">23</span></p>
+                <div class="input-group">
+                    <input type="number" id="input-public-alice" placeholder="A">
+                    <button onclick="checkPublicAlice()" class="task-button">Перевірити A</button>
+                </div>
+                <div id="public-alice-result" class="result"></div>
+                <div class="answer-spoiler" id="public-alice-answer" style="display: none;">
+                    <details>
+                        <summary>Показати правильну відповідь</summary>
+                        <p class="correct-answer">A = <span id="correct-public-alice">8</span></p>
+                        <p>Обчислення: 5<sup>6</sup> = 15625, 15625 mod 23 = 8</p>
+                    </details>
+                </div>
+            </div>
+            
+            <div class="key-display">
+                <div class="key">
+                    <h4>👧 Публічне значення Аліси</h4>
+                    <p>A = g<sup>a</sup> mod p = <span id="public-alice">8</span></p>
+                </div>
+                <div class="key">
+                    <h4>👦 Публічне значення Боба</h4>
+                    <p>B = g<sup>b</sup> mod p = <span id="public-bob">19</span></p>
+                </div>
+            </div>
+            
+            <p>Аліса та Боб обмінюються своїми публічними значеннями. Навіть якщо хтось перехопить ці значення, він не зможе обчислити спільний секрет.</p>
+        </div>
+
+        <div class="step" id="step2">
+            <h3><span class="step-number">2</span> Обчислення спільного секретного ключа</h3>
+            <p>Кожен з учасників обчислює спільний секретний ключ, використовуючи своє секретне число та публічне значення партнера.</p>
+            
+            <div class="interactive-task">
+                <p><strong>Спробуйте самостійно:</strong> Обчисліть спільний секрет S = B<sup>a</sup> mod p</p>
+                <p>B = <span id="task-b-value">19</span>, a = <span id="task-a2">6</span>, p = <span id="task-p2">23</span></p>
+                <div class="input-group">
+                    <input type="number" id="input-shared-secret" placeholder="S">
+                    <button onclick="checkSharedSecret()" class="task-button">Перевірити S</button>
+                </div>
+                <div id="shared-secret-result" class="result"></div>
+                <div class="answer-spoiler" id="shared-secret-answer" style="display: none;">
+                    <details>
+                        <summary>Показати правильну відповідь</summary>
+                        <p class="correct-answer">S = <span id="correct-shared-secret">2</span></p>
+                        <p>Обчислення: 19<sup>6</sup> = 47045881, 47045881 mod 23 = 2</p>
+                    </details>
+                </div>
+            </div>
+            
+            <div class="calculation">
+                <p><strong>Аліса обчислює:</strong> S = B<sup>a</sup> mod p = <span id="alice-calculation">19<sup>6</sup> mod 23 = 2</span></p>
+                <p><strong>Боб обчислює:</strong> S = A<sup>b</sup> mod p = <span id="bob-calculation">8<sup>15</sup> mod 23 = 2</span></p>
+            </div>
+            
+            <div class="shared-secret">
+                Спільний секретний ключ: <span id="shared-key">2</span>
+            </div>
+            
+            <p>Обидва отримали однаковий спільний секретний ключ, не розкриваючи свої секретні числа!</p>
+            
+            <div class="info-box">
+                <p>✅ Тепер Аліса та Боб мають спільний секретний ключ. Вони можуть використовувати його для симетричного шифрування своїх повідомлень.</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="prev-btn" onclick="prevStep()" disabled>← Попередній крок</button>
+            <button id="next-btn" onclick="nextStep()">Наступний крок →</button>
+        </div>
+    </div>
+
+    <!-- Детальна теоретична довідка -->
+    <div class="container">
+        <div class="spoiler">
+            <summary>📚 Детальна теоретична довідка</summary>
+            <div class="spoiler-content">
+                <h3>Математичні основи протоколу Діффі-Хеллмана</h3>
+                
+                <h4>1. Що таке протокол Діффі-Хеллмана?</h4>
+                <p>Протокол Діффі-Хеллмана - це метод безпечного обміну криптографічними ключами через незахищений канал зв'язку. Він був одним з перших практичних методів встановлення спільного секретного ключа.</p>
+                
+                <h4>2. Математична основа</h4>
+                <p>Протокол базується на складності обчислення дискретного логарифма в скінченних полях.</p>
+                <p>Для двох учасників Аліси та Боба:</p>
+                <ol>
+                    <li>Вони обирають спільні параметри: велике просте число p та основу g</li>
+                    <li>Аліса обирає випадкове секретне число a, обчислює A = g<sup>a</sup> mod p і надсилає A Бобу</li>
+                    <li>Боб обирає випадкове секретне число b, обчислює B = g<sup>b</sup> mod p і надсилає B Алісі</li>
+                    <li>Аліса обчислює спільний секрет S = B<sup>a</sup> mod p</li>
+                    <li>Боб обчислює спільний секрет S = A<sup>b</sup> mod p</li>
+                </ol>
+                <p>Обидва отримують однакове значення S = g<sup>ab</sup> mod p</p>
+                
+                <h4>3. Еліптичні криві в сучасних протоколах</h4>
+                <div class="info-box">
+                    <p><strong>Сучасні реалізації:</strong> У сучасних криптографічних протоколах зазвичай використовують не модульну арифметику зі степенями, а еліптичні криві (ECDH - Elliptic Curve Diffie-Hellman).</p>
+                </div>
+                <p>Еліптичні криві пропонують той самий рівень безпеки з набагато меншими розмірами ключів:</p>
+                <ul>
+                    <li>Безпека RSA з 2048-бітним ключем ≈ Безпека ECC з 224-бітним ключем</li>
+                    <li>Менші розміри ключів означають менше обчислень та меншу пропускну здатність</li>
+                    <li>Еліптичні криві використовуються в сучасних протоколах як TLS 1.3, Signal тощо</li>
+                </ul>
+                
+                <h4>4. Чому це безпечно?</h4>
+                <p>Безпеку протоколу забезпечує складність задачі дискретного логарифмування. Навіть знаючи A, B, g та p, важко обчислити a або b, а отже, і спільний секрет S.</p>
+                
+                <h4>5. Активна атака "людина посередині" (Man-in-the-Middle)</h4>
+                <div class="warning-box">
+                    <p><strong>Уразливість Діффі-Хеллмана:</strong> На відміну від RSA, протокол Діффі-Хеллмана не забезпечує аутентифікації сторін, що робить його вразливим до атаки "людина посередині".</p>
+                </div>
+                <p>У цій атаці зловмисник Мелорі перехоплює комунікацію між Алісою та Бобом:</p>
+                <ol>
+                    <li>Мелорі перехоплює A від Аліси і надсилає Бобу своє M<sub>A</sub></li>
+                    <li>Мелорі перехоплює B від Боба і надсилає Алісі своє M<sub>B</sub></li>
+                    <li>Аліса встановлює спільний ключ з Мелорі: S<sub>AM</sub> = M<sub>B</sub><sup>a</sup> mod p</li>
+                    <li>Боб встановлює спільний ключ з Мелорі: S<sub>BM</sub> = M<sub>A</sub><sup>b</sup> mod p</li>
+                    <li>Мелорі знає обидва ключі і може читати, модифікувати та передавати повідомлення</li>
+                </ol>
+                <p>Для захисту від цієї атаки необхідно використовувати додаткові механізми аутентифікації, такі як цифрові підписи або сертифікати.</p>
+                
+                <h4>6. Переваги та недоліки симетричного шифрування</h4>
+                <p><strong>Переваги:</strong></p>
+                <ul>
+                    <li>Висока швидкість шифрування/дешифрування</li>
+                    <li>Менші вимоги до обчислювальних ресурсів</li>
+                    <li>Простота реалізації</li>
+                </ul>
+                <p><strong>Недоліки:</strong></p>
+                <ul>
+                    <li>Проблема безпечного розповсюдження ключів</li>
+                    <li>Складність управління ключами в великих системах</li>
+                    <li>Необхідність зміни ключів при компрометації</li>
+                </ul>
+                
+                <h4>7. Застосування в реальних системах</h4>
+                <p>Протокол Діффі-Хеллмана використовується в багатьох сучасних криптографічних протоколах:</p>
+                <ul>
+                    <li>TLS/SSL для захисту веб-з'єднань</li>
+                    <li>IPSec для віртуальних приватних мереж (VPN)</li>
+                    <li>SSH для безпечного віддаленого доступу</li>
+                    <li>Багато протоколів обміну повідомленнями (Signal, OTR)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Поточний крок
+        let currentStep = 1;
+        const maxSteps = 2;
+
+        // Поточні значення
+        let currentP = 23;
+        let currentG = 5;
+        let currentA = 6;
+        let currentB = 15;
+        let currentPublicA = 8;
+        let currentPublicB = 19;
+        let currentSharedSecret = 2;
+
+        // Функції для навігації по кроках
+        function nextStep() {
+            if (currentStep < maxSteps) {
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                currentStep++;
+                document.getElementById(`step${currentStep}`).classList.add('active');
+                updateButtons();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                currentStep--;
+                document.getElementById(`step${currentStep}`).classList.add('active');
+                updateButtons();
+            }
+        }
+
+        function updateButtons() {
+            document.getElementById('prev-btn').disabled = currentStep === 1;
+            document.getElementById('next-btn').textContent = 
+                currentStep === maxSteps ? 'Завершити' : 'Наступний крок →';
+        }
+
+        // Функції для інтерактивних завдань
+        function calculatePublicValues() {
+            const p = parseInt(document.getElementById('input-p').value);
+            const g = parseInt(document.getElementById('input-g').value);
+            
+            if (isPrime(p)) {
+                currentP = p;
+                currentG = g;
+                
+                // Генеруємо випадкові секретні числа (але невеликі для простоти)
+                currentA = Math.floor(Math.random() * 10) + 5;
+                currentB = Math.floor(Math.random() * 10) + 10;
+                
+                // Обчислюємо публічні значення
+                currentPublicA = modExp(currentG, currentA, currentP);
+                currentPublicB = modExp(currentG, currentB, currentP);
+                
+                // Обчислюємо спільний секрет
+                currentSharedSecret = modExp(currentPublicB, currentA, currentP);
+                
+                updateDisplay();
+                document.getElementById('public-alice-result').innerHTML = '✅ Публічні значення успішно обчислені!';
+                document.getElementById('public-alice-answer').style.display = 'none';
+            } else {
+                document.getElementById('public-alice-result').innerHTML = '❌ p повинно бути простим числом!';
+            }
+        }
+
+        function checkPublicAlice() {
+            const userA = parseInt(document.getElementById('input-public-alice').value);
+            const correctA = modExp(currentG, currentA, currentP);
+            
+            if (userA === correctA) {
+                document.getElementById('public-alice-result').innerHTML = '✅ Правильно! A = ' + correctA;
+                document.getElementById('public-alice-answer').style.display = 'none';
+            } else {
+                document.getElementById('public-alice-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('public-alice-answer').style.display = 'block';
+                document.getElementById('correct-public-alice').textContent = correctA;
+            }
+        }
+
+        function checkSharedSecret() {
+            const userS = parseInt(document.getElementById('input-shared-secret').value);
+            const correctS = modExp(currentPublicB, currentA, currentP);
+            
+            if (userS === correctS) {
+                document.getElementById('shared-secret-result').innerHTML = '✅ Правильно! S = ' + correctS;
+                document.getElementById('shared-secret-answer').style.display = 'none';
+            } else {
+                document.getElementById('shared-secret-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('shared-secret-answer').style.display = 'block';
+                document.getElementById('correct-shared-secret').textContent = correctS;
+            }
+        }
+
+        // Допоміжні функції
+        function isPrime(num) {
+            if (num <= 1) return false;
+            if (num <= 3) return true;
+            if (num % 2 === 0 || num % 3 === 0) return false;
+            for (let i = 5; i * i <= num; i += 6) {
+                if (num % i === 0 || num % (i + 2) === 0) return false;
+            }
+            return true;
+        }
+
+        function modExp(base, exponent, modulus) {
+            if (modulus === 1) return 0;
+            let result = 1;
+            base = base % modulus;
+            while (exponent > 0) {
+                if (exponent % 2 === 1) {
+                    result = (result * base) % modulus;
+                }
+                exponent = Math.floor(exponent / 2);
+                base = (base * base) % modulus;
+            }
+            return result;
+        }
+
+        function updateDisplay() {
+            document.getElementById('p-value').textContent = currentP;
+            document.getElementById('g-value').textContent = currentG;
+            document.getElementById('a-value').textContent = currentA;
+            document.getElementById('b-value').textContent = currentB;
+            document.getElementById('public-alice').textContent = currentPublicA;
+            document.getElementById('public-bob').textContent = currentPublicB;
+            document.getElementById('shared-key').textContent = currentSharedSecret;
+            
+            // Оновлюємо інтерактивні завдання
+            document.getElementById('task-g').textContent = currentG;
+            document.getElementById('task-a').textContent = currentA;
+            document.getElementById('task-p').textContent = currentP;
+            document.getElementById('task-b-value').textContent = currentPublicB;
+            document.getElementById('task-a2').textContent = currentA;
+            document.getElementById('task-p2').textContent = currentP;
+            
+            // Оновлюємо ключі на візуалізації
+            document.getElementById('alice-secret-value').textContent = currentA;
+            document.getElementById('alice-public-value').textContent = currentPublicA;
+            document.getElementById('bob-secret-value').textContent = currentB;
+            document.getElementById('bob-public-value').textContent = currentPublicB;
+            document.getElementById('display-a').textContent = currentPublicA;
+            document.getElementById('display-b').textContent = currentPublicB;
+            
+            // Оновлюємо приклади обчислень
+            document.getElementById('alice-calculation').innerHTML = 
+                `${currentPublicB}<sup>${currentA}</sup> mod ${currentP} = ${currentSharedSecret}`;
+            document.getElementById('bob-calculation').innerHTML = 
+                `${currentPublicA}<sup>${currentB}</sup> mod ${currentP} = ${currentSharedSecret}`;
+        }
+
+        // Генерація випадкових кольорів для аналогії
+        function generateNewColors() {
+            const baseColor = generateColor();
+            const aliceSecretColor = generateColor();
+            const bobSecretColor = generateColor();
+            
+            // Обчислюємо проміжні кольори (суміші)
+            const alicePublicColor = mixColors(baseColor, aliceSecretColor);
+            const bobPublicColor = mixColors(baseColor, bobSecretColor);
+            
+            // Обчислюємо спільний секрет (фінальний колір)
+            const sharedColor = mixColors(alicePublicColor, bobSecretColor);
+            
+            // Оновлюємо візуалізацію
+            updateColorDisplay('base-color', baseColor);
+            updateColorDisplay('alice-secret-color', aliceSecretColor);
+            updateColorDisplay('bob-secret-color', bobSecretColor);
+            
+            // Оновлюємо банки фарби
+            updatePaintCan('alice-base', baseColor, 60);
+            updatePaintCan('alice-secret', aliceSecretColor, 40);
+            updatePaintCan('alice-public', alicePublicColor, 70);
+            updatePaintCan('bob-base', baseColor, 60);
+            updatePaintCan('bob-secret', bobSecretColor, 40);
+            updatePaintCan('bob-public', bobPublicColor, 70);
+            updatePaintCan('alice-received', bobPublicColor, 70);
+            updatePaintCan('alice-secret2', aliceSecretColor, 40);
+            updatePaintCan('alice-shared', sharedColor, 100);
+            updatePaintCan('bob-received', alicePublicColor, 70);
+            updatePaintCan('bob-secret2', bobSecretColor, 40);
+            updatePaintCan('bob-shared', sharedColor, 100);
+        }
+
+        function generateColor() {
+            return {
+                r: Math.floor(Math.random() * 206) + 50,
+                g: Math.floor(Math.random() * 206) + 50,
+                b: Math.floor(Math.random() * 206) + 50
+            };
+        }
+
+        function mixColors(color1, color2) {
+            // Просте змішування кольорів (середнє арифметичне)
+            return {
+                r: Math.floor((color1.r + color2.r) / 2),
+                g: Math.floor((color1.g + color2.g) / 2),
+                b: Math.floor((color1.b + color2.b) / 2)
+            };
+        }
+
+        function updateColorDisplay(elementId, color) {
+            const element = document.getElementById(elementId);
+            element.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        }
+
+        function updatePaintCan(elementId, color, height) {
+            const element = document.getElementById(elementId);
+            element.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+            element.style.height = `${height}%`;
+        }
+
+        // Ініціалізація при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            updateButtons();
+            updateDisplay();
+            generateNewColors();
+        });
+    </script>
+</body>
+</html>

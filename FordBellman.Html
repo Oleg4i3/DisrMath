@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Алгоритму Беллмана-Форда (v4, Виправлено)</title>
+    <style>
+        :root {
+            --primary-color: #2196F3; /* Blue for Bellman-Ford */
+            --primary-hover: #1976D2;
+            --bellmanford-color: #2196F3;
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #555;
+            --visited-color: #bbdefb; /* Light Blue */
+            --current-color: #ffc107; /* Amber */
+            --path-color: #4CAF50;    /* Green */
+            --relaxing-edge-color: #F44336; /* Red */
+            --negative-cycle-color: #FF5722; /* Orange for negative cycle */
+            --highlight-update-color: #ffc107; /* Amber (для fallback) */
+            --selection-color: #2196F3; /* Blue */
+        }
+        
+        /* --- ОНОВЛЕНО: Анімація мерехтіння та розміру (Req 3) --- */
+        @keyframes highlight-dist {
+            0%   { transform: translateY(-24px) scale(1.0); opacity: 1; }
+            25%  { transform: translateY(-24px) scale(1.5); opacity: 0.5; }
+            50%  { transform: translateY(-24px) scale(1.0); opacity: 1; }
+            75%  { transform: translateY(-24px) scale(1.5); opacity: 0.5; }
+            100% { transform: translateY(-24px) scale(1.0); opacity: 1; }
+        }
+        .node text.node-distance.updated {
+            /* Використовуємо fill як fallback, але головне - анімація */
+            fill: var(--highlight-update-color);
+            animation: highlight-dist 0.6s ease-in-out;
+        }
+        
+        /* --- Стилі виділення --- */
+        .node.selected circle {
+            stroke: var(--selection-color);
+            stroke-width: 4px;
+            stroke-dasharray: 4, 4;
+        }
+        .edge.selected {
+            stroke: var(--selection-color);
+            stroke-width: 5px;
+            stroke-dasharray: 4, 4;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+        }
+        .main-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 1280px;
+        }
+        .simulator-container, .theory-container {
+            background-color: var(--white-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .step-counter {
+            text-align: center;
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 15px;
+            height: 1.2em;
+        }
+        h2.bellmanford-title { color: var(--bellmanford-color); }
+        .controls, .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .input-group label { display: flex; align-items: center; gap: 5px; }
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            width: 60px;
+        }
+        input[type="checkbox"] { transform: scale(1.2); margin-right: 5px; }
+        .visualization {
+            width: 100%;
+            height: 500px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 1px dashed var(--border-color);
+        }
+        .commentary {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 50px;
+            font-size: 1.1em;
+            text-align: center;
+            word-wrap: break-word;
+            line-height: 1.5;
+            margin-top: 15px;
+            color: var(--comment-color);
+        }
+        svg { width: 100%; height: 100%; }
+
+        .node circle { stroke: #333; stroke-width: 2px; fill: var(--white-bg); transition: fill 0.3s, stroke 0.3s; }
+        .node text.node-id { text-anchor: middle; dominant-baseline: central; font-size: 16px; font-weight: bold; pointer-events: none; fill: #333; }
+        
+        .node text.node-distance { 
+            text-anchor: middle; 
+            dominant-baseline: central; 
+            font-size: 20px; 
+            font-weight: bold; 
+            pointer-events: none; 
+            fill: var(--primary-color); 
+            /* Базовий transform, який буде анімовано */
+            transform: translateY(-24px); 
+            transition: fill 0.3s;
+        }
+        .node:hover { cursor: grab; }
+        .node:active { cursor: grabbing; }
+
+        .edge { stroke: #ccc; stroke-width: 3px; fill: none; transition: stroke 0.3s, stroke-width 0.3s; cursor: pointer; }
+        text.edge-weight { font-size: 14px; fill: #555; text-anchor: middle; dominant-baseline: central; pointer-events: auto; cursor: pointer; }
+        text.edge-weight:hover { font-weight: bold; fill: var(--primary-color); }
+
+        .node.visited circle { fill: var(--visited-color); }
+        .node.current circle { fill: var(--current-color); stroke: #a67c00; }
+        .node.path circle { fill: var(--path-color); stroke: var(--path-color); }
+        .node.path text.node-id { fill: white; }
+        .edge.path { stroke: var(--path-color); stroke-width: 5px;}
+        .edge.relaxing { stroke: var(--relaxing-edge-color); stroke-width: 5px;}
+        .edge.negative-cycle { stroke: var(--negative-cycle-color); stroke-width: 5px; stroke-dasharray: 5,5; }
+        
+        .ds-box { fill: #f8f9fa; stroke: #aaa; stroke-width: 1px; }
+        .ds-text { text-anchor: middle; dominant-baseline: central; font-size: 14px; }
+        .ds-label { font-size: 14px; font-weight: bold; text-anchor: start; }
+
+        .theory-container { max-width: 1280px; }
+        details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
+        summary { font-size: 1.2em; font-weight: bold; cursor: pointer; color: var(--primary-color); }
+        details[open] summary { margin-bottom: 15px; }
+        .theory-content h3 { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .theory-content p, .theory-content li { line-height: 1.7; color: var(--text-color); }
+        .theory-content code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+        .theory-content strong { color: var(--bellmanford-color); }
+    </style>
+</head>
+<body>
+<div class="input-group">
+    <label>К-сть вершин:</label>
+    <input type="number" id="node-count" value="6" min="2" max="20">
+    <label>Старт:</label>
+    <input type="number" id="start-node" value="1" min="1" max="6">
+    <label>
+        <input type="checkbox" id="directed-graph-checkbox">
+        Орієнтований
+    </label>
+    <label>
+        <input type="checkbox" id="negative-weights-checkbox">
+        Негативні ваги
+    </label>
+    <button id="generate-graph-btn">Згенерувати Новий Граф</button>
+</div>
+
+<div class="main-container">
+    <div class="simulator-container">
+        <h2 class="bellmanford-title">Алгоритм Беллмана-Форда</h2>
+        <div class="step-counter" id="bellmanford-step-counter"></div>
+        <div class="visualization">
+            <svg id="bellmanford-svg"></svg>
+        </div>
+        <div class="controls">
+            <button id="bellmanford-prev-btn" disabled>Крок назад</button>
+            <button id="bellmanford-next-btn" disabled>Крок вперед</button>
+            <button id="bellmanford-run-btn" disabled>Запустити до кінця</button>
+        </div>
+        <div class="commentary" id="bellmanford-commentary">
+            <b>Редактор:</b> Дб-клік = нова вершина. Shift+Клік (2 вершини) = нове ребро. Shift+Клік (1 елемент) + Del = видалити.
+        </div>
+    </div>
+</div>
+
+<div class="theory-container">
+    <details open>
+        <summary>Теоретична довідка по алгоритму Беллмана-Форда</summary>
+        <div class="theory-content">
+            <p>
+                Алгоритм Беллмана-Форда — це алгоритм, що знаходить <b>найкоротші шляхи</b> від однієї стартової вершини до всіх інших у <strong>зваженому графі</strong>. Його головна перевага — він коректно працює з ребрами, що мають <b>негативну вагу</b>.
+            </p>
+            <p>
+                <b>Підказки з редагування:</b>
+                <ul>
+                    <li><b>Додати вершину:</b> Подвійний клік на полотні.</li>
+                    <li><b>Додати ребро:</b> <b>Shift + Клік</b> на одній вершині, а потім на іншій (створить ребро з вагою 1).</li>
+                    <li><b>Видалити:</b> <b>Shift + Клік</b> на вершині або ребрі, щоб виділити, а потім натисніть <b>Delete</b> або <b>Backspace</b>.</li>
+                    <li><b>Зняти виділення:</b> Клік на порожньому фоні.</li>
+                </ul>
+            </p>
+            <h3>Як він працює?</h3>
+            <p>
+                Алгоритм виконує |V|-1 ітерацій, де |V| — кількість вершин. На кожній ітерації він релаксує (оновлює відстані) всі ребра графа.
+            </p>
+            <ul>
+                <li><b>Ініціалізація:</b> Відстані до всіх вершин — ∞, крім стартової (0).</li>
+                <li><b>Релаксація:</b> Для кожного ребра u → v: якщо dist[u] + weight(u,v) < dist[v], оновити dist[v].</li>
+                <li><b>Перевірка на негативний цикл:</b> Робиться |V|-та ітерація. Якщо на ній вдається хоч щось оновити — у графі є досяжний негативний цикл.</li>
+            </ul>
+			
+         
+
+            <h3>Динамічне програмування в алгоритмі</h3>
+            <p>
+                Динамічне програмування — це метод рішення задач, де ми разбиваємо велику задачу на маленькі підзадачі, вирішуємо ці підзадачі так, щоб їх рішення можна було повторно використовувати (не пересчитувати заново), і зберігаємо промежуточні результати (звичайно в таблиці або масиві), щоб потім комбінувати їх для відповіді на головну задачу.
+            </p>
+            <p>
+                В алгоритмі Беллмана-Форда динамічне програмування проявляється так: підзадача — знайти найкоротше відстань до вершини v, використовуючи до k ребер. Ми зберігаємо в масиві dist[v] найкраще відстань до v на поточний момент. Рекуррентно: dist[v] оновлюється як мінімум по всім ребрам u→v: dist[u] + вага(u→v). Це неявно враховує всі шляхи довжиною до k ребер, без їх перебору.
+            </p>
+            <p>
+                Алгоритм уникає комбінаторного вибуху (перебору всіх можливих шляхів), тому що замість явного перебору шляхів він неявно враховує всі можливі шляхи через послідовні оновлення відстаней. Кожне оновлення dist[v] враховує найкращий шлях до v на даний момент, базуючись на найкращих шляхах до u (з попередніх оновлень).
+            </p>
+
+            <h3>Порівняння з Дейкстрою</h3>
+            <p>На відміну від "жадібного" алгоритму Дейкстри, Беллмана-Форда — це динамічне програмування з повним перебором ребер на кожній ітерації. Він повільніший (O(|V|*|E|)), але працює з негативними вагами та виявляє негативні цикли. Дейкстра не працює з негативними вагами.</p>
+            <hr>
+            <h3>Практичне застосування</h3>
+            <p>Алгоритм використовується там, де ваги можуть бути негативними або потрібно виявляти цикли.</p>
+            <ul>
+                <li><b>Маршрутизація в мережах:</b> Врахування "штрафів" (негативні ваги) за певні шляхи.</li>
+                <li><b>Фінансові арбітражі:</b> Виявлення циклів з негативною сумою (прибуткові цикли в валютних ринках).</li>
+				
+    <p>Якщо добуток курсів у циклі &gt; 1 — це прибутковий цикл. Перетворюємо кожен курс у вагу через <code>-log(rate)</code>, тоді шукаємо суму ваг.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Обмін</th>
+          <th>Курс</th>
+          <th>-log(курс)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>USD → EUR </td>
+          <td> 0.9</td>
+          <td>0.105360515</td>
+        </tr>
+        <tr>
+          <td>EUR → GBP </td>
+          <td> 0.8</td>
+          <td>0.223143551</td>
+        </tr>
+        <tr>
+          <td>GBP → USD </td>
+          <td> 1.5</td>
+          <td>-0.405465108</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="result">Сума ваг = 0.105360515 + 0.223143551 − 0.405465108 = <strong>−0.0770</strong> &rarr; <em>негативний цикл</em></div>
+
+
+    <p>Чому логарифм? Тому що логарифм перетворює множення в додавання:<br>
+      <code>r1 · r2 · ... · rk &gt; 1  ⇔  -log(r1) + -log(r2) + ... + -log(rk) &lt; 0</code>
+    </p>
+
+    <p class="result">Отже: негативна сума ваг ↔ добуток курсів &gt; 1 ↔ прибутковий арбітраж.</p>
+ 
+                <li><b>Планування шляхів з "бонусами":</b> Де негативні ваги — це заохочення (наприклад, знижки в логістиці).</li>
+            </ul>
+            <hr>
+            <h3>Обмеження</h3>
+            <p>Для графів з позитивними вагами краще використовувати швидший алгоритм Дейкстри.</p>
+            <p> Алгоритм Беллмана-Форда не знаходить шляхи і дистанції до вершин, якщо в графі є негативний цикл (відстані можуть бути нескінченно зменшені). У такому випадку він виявляє цикл, але не знаходить шляхи (не всі цикли, а тільки детектує наявність хоча б одного такого циклу. Знаходження усіх - більш складна задача). 
+            трейдерам на Форексі і не потрібно знаходити всі цикли.
+
+Їм потрібно:
+
+Знайти хоча б ОДИН прибутковий цикл.
+
+Знайти його надзвичайно швидко.
+
+Алгоритм Беллмана-Форда робить саме це:
+
+Він гарантовано детектує факт наявності одного негативного циклу.
+
+Щойно алгоритм на своїй V-й ітерації (як у вашому симуляторі) знаходить ребро, яке можна "покращити", він зупиняється і сигналізує: "Знайдено арбітраж!"
+
+Сам цикл можна легко відновити, пройшовши назад по вершинах, які призвели до цього "покращення".
+
+Граф валют насправді дуже малий (кілька десятків, можливо, сотня основних валют). Для такої кількості вершин (V) алгоритм Беллмана-Форда працює практично миттєво. Трейдингові боти запускають його тисячі разів на секунду.
+
+Головна складність на Форексі — це не знайти цикл (це вирішена задача), а встигнути виконати всі обміни, перш ніж ринок зреагує і курси зміняться. Ці арбітражні можливості існують лише долі секунди.
+			</p>
+			<h3>Сценарії застосування</h3>
+
+        <div class="example">
+            <h3>Приклад 1: Контроль шляху передачі даних (Мережевий аналіз)</h3>
+            
+            <div class="graph-model">
+                <h4>Моделювання графом:</h4>
+                <ul>
+                    <li><strong>Вершини:</strong> Мережеві маршрутизатори (вузли)</li>
+                    <li><strong>Ребра:</strong> Прямі канали зв'язку між маршрутизаторами</li>
+                    <li><strong>Вага ребра:</strong> Комбінована "вартість" використання каналу (затримка - пріоритет)</li>
+                </ul>
+            </div>
+
+            <div class="scenario">
+                <h4>Сценарій:</h4>
+                <p>Три маршрутизатори: A, B, C з наступними зв'язками:</p>
+                <ul>
+                    <li>Ребро A→B: вага = 1 (низька затримка)</li>
+                    <li>Ребро B→C: вага = 1 (низька затримка)</li>
+                    <li>Ребро C→A: вага = -3 (високий пріоритет)</li>
+                </ul>
+                
+                <div class="weight-calculation">
+                    Цикл A→B→C→A: 1 + 1 + (-3) = -1 <strong>(негативний цикл!)</strong>
+                </div>
+            </div>
+
+            <div class="result">
+                <h4>Результат роботи алгоритму:</h4>
+                <p>Алгоритм виявить, що після основного етапу (|V|-1 ітерацій) шляхи до вершин можна покращити. На додатковій ітерації він помітить, що відстань до вершин A, B, C може зменшитися ще сильніше, і позначить ці вершини як ті, що входять до негативного циклу.</p>
+            </div>
+        </div>
+
+        <div class="example">
+            <h3>Приклад 2: Аналіз фінансових потоків у ланцюжку постачання</h3>
+            
+            <div class="graph-model">
+                <h4>Моделювання графом:</h4>
+                <ul>
+                    <li><strong>Вершини:</strong> Юридичні особи (компанія, дочірні фірми, постачальники, клієнти)</li>
+                    <li><strong>Ребра:</strong> Фінансові потоки (поставка товару, надання послуги)</li>
+                    <li><strong>Вага ребра:</strong> Фінансовий результат для компанії (витрати = позитивна вага, доходи = негативна вага)</li>
+                </ul>
+            </div>
+
+            <div class="scenario">
+                <h4>Сценарій:</h4>
+                <p>Компанія "Альфа" працює з підрозділами "Бета", "Гамма" та постачальником "Сігма":</p>
+                <ul>
+                    <li>Альфа → Сігма: вага = +5 (плата за сировину)</li>
+                    <li>Сігма → Бета: вага = 0 (внутрішня операція)</li>
+                    <li>Бета → Гамма: вага = 0 (внутрішня операція)</li>
+                    <li>Гамма → Альфа: вага = -7 (дохід від продажу)</li>
+                </ul>
+                
+                <div class="weight-calculation">
+                    Цикл Альфа→Сігма→Бета→Гамма→Альфа: 5 + 0 + 0 + (-7) = -2 <strong>(негативний цикл!)</strong>
+                </div>
+            </div>
+
+            <div class="result">
+                <h4>Результат роботи алгоритму:</h4>
+                <p>Алгоритм виявить, що компанія "Альфа" може "крутити" цей цикл, кожного разу отримуючи вигоду в 2 одиниці. На практиці це може вказувати на неправильне внутрішнє ціноутворення, яке створює вигадану прибутковість.</p>
+            </div>
+        </div>
+
+        <div class="example">
+            <h3>Приклад 3: Планування проекту з "вигідними" затримками</h3>
+            
+            <div class="graph-model">
+                <h4>Моделювання графом:</h4>
+                <ul>
+                    <li><strong>Вершини:</strong> Стани проекту (початок, завершення кожної задачі)</li>
+                    <li><strong>Ребра:</strong> Задачі, що переводять проект з одного стану в інший</li>
+                    <li><strong>Вага ребра:</strong> Фінансовий ефект від затримки задачі. Штраф за затримку = позитивна вага, винагорода за затримку (довге виконання, наприклад, при погодинній оплаті) = негативна)</li>
+                </ul>
+            </div>
+
+            <div class="scenario">
+                <h4>Сценарій:</h4>
+                <p>Три залежні задачі X, Y, Z з циклічністю:</p>
+                <ul>
+                    <li>Затримка X: штраф +2</li>
+                    <li>Затримка Y: винагорода -4</li>
+                    <li>Затримка Z: винагорода -4</li>
+                    <li>Вплив Z на X: вага +1</li>
+                </ul>
+                
+                <div class="weight-calculation">
+                    Цикл X→Y→Z→X: 2 + (-4) + (-4) + 1 = -5 <strong>(негативний цикл!)</strong>
+                </div>
+            </div>
+
+            <div class="result">
+                <h4>Результат роботи алгоритму:</h4>
+                <p>Алгоритм покаже, що існує цикл залежностей, де постійне відкладання задач призводить до чистого фінансового прибутку. Це явна аномалія в системі мотивації або плануванні проекту.</p>
+            </div>
+        </div>
+        </div>
+   
+        </div>
+    </details>
+</div>
+
+<script>
+// --- GLOBAL STATE ---
+let graph = { nodes: [], edges: [], adj: new Map(), isDirected: false, hasNegativeWeights: false };
+let bellmanfordState = { steps: [], currentStep: -1 };
+let physicsAnimationId = null;
+let draggedNode = null;
+let isDragging = false;
+
+// --- ОНОВЛЕНІ ГЛОБАЛЬНІ ЗМІННІ (Req 1) ---
+let lastNodeId = 0; 
+let nodeCreationList = []; // Для створення ребер [u, v]
+let selection = null; // Для виділення/видалення { type: 'node' | 'edge', ... }
+let animationInterval = null;
+
+// --- DOM ELEMENTS ---
+const nodeCountInput = document.getElementById('node-count');
+const startNodeInput = document.getElementById('start-node');
+const generateBtn = document.getElementById('generate-graph-btn');
+const directedCheckbox = document.getElementById('directed-graph-checkbox');
+const negativeWeightsCheckbox = document.getElementById('negative-weights-checkbox');
+
+const bellmanfordSVG = document.getElementById('bellmanford-svg');
+const bellmanfordPrevBtn = document.getElementById('bellmanford-prev-btn');
+const bellmanfordNextBtn = document.getElementById('bellmanford-next-btn');
+const bellmanfordRunBtn = document.getElementById('bellmanford-run-btn');
+const bellmanfordCommentary = document.getElementById('bellmanford-commentary');
+const bellmanfordStepCounter = document.getElementById('bellmanford-step-counter');
+
+// --- CONSTANTS ---
+const NODE_RADIUS = 18;
+
+// ===================================================================
+// MAIN CONTROL FUNCTIONS
+// ===================================================================
+function generateAndStart() {
+    stopAnimation();
+    generateBtn.disabled = true;
+    generateBtn.textContent = "Генерація...";
+    
+    const n = parseInt(nodeCountInput.value);
+    if (n === 0) {
+        clearGraph();
+        restartSearch();
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Згенерувати Новий Граф";
+        return;
+    }
+    
+    generateGraphStructure(n);
+    
+    runPhysicsLayout(() => {
+        restartSearch();
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Згенерувати Новий Граф";
+    });
+}
+
+function clearGraph() {
+    graph = { nodes: [], edges: [], adj: new Map(), isDirected: directedCheckbox.checked, hasNegativeWeights: negativeWeightsCheckbox.checked };
+    lastNodeId = 0;
+    nodeCreationList = [];
+    selection = null;
+}
+
+function restartSearch() {
+    stopAnimation();
+    
+    // Скидаємо стани редагування при кожному перезапуску
+    nodeCreationList = [];
+    selection = null;
+
+    if (!graph.nodes || graph.nodes.length === 0) {
+        bellmanfordCommentary.innerHTML = "Граф порожній. Дб-клік - додати вершину. Або згенеруйте новий граф.";
+        bellmanfordState = { steps: [], currentStep: -1 };
+        updateBellmanFordView();
+        return;
+    }
+
+    const n = graph.nodes.length;
+    const startNode = parseInt(startNodeInput.value);
+    
+    if (!graph.nodes.some(node => node.id === startNode)) {
+        const newStartNode = graph.nodes[0].id;
+        startNodeInput.value = newStartNode;
+        runBellmanFord(newStartNode);
+    } else {
+        runBellmanFord(startNode);
+    }
+}
+
+function generateGraphStructure(n) {
+    clearGraph(); 
+    graph.isDirected = directedCheckbox.checked;
+    graph.hasNegativeWeights = negativeWeightsCheckbox.checked;
+    
+    const width = bellmanfordSVG.clientWidth;
+    const height = bellmanfordSVG.clientHeight;
+
+    for (let i = 1; i <= n; i++) {
+        graph.nodes.push({ id: i, x: Math.random() * (width - 40) + 20, y: Math.random() * (height - 40) + 20, vx: 0, vy: 0 });
+        graph.adj.set(i, []);
+    }
+    lastNodeId = n; 
+    
+    const visited = new Set([1]);
+    let unvisited = Array.from({length: n-1}, (_, i) => i + 2);
+
+    while(unvisited.length > 0) {
+      const u = [...visited][Math.floor(Math.random() * visited.size)];
+      const vIndex = Math.floor(Math.random() * unvisited.length);
+      const v = unvisited[vIndex];
+      visited.add(v);
+      unvisited.splice(vIndex, 1);
+      let weight = graph.hasNegativeWeights ? Math.floor(Math.random() * 31) - 15 : Math.floor(Math.random() * 15) + 1;
+      while (weight === 0) weight = 1;
+      graph.edges.push({ source: u, target: v, weight });
+      graph.adj.get(u).push({ node: v, weight });
+      if (!graph.isDirected) graph.adj.get(v).push({ node: u, weight });
+    }
+    
+    const extraEdges = Math.floor(n * 1.2);
+    for(let i=0; i<extraEdges; i++) {
+        let u = Math.floor(Math.random() * n) + 1;
+        let v = Math.floor(Math.random() * n) + 1;
+        
+        let exists = false;
+        if (graph.isDirected) {
+            exists = graph.edges.some(e => e.source === u && e.target === v);
+        } else {
+            exists = graph.edges.some(e => (e.source === u && e.target === v) || (e.source === v && e.target === u));
+        }
+        
+        if(u !== v && !exists) {
+            let weight = graph.hasNegativeWeights ? Math.floor(Math.random() * 31) - 15 : Math.floor(Math.random() * 15) + 1;
+            while (weight === 0) weight = 1;
+            graph.edges.push({ source: u, target: v, weight });
+            graph.adj.get(u).push({ node: v, weight });
+            if (!graph.isDirected) graph.adj.get(v).push({ node: u, weight });
+        }
+    }
+}
+
+// ===================================================================
+// ALGORITHM (Bellman-Ford)
+// ===================================================================
+function findNegativeCycle(prev, start) {
+    let visited = new Map();
+    let cycle = [];
+    let curr = start;
+    let step = 0;
+
+    while (curr !== null) {
+        if (visited.has(curr)) {
+            let cycleStart = curr;
+            cycle.push(curr);
+            curr = prev.get(curr);
+            while (curr !== cycleStart) {
+                cycle.push(curr);
+                curr = prev.get(curr);
+            }
+            cycle.push(cycleStart);
+            return cycle.reverse();
+        }
+        visited.set(curr, step++);
+        curr = prev.get(curr);
+        if (step > graph.nodes.length + 5) {
+             console.error("Помилка пошуку циклу, обхід занадто довгий.");
+             return visited.keys(); 
+        }
+    }
+    return [];
+}
+
+
+function runBellmanFord(start) {
+    bellmanfordState = { steps: [], currentStep: -1 };
+    
+    let dist = new Map();
+    let prev = new Map();
+    
+    graph.nodes.forEach(node => {
+        dist.set(node.id, Infinity);
+        prev.set(node.id, null);
+    });
+    
+    if (dist.has(start)) {
+        dist.set(start, 0);
+    } else if (graph.nodes.length > 0) {
+        start = graph.nodes[0].id;
+        dist.set(start, 0);
+        startNodeInput.value = start;
+    } else {
+        updateBellmanFordView();
+        return;
+    }
+
+    const saveStep = (iteration, commentary, relaxingEdge = null, negativeCyclePath = []) => {
+        bellmanfordState.steps.push({
+            dist: new Map(dist),
+            prevDist: (bellmanfordState.steps.length > 0) ? bellmanfordState.steps[bellmanfordState.steps.length-1].dist : new Map(),
+            iteration,
+            relaxingEdge,
+            negativeCyclePath,
+            commentary
+        });
+    };
+
+    saveStep(0, `Ініціалізація. Всі відстані встановлено на ∞, крім стартової (<b>${start}</b>), яка дорівнює 0.`);
+    
+    const n = graph.nodes.length;
+    let foundNegativeCycle = false;
+
+    for (let iter = 1; iter <= n - 1; iter++) {
+        let updated = false;
+        
+        graph.edges.forEach(({ source: u, target: v, weight }) => {
+            let newDist = dist.get(u) + weight;
+            if (dist.get(u) !== Infinity && newDist < dist.get(v)) {
+                dist.set(v, newDist);
+                prev.set(v, u);
+                updated = true;
+                saveStep(iter, `Релаксація ребра (<b>${u} → ${v}</b>). Новий шлях коротший: ${dist.get(u)} + ${weight} = <b>${newDist}</b>.`, {u, v});
+            } else {
+                saveStep(iter, `Перевірка ребра (<b>${u} → ${v}</b>). Новий шлях (${dist.get(u) === Infinity ? '∞' : dist.get(u) + ' + ' + weight} = ${dist.get(u) === Infinity ? '∞' : newDist}) не є коротшим за поточний (${dist.get(v)}).`, {u, v});
+            }
+            
+            if (!graph.isDirected) {
+                newDist = dist.get(v) + weight;
+                if (dist.get(v) !== Infinity && newDist < dist.get(u)) {
+                    dist.set(u, newDist);
+                    prev.set(u, v);
+                    updated = true;
+                    saveStep(iter, `Релаксація ребра (<b>${v} → ${u}</b>). Новий шлях коротший: ${dist.get(v)} + ${weight} = <b>${newDist}</b>.`, {v, u});
+                } else {
+                    saveStep(iter, `Перевірка ребра (<b>${v} → ${u}</b>). Новий шлях (${dist.get(v) === Infinity ? '∞' : dist.get(v) + ' + ' + weight} = ${dist.get(v) === Infinity ? '∞' : newDist}) не є коротшим за поточний (${dist.get(u)}).`, {v, u});
+                }
+            }
+        });
+        
+        if (!updated) {
+            saveStep(iter, `Ітерація ${iter}: Немає оновлень. Алгоритм може завершитися рано.`);
+            break;
+        }
+    }
+
+    // Check for negative cycle
+    let negativeCyclePath = [];
+    
+    graph.edges.forEach(({ source: u, target: v, weight }) => {
+        if (foundNegativeCycle) return; 
+
+        if (dist.get(u) !== Infinity && dist.get(u) + weight < dist.get(v)) {
+            foundNegativeCycle = true;
+            const originalPrev = prev.get(v);
+            prev.set(v, u);
+            negativeCyclePath = findNegativeCycle(prev, v);
+            prev.set(v, originalPrev);
+        }
+        
+        if (!foundNegativeCycle && !graph.isDirected) {
+            if (dist.get(v) !== Infinity && dist.get(v) + weight < dist.get(u)) {
+                foundNegativeCycle = true;
+                const originalPrev = prev.get(u);
+                prev.set(u, v);
+                negativeCyclePath = findNegativeCycle(prev, u);
+                prev.set(u, originalPrev);
+            }
+        }
+    });
+
+
+    if (foundNegativeCycle) {
+        let cycleStr = negativeCyclePath.length > 0 ? negativeCyclePath.join(' → ') : "Неможливо визначити";
+        saveStep(n, `Виявлено негативний цикл: <b>${cycleStr}</b>! Шляхи не визначені.`, null, negativeCyclePath);
+    } else {
+        saveStep(n, `Алгоритм завершено. Найкоротші відстані знайдено без негативних циклів.`);
+    }
+
+    bellmanfordState.currentStep = 0;
+    updateBellmanFordView();
+}
+
+function updateBellmanFordView() {
+    stopAnimation(); 
+    
+    const step = bellmanfordState.steps[bellmanfordState.currentStep];
+    
+    if (!step) {
+        drawGraphLayout(bellmanfordSVG); // Малюємо порожній граф
+        bellmanfordCommentary.innerHTML = "Граф порожній. Дб-клік - додати вершину. Або згенеруйте новий граф.";
+        bellmanfordStepCounter.textContent = "Крок: 0 / 0";
+        bellmanfordPrevBtn.disabled = true;
+        bellmanfordNextBtn.disabled = true;
+        bellmanfordRunBtn.disabled = true;
+        return;
+    }
+    
+    updateVisualization(bellmanfordSVG, step);
+    bellmanfordCommentary.innerHTML = step.commentary;
+    bellmanfordStepCounter.textContent = `Крок: ${bellmanfordState.currentStep + 1} / ${bellmanfordState.steps.length}`;
+    
+    const isFirstStep = bellmanfordState.currentStep === 0;
+    const isLastStep = bellmanfordState.currentStep === bellmanfordState.steps.length - 1;
+    
+    bellmanfordPrevBtn.disabled = isFirstStep;
+    bellmanfordNextBtn.disabled = isLastStep;
+    bellmanfordRunBtn.disabled = isLastStep;
+}
+
+// ===================================================================
+// ANIMATION FUNCTIONS
+// ===================================================================
+function runAnimation() {
+    stopAnimation(); 
+    
+    bellmanfordPrevBtn.disabled = true;
+    bellmanfordNextBtn.disabled = true;
+    bellmanfordRunBtn.disabled = true;
+    generateBtn.disabled = true;
+    
+    animationInterval = setInterval(() => {
+        if (bellmanfordState.currentStep < bellmanfordState.steps.length - 1) {
+            bellmanfordState.currentStep++;
+            updateVisualization(bellmanfordSVG, bellmanfordState.steps[bellmanfordState.currentStep]);
+            bellmanfordCommentary.innerHTML = bellmanfordState.steps[bellmanfordState.currentStep].commentary;
+            bellmanfordStepCounter.textContent = `Крок: ${bellmanfordState.currentStep + 1} / ${bellmanfordState.steps.length}`;
+        } else {
+            stopAnimation();
+        }
+    }, 100); // Затримка 200мс
+}
+
+function stopAnimation() {
+    if (animationInterval) {
+        clearInterval(animationInterval);
+        animationInterval = null;
+    }
+    generateBtn.disabled = false;
+    if (bellmanfordState.steps.length > 0) {
+        bellmanfordPrevBtn.disabled = bellmanfordState.currentStep === 0;
+        bellmanfordNextBtn.disabled = bellmanfordState.currentStep === bellmanfordState.steps.length - 1;
+        bellmanfordRunBtn.disabled = bellmanfordState.currentStep === bellmanfordState.steps.length - 1;
+    } else {
+        bellmanfordPrevBtn.disabled = true;
+        bellmanfordNextBtn.disabled = true;
+        bellmanfordRunBtn.disabled = true;
+    }
+}
+
+
+// ===================================================================
+// DRAWING, PHYSICS & INTERACTION
+// ===================================================================
+function drawGraphLayout(svgElement) {
+    svgElement.innerHTML = ''; 
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <marker id="arrowhead" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#999" /></marker>
+        <marker id="arrowhead-path" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--path-color')}" /></marker>
+        <marker id="arrowhead-relaxing" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--relaxing-edge-color')}" /></marker>
+        <marker id="arrowhead-negative-cycle" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--negative-cycle-color')}" /></marker>
+    `;
+    svgElement.appendChild(defs);
+
+    const edgeSet = new Set(graph.edges.map(e => `${e.source}-${e.target}`));
+    const drawnEdges = new Set();
+    
+    graph.edges.forEach(({ source, target, weight }) => {
+        const edgeKey = `${source}-${target}`;
+        const reverseKey = `${target}-${source}`;
+        
+        if (!graph.isDirected && (drawnEdges.has(edgeKey) || drawnEdges.has(reverseKey))) {
+            return;
+        }
+        if (drawnEdges.has(edgeKey)) return;
+
+        const nodeU = graph.nodes.find(n => n.id === source);
+        const nodeV = graph.nodes.find(n => n.id === target);
+        
+        if (!nodeU || !nodeV) return;
+        
+        const hasReciprocal = graph.isDirected && edgeSet.has(`${target}-${source}`);
+        
+        if (hasReciprocal) {
+            drawCurvedEdge(svgElement, nodeU, nodeV, weight, 1);
+            const reciprocalEdge = graph.edges.find(e => e.source === target && e.target === source);
+            drawCurvedEdge(svgElement, nodeV, nodeU, reciprocalEdge.weight, 1);
+            drawnEdges.add(`${target}-${source}`);
+        } else {
+            drawStraightEdge(svgElement, nodeU, nodeV, weight);
+        }
+        drawnEdges.add(edgeKey);
+    });
+
+    graph.nodes.forEach(node => {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('data-id', node.id);
+        group.classList.add('node');
+        
+        // --- ОНОВЛЕНО: Логіка виділення (Req 1) ---
+        if (nodeCreationList.includes(node.id) || (selection && selection.type === 'node' && selection.id === node.id)) {
+            group.classList.add('selected');
+        }
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', NODE_RADIUS);
+        
+        const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idText.setAttribute('x', node.x);
+        idText.setAttribute('y', node.y);
+        idText.textContent = node.id;
+        idText.classList.add('node-id');
+
+        const distText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        distText.setAttribute('x', node.x);
+        distText.setAttribute('y', node.y);
+        distText.classList.add('node-distance');
+        distText.textContent = '?';
+
+        group.appendChild(circle);
+        group.appendChild(idText);
+        group.appendChild(distText);
+        svgElement.appendChild(group);
+
+        group.addEventListener('mousedown', startDrag);
+        group.addEventListener('click', handleNodeClick);
+    });
+}
+
+function drawStraightEdge(svg, u, v, weight) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('data-u', u.id);
+    line.setAttribute('data-v', v.id);
+    line.classList.add('edge');
+    
+    const dx = v.x - u.x;
+    const dy = v.y - u.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    let endX = v.x, endY = v.y;
+    if (graph.isDirected && dist > 0) {
+        const ratio = (dist - NODE_RADIUS - 2) / dist;
+        endX = u.x + dx * ratio;
+        endY = u.y + dy * ratio;
+        line.setAttribute('marker-end', 'url(#arrowhead)');
+    }
+    
+    line.setAttribute('d', `M ${u.x} ${u.y} L ${endX} ${endY}`);
+    
+    line.addEventListener('click', (e) => handleEdgeClick(e, u.id, v.id));
+    svg.appendChild(line);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const labelPosRatio = graph.isDirected ? 0.75 : 0.5;
+    const textX = u.x + dx * labelPosRatio;
+    const textY = u.y + dy * labelPosRatio;
+    
+    let offsetX = 0, offsetY = 0;
+    if (dist > 0) {
+        offsetX = -dy / dist * 8;
+        offsetY = dx / dist * 8;
+    }
+
+    text.setAttribute('x', textX + offsetX);
+    text.setAttribute('y', textY + offsetY);
+    text.textContent = weight;
+    text.classList.add('edge-weight');
+    
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = 'Дб-клік = змінити вагу. Shift+Клік = виділити/видалити.';
+    text.appendChild(title);
+    
+    text.addEventListener('dblclick', (e) => {
+        e.stopPropagation(); 
+        editEdgeWeight(u.id, v.id);
+    });
+    text.addEventListener('click', (e) => handleEdgeClick(e, u.id, v.id));
+
+    svg.appendChild(text);
+}
+
+function drawCurvedEdge(svg, u, v, weight, direction) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('data-u', u.id);
+    path.setAttribute('data-v', v.id);
+    path.classList.add('edge');
+
+    const dx = v.x - u.x;
+    const dy = v.y - u.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const midX = u.x + dx * 0.5;
+    const midY = u.y + dy * 0.5;
+    const CURVATURE = 0.2 * direction;
+    const ctrlX = midX - CURVATURE * dy;
+    const ctrlY = midY + CURVATURE * dx;
+    
+    let endX = v.x, endY = v.y;
+    const dxEnd = v.x - ctrlX;
+    const dyEnd = v.y - ctrlY;
+    const distEnd = Math.sqrt(dxEnd*dxEnd + dyEnd*dyEnd);
+    if(distEnd > 0) {
+        endX = v.x - dxEnd * (NODE_RADIUS + 2) / distEnd;
+        endY = v.y - dyEnd * (NODE_RADIUS + 2) / distEnd;
+    }
+    
+    path.setAttribute('d', `M ${u.x} ${u.y} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`);
+    if (graph.isDirected) path.setAttribute('marker-end', 'url(#arrowhead)');
+    
+    path.addEventListener('click', (e) => handleEdgeClick(e, u.id, v.id));
+    svg.appendChild(path);
+
+    const textX = u.x * 0.25 + ctrlX * 0.5 + endX * 0.25;
+    const textY = u.y * 0.25 + ctrlY * 0.5 + endY * 0.25;
+    
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', textX);
+    text.setAttribute('y', textY);
+    text.textContent = weight;
+    text.classList.add('edge-weight');
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = 'Дб-клік = змінити вагу. Shift+Клік = виділити/видалити.';
+    text.appendChild(title);
+    
+    text.addEventListener('dblclick', (e) => {
+        e.stopPropagation(); 
+        editEdgeWeight(u.id, v.id);
+    });
+    text.addEventListener('click', (e) => handleEdgeClick(e, u.id, v.id));
+    
+    svg.appendChild(text);
+}
+
+function updateVisualization(svgElement, step) {
+    const prevStep = bellmanfordState.steps[bellmanfordState.currentStep - 1];
+
+    drawGraphLayout(svgElement); // Перемальовує основу графу
+    
+    const { dist, relaxingEdge, negativeCyclePath } = step;
+    
+    const negativeCycleEdges = new Set();
+    if (negativeCyclePath.length > 0) {
+        for (let i = 0; i < negativeCyclePath.length - 1; i++) {
+            const u = negativeCyclePath[i];
+            const v = negativeCyclePath[i + 1];
+            negativeCycleEdges.add(`${u}-${v}`);
+            negativeCycleEdges.add(`${v}-${u}`);
+        }
+    }
+
+    svgElement.querySelectorAll('.edge').forEach(edge => {
+        const u = parseInt(edge.getAttribute('data-u'));
+        const v = parseInt(edge.getAttribute('data-v'));
+        
+        if (selection && selection.type === 'edge') {
+            const {u: selU, v: selV} = selection;
+            if ((selU === u && selV === v) || 
+                (!graph.isDirected && selU === v && selV === u)) {
+                edge.classList.add('selected');
+            }
+        }
+        
+        const key1 = `${u}-${v}`;
+        const key2 = `${v}-${u}`;
+        
+        if (negativeCycleEdges.has(key1) || (!graph.isDirected && negativeCycleEdges.has(key2))) {
+            edge.classList.add('negative-cycle');
+            if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-negative-cycle)');
+        } else if (relaxingEdge && relaxingEdge.u === u && relaxingEdge.v === v) {
+            edge.classList.add('relaxing');
+            if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-relaxing)');
+        }
+        else if (!graph.isDirected && relaxingEdge && relaxingEdge.u === v && relaxingEdge.v === u) {
+             edge.classList.add('relaxing');
+        }
+    });
+
+    svgElement.querySelectorAll('.node').forEach(group => {
+        const nodeId = parseInt(group.getAttribute('data-id'));
+        if (dist.get(nodeId) !== Infinity) {
+            group.classList.add('visited');
+        }
+        
+        if (negativeCyclePath.includes(nodeId)) {
+             group.classList.add('path');
+        }
+
+        const distance = dist.get(nodeId);
+        const distText = group.querySelector('.node-distance');
+        distText.textContent = distance === Infinity ? '∞' : distance;
+
+        const oldDist = prevStep ? prevStep.dist.get(nodeId) : Infinity;
+        if (distance < oldDist) {
+            distText.classList.add('updated');
+        }
+    });
+
+    drawDataStructure(svgElement, step.iteration);
+}
+
+function drawDataStructure(svg, iteration) {
+    const PADDING = 10;
+    const dsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', PADDING);
+    label.setAttribute('y', PADDING + 10);
+    label.classList.add('ds-label');
+    label.textContent = (iteration > graph.nodes.length-1) ? `Перевірка циклу` : `Ітерація: ${iteration}`;
+    dsGroup.appendChild(label);
+
+    svg.appendChild(dsGroup);
+}
+
+function runPhysicsLayout(onComplete) {
+    if (physicsAnimationId) cancelAnimationFrame(physicsAnimationId);
+    let iterations = 150;
+    function step() {
+        physicsStep();
+        drawGraphLayout(bellmanfordSVG); 
+        if (bellmanfordState.steps.length > 0) {
+             updateVisualization(bellmanfordSVG, bellmanfordState.steps[bellmanfordState.currentStep]); 
+        }
+        if (--iterations > 0) {
+            physicsAnimationId = requestAnimationFrame(step);
+        } else {
+            onComplete();
+        }
+    }
+    step();
+}
+
+function physicsStep() {
+    const REPULSION = 4000, SPRING_K = 0.05, SPRING_LEN = 250, DAMPING = 0.85;
+    const width = bellmanfordSVG.clientWidth, height = bellmanfordSVG.clientHeight;
+    
+    graph.nodes.forEach(n => { n.fx = 0; n.fy = 0; });
+
+    for (let i = 0; i < graph.nodes.length; i++) {
+        for (let j = i + 1; j < graph.nodes.length; j++) {
+            const n1 = graph.nodes[i], n2 = graph.nodes[j];
+            const dx = n1.x - n2.x, dy = n1.y - n2.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > 1) {
+                const dist = Math.sqrt(distSq);
+                const force = REPULSION / distSq;
+                n1.fx += (dx / dist) * force; n1.fy += (dy / dist) * force;
+                n2.fx -= (dx / dist) * force; n2.fy -= (dy / dist) * force;
+            }
+        }
+    }
+
+    graph.edges.forEach(({ source, target }) => {
+        const n1 = graph.nodes.find(n => n.id === source);
+        const n2 = graph.nodes.find(n => n.id === target);
+        if (!n1 || !n2) return;
+        const dx = n1.x - n2.x, dy = n1.y - n2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0) {
+            const force = SPRING_K * (dist - SPRING_LEN);
+            n1.fx -= (dx / dist) * force; n1.fy -= (dy / dist) * force;
+            n2.fx += (dx / dist) * force; n2.fy += (dy / dist) * force;
+        }
+    });
+
+    graph.nodes.forEach(n => {
+        if (n === draggedNode) return; 
+        n.vx = (n.vx + n.fx) * DAMPING;
+        n.vy = (n.vy + n.fy) * DAMPING;
+        n.x += n.vx;
+        n.y += n.vy;
+
+        n.x = Math.max(NODE_RADIUS, Math.min(width - NODE_RADIUS, n.x));
+        n.y = Math.max(NODE_RADIUS, Math.min(height - NODE_RADIUS, n.y));
+    });
+}
+
+// ===================================================================
+// GRAPH EDITING FUNCTIONS (Req 1, 2, 3)
+// ===================================================================
+function addNodeOnCanvas(event) {
+    if (event.target !== bellmanfordSVG) return;
+    
+    stopAnimation();
+    selection = null;
+    nodeCreationList = [];
+    
+    const coords = getSVGPoint(event);
+    lastNodeId++;
+    
+    const newNode = { id: lastNodeId, x: coords.x, y: coords.y, vx: 0, vy: 0 };
+    graph.nodes.push(newNode);
+    graph.adj.set(lastNodeId, []);
+    
+    nodeCountInput.value = graph.nodes.length;
+    startNodeInput.max = graph.nodes.length > 0 ? graph.nodes.length : 1;
+    if (graph.nodes.length === 1) {
+        startNodeInput.value = lastNodeId;
+    }
+    
+    restartSearch();
+}
+
+// --- ОНОВЛЕНО: Виправлена логіка виділення (Req 1) ---
+function handleNodeClick(event) {
+    if (isDragging) {
+        isDragging = false;
+        return; 
+    }
+    
+    const nodeId = parseInt(event.currentTarget.getAttribute('data-id'));
+    
+    if (event.shiftKey) {
+        stopAnimation();
+        event.preventDefault(); 
+        event.stopPropagation();
+        
+        selection = null; // Ми в режимі створення ребер, а не виділення
+        
+        if (nodeCreationList.includes(nodeId)) {
+            // Cкасувати вибір
+            nodeCreationList = nodeCreationList.filter(id => id !== nodeId);
+        } else {
+            // Додати до списку
+            nodeCreationList.push(nodeId);
+        }
+        
+        if (nodeCreationList.length === 2) {
+            const [u, v] = nodeCreationList;
+            addEdge(u, v); // Ця функція викличе restartSearch та очистить списки
+        } else {
+             updateBellmanFordView(); // Оновлюємо, щоб показати виділення
+        }
+        
+    } else {
+        // Звичайний клік (не Shift) - для виділення/видалення
+        nodeCreationList = []; // Скидаємо список створення
+        selection = { type: 'node', id: nodeId };
+        updateBellmanFordView();
+    }
+}
+
+function handleEdgeClick(event, uId, vId) {
+    event.stopPropagation(); 
+    if (isDragging) return;
+    
+    if (event.shiftKey) {
+        nodeCreationList = []; // Скидаємо список створення
+        selection = { type: 'edge', u: uId, v: vId };
+        updateBellmanFordView();
+    }
+}
+
+function handleCanvasClick(event) {
+    if (event.target === bellmanfordSVG) {
+        if (selection || nodeCreationList.length > 0) {
+            selection = null;
+            nodeCreationList = []; // Очищуємо ОБИДВА списки
+            updateBellmanFordView();
+        }
+    }
+}
+
+function handleDeleteKey(event) {
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (!selection) return; 
+        
+        if (selection.type === 'node') {
+            deleteNode(selection.id);
+        } else if (selection.type === 'edge') {
+            deleteEdge(selection.u, selection.v);
+        }
+        
+        // restartSearch() буде викликано з deleteNode/deleteEdge
+    }
+}
+
+function deleteNode(nodeId) {
+    stopAnimation();
+    graph.nodes = graph.nodes.filter(n => n.id !== nodeId);
+    graph.adj.delete(nodeId);
+    graph.edges = graph.edges.filter(e => e.source !== nodeId && e.target !== nodeId);
+    
+    graph.adj.forEach((edges, id) => {
+        graph.adj.set(id, edges.filter(e => e.node !== nodeId));
+    });
+    
+    nodeCountInput.value = graph.nodes.length;
+    if (parseInt(startNodeInput.value) === nodeId) {
+        startNodeInput.value = (graph.nodes.length > 0) ? graph.nodes[0].id : 1;
+    }
+    
+    restartSearch();
+}
+
+function deleteEdge(uId, vId) {
+    stopAnimation();
+    
+    let edge = graph.edges.find(e => e.source === uId && e.target === vId);
+    let edgeFoundInReverse = false;
+    
+    if (!edge && !graph.isDirected) {
+      edge = graph.edges.find(e => e.source === vId && e.target === uId);
+      edgeFoundInReverse = true;
+    }
+    
+    if (!edge) return;
+    
+    const actualU = edgeFoundInReverse ? vId : uId;
+    const actualV = edgeFoundInReverse ? uId : vId;
+    
+    graph.edges = graph.edges.filter(e => e !== edge);
+    
+    if (graph.adj.has(actualU)) {
+        graph.adj.set(actualU, graph.adj.get(actualU).filter(e => e.node !== actualV));
+    }
+    if (!graph.isDirected && graph.adj.has(actualV)) {
+        graph.adj.set(actualV, graph.adj.get(actualV).filter(e => e.node !== actualU));
+    }
+    
+    restartSearch();
+}
+
+
+function addEdge(uId, vId) {
+    let exists = false;
+    if (graph.isDirected) {
+        exists = graph.edges.some(e => e.source === uId && e.target === vId);
+    } else {
+        exists = graph.edges.some(e => (e.source === uId && e.target === vId) || (e.source === vId && e.target === uId));
+    }
+    
+    if (exists) {
+        console.log("Ребро вже існує");
+        restartSearch(); 
+        return;
+    }
+    
+    const weight = 1; 
+    graph.edges.push({ source: uId, target: vId, weight: weight });
+    graph.adj.get(uId).push({ node: vId, weight: weight });
+    if (!graph.isDirected) {
+        graph.adj.get(vId).push({ node: uId, weight: weight });
+    }
+    
+    restartSearch(); 
+}
+
+function editEdgeWeight(uId, vId) {
+    stopAnimation();
+    
+    let edge = graph.edges.find(e => e.source === uId && e.target === vId);
+    let edgeFoundInReverse = false;
+
+    if (!edge && !graph.isDirected) {
+      edge = graph.edges.find(e => e.source === vId && e.target === uId);
+      edgeFoundInReverse = true;
+    }
+
+    if (!edge) return;
+    
+    const [displayU, displayV] = edgeFoundInReverse ? [vId, uId] : [uId, vId];
+    
+    const currentWeight = edge.weight;
+    const newWeightStr = prompt(`Введіть нову вагу для ребра (${displayU} – ${displayV}):`, currentWeight);
+
+    if (newWeightStr === null || newWeightStr.trim() === "") return;
+
+    const newWeight = parseInt(newWeightStr, 10);
+    if (isNaN(newWeight)) {
+        alert("Будь ласка, введіть числове значення.");
+        return;
+    }
+
+    edge.weight = newWeight;
+    
+    const adjU = graph.adj.get(displayU).find(e => e.node === displayV);
+    if (adjU) adjU.weight = newWeight;
+
+    if (!graph.isDirected) {
+        const adjV = graph.adj.get(displayV).find(e => e.node === displayU);
+        if (adjV) adjV.weight = newWeight;
+    }
+    
+    if (newWeight < 0) {
+        graph.hasNegativeWeights = true;
+        negativeWeightsCheckbox.checked = true;
+    }
+
+    restartSearch();
+}
+
+// --- DRAGGING LOGIC ---
+function getSVGPoint(event) {
+    const pt = bellmanfordSVG.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    return pt.matrixTransform(bellmanfordSVG.getScreenCTM().inverse());
+}
+
+function startDrag(event) {
+    if (event.shiftKey) {
+        event.preventDefault();
+        return;
+    }
+    
+    isDragging = false; 
+    
+    const nodeId = parseInt(event.currentTarget.getAttribute('data-id'));
+    draggedNode = graph.nodes.find(n => n.id === nodeId);
+    if (draggedNode) {
+        event.preventDefault();
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('mouseup', endDrag);
+    }
+}
+
+function drag(event) {
+    if (draggedNode) {
+        isDragging = true; 
+        event.preventDefault();
+        const coords = getSVGPoint(event);
+        draggedNode.x = coords.x;
+        draggedNode.y = coords.y;
+        updateBellmanFordView(); 
+    }
+}
+
+function endDrag(event) {
+    draggedNode = null;
+    window.removeEventListener('mousemove', drag);
+    window.removeEventListener('mouseup', endDrag);
+    setTimeout(() => { isDragging = false; }, 0);
+}
+
+// --- EVENT LISTENERS ---
+generateBtn.addEventListener('click', generateAndStart);
+startNodeInput.addEventListener('change', restartSearch);
+directedCheckbox.addEventListener('change', () => {
+    graph.isDirected = directedCheckbox.checked;
+    generateAndStart();
+});
+negativeWeightsCheckbox.addEventListener('change', () => {
+    graph.hasNegativeWeights = negativeWeightsCheckbox.checked;
+    generateAndStart();
+});
+
+bellmanfordNextBtn.addEventListener('click', () => { 
+    stopAnimation();
+    if (bellmanfordState.currentStep < bellmanfordState.steps.length - 1) { 
+        bellmanfordState.currentStep++; 
+        updateBellmanFordView(); 
+    }
+});
+bellmanfordPrevBtn.addEventListener('click', () => { 
+    stopAnimation();
+    if (bellmanfordState.currentStep > 0) { 
+        bellmanfordState.currentStep--; 
+        updateBellmanFordView(); 
+    }
+});
+
+bellmanfordRunBtn.addEventListener('click', runAnimation);
+bellmanfordSVG.addEventListener('dblclick', addNodeOnCanvas);
+bellmanfordSVG.addEventListener('click', handleCanvasClick);
+window.addEventListener('keydown', handleDeleteKey);
+
+
+nodeCountInput.addEventListener('change', () => {
+    const n = parseInt(nodeCountInput.value);
+    startNodeInput.max = n > 0 ? n : 1;
+    if (parseInt(startNodeInput.value) > n && n > 0) startNodeInput.value = 1;
+});
+
+window.addEventListener('load', generateAndStart);
+</script>
+</body>
+</html>

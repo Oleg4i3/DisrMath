@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Алгоритму Дейкстри</title>
+    <style>
+        :root {
+            --primary-color: #9C27B0; /* Purple */
+            --primary-hover: #7B1FA2;
+            --dijkstra-color: #9C27B0;
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #555;
+            --visited-color: #d1c4e9; /* Light Purple */
+            --current-color: #ffc107; /* Amber */
+            --path-color: #4CAF50;    /* Green */
+            --relaxing-edge-color: #F44336; /* Red */
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+        }
+        .main-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 1280px; /* Limit overall max width */
+        }
+        .simulator-container, .theory-container {
+            background-color: var(--white-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .step-counter {
+            text-align: center;
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 15px;
+            height: 1.2em;
+        }
+        h2.dijkstra-title { color: var(--dijkstra-color); }
+        .controls, .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .input-group label { display: flex; align-items: center; gap: 5px; }
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            width: 60px;
+        }
+        input[type="checkbox"] { transform: scale(1.2); margin-right: 5px; }
+        .visualization {
+            width: 100%;
+            height: 500px; /* Increased height slightly */
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            /* No border */
+        }
+        .commentary {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 50px;
+            font-size: 1.1em;
+            text-align: center;
+            word-wrap: break-word;
+            line-height: 1.5;
+            margin-top: 15px;
+            color: var(--comment-color);
+        }
+        svg { width: 100%; height: 100%; }
+
+        .node circle { stroke: #333; stroke-width: 2px; fill: var(--white-bg); transition: fill 0.3s, stroke 0.3s; }
+        .node text.node-id { text-anchor: middle; dominant-baseline: central; font-size: 16px; font-weight: bold; pointer-events: none; fill: #333; }
+        .node text.node-distance { text-anchor: middle; dominant-baseline: central; font-size: 24px; font-weight: normal; pointer-events: none; fill: var(--primary-color); transform: translateY(-22px); }
+        .node:hover { cursor: grab; }
+        .node:active { cursor: grabbing; }
+
+        .edge { stroke: #ccc; stroke-width: 3px; fill: none; transition: stroke 0.3s, stroke-width 0.3s; }
+        text.edge-weight { font-size: 18px; fill: #555; text-anchor: middle; dominant-baseline: central; pointer-events: auto; cursor: pointer; }
+        text.edge-weight:hover { font-weight: bold; fill: var(--primary-color); }
+
+        .node.visited circle { fill: var(--visited-color); }
+        .node.current circle { fill: var(--current-color); stroke: #a67c00; }
+        .node.path circle { fill: var(--path-color); stroke: var(--path-color); }
+        .node.path text.node-id { fill: white; }
+        .edge.path { stroke: var(--path-color); stroke-width: 5px;}
+        .edge.relaxing { stroke: var(--relaxing-edge-color); stroke-width: 5px;}
+        
+        .ds-box { fill: #f8f9fa; stroke: #aaa; stroke-width: 1px; }
+        .ds-text { text-anchor: middle; dominant-baseline: central; font-size: 14px; }
+        .ds-label { font-size: 14px; font-weight: bold; text-anchor: start; }
+
+        .theory-container { max-width: 1280px; }
+        details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
+        summary { font-size: 1.2em; font-weight: bold; cursor: pointer; color: var(--primary-color); }
+        details[open] summary { margin-bottom: 15px; }
+        .theory-content h3 { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .theory-content p, .theory-content li { line-height: 1.7; color: var(--text-color); }
+        .theory-content code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+        .theory-content strong { color: var(--dijkstra-color); }
+    </style>
+</head>
+<body>
+<div class="input-group">
+    <label>К-сть вершин:</label>
+    <input type="number" id="node-count" value="10" min="5" max="20">
+    <label>Старт:</label>
+    <input type="number" id="start-node" value="1" min="1" max="20">
+    <label>Фініш:</label>
+    <input type="number" id="end-node" value="10" min="1" max="20">
+    <label>
+        <input type="checkbox" id="directed-graph-checkbox">
+        Орієнтований
+    </label>
+    <button id="generate-graph-btn">Згенерувати Новий Граф</button>
+</div>
+
+<div class="main-container">
+    <div class="simulator-container">
+        <h2 class="dijkstra-title">Алгоритм Дейкстри</h2>
+        <div class="step-counter" id="dijkstra-step-counter"></div>
+        <div class="visualization">
+            <svg id="dijkstra-svg"></svg>
+        </div>
+        <div class="controls">
+            <button id="dijkstra-prev-btn" disabled>Крок назад</button>
+            <button id="dijkstra-next-btn" disabled>Крок вперед</button>
+        </div>
+        <div class="commentary" id="dijkstra-commentary">Налаштуйте параметри та згенеруйте граф.</div>
+    </div>
+</div>
+
+<div class="theory-container">
+    <details open>
+        <summary>Теоретична довідка по Алгоритму Дейкстри</summary>
+        <div class="theory-content">
+            <h3>Що таке Алгоритм Дейкстри?</h3>
+            <p>
+                Алгоритм Дейкстри — це "жадібний" алгоритм, що знаходить <b>найкоротший шлях</b> від однієї стартової вершини до всіх інших вершин у <strong>зваженому графі</strong> з невід'ємними вагами ребер. На відміну від BFS, який знаходить найкоротший шлях за кількістю ребер, Дейкстра враховує їх "вартість" (вагу).
+            </p>
+
+            <h3>Як він працює?</h3>
+            <p>
+                Алгоритм підтримує масив відстаней до кожної вершини, ініціалізований нескінченністю (∞), крім стартової (для неї відстань 0). Він поступово "завершує" розгляд вершин, для яких найкоротший шлях вже точно знайдено.
+            </p>
+            <ul>
+                <li><b>Структура даних:</b> Ключовою є <b>пріоритетна черга (Priority Queue)</b>. Вона зберігає вершини, які ще потрібно відвідати, і дозволяє ефективно обирати вершину з найменшою поточною відстанню.</li>
+                <li><b>Основний принцип:</b> На кожному кроці алгоритм обирає з черги вершину <strong>`u`</strong>, до якої на даний момент відомий найкоротший шлях.</li>
+                <li><b>Процес "Релаксації":</b> Для обраної вершини <strong>`u`</strong>, алгоритм переглядає всіх її сусідів <strong>`v`</strong>. Якщо шлях до <strong>`v`</strong> через <strong>`u`</strong> виявляється коротшим, ніж відомий раніше, то відстань до <strong>`v`</strong> оновлюється. Цей процес називається релаксацією ребра.</li>
+            </ul>
+
+            <h3>Порівняння з BFS</h3>
+            <p>Можна вважати, що BFS є окремим випадком алгоритму Дейкстри, де вага всіх ребер дорівнює 1. У такому випадку "жадібний" вибір Дейкстри (вершина з найменшою відстанню) буде ідентичним до вибору BFS (вершина, що знаходиться найближче до початку за кількістю ребер).</p>
+            <hr>
+            <h3>Практичне застосування</h3>
+            <p>Алгоритм Дейкстри є основою для багатьох реальних систем, де потрібно знаходити оптимальні маршрути.</p>
+            <ul>
+                <li><b>GPS-навігатори:</b> Розрахунок найшвидшого або найкоротшого маршруту між двома точками на карті, де вага ребер — це час у дорозі або відстань.</li>
+                <li><b>Мережева маршрутизація:</b> Пошук оптимального шляху для передачі пакетів даних в комп'ютерних мережах (наприклад, в протоколі OSPF).</li>
+                <li><b>Планування авіарейсів:</b> Знаходження найдешевшого маршруту між аеропортами, де вага — це вартість квитка.</li>
+            </ul>
+            <hr>
+            <h3>Обмеження: невід'ємна вага</h3>
+            <p>
+                Критичне обмеження алгоритму Дейкстри — він <b>працює коректно лише для графів, де вага всіх ребер є невід'ємною</b>. Якщо в графі є ребра з від'ємною вагою, "жадібна" стратегія Дейкстри може призвести до неправильного результату, оскільки алгоритм не переглядає вже "завершені" вершини.
+            </p>
+            <p>Для роботи з графами, що можуть містити ребра від'ємної ваги, використовуються інші алгоритми, наприклад, <b>алгоритм Беллмана-Форда</b>.</p>
+        </div>
+    </details>
+</div>
+
+<script>
+// --- GLOBAL STATE ---
+let graph = { nodes: [], edges: [], adj: new Map(), isDirected: false };
+let dijkstraState = { steps: [], currentStep: -1 };
+let physicsAnimationId = null;
+let draggedNode = null;
+
+// --- DOM ELEMENTS ---
+const nodeCountInput = document.getElementById('node-count');
+const startNodeInput = document.getElementById('start-node');
+const endNodeInput = document.getElementById('end-node');
+const generateBtn = document.getElementById('generate-graph-btn');
+const directedCheckbox = document.getElementById('directed-graph-checkbox');
+
+const dijkstraSVG = document.getElementById('dijkstra-svg');
+const dijkstraPrevBtn = document.getElementById('dijkstra-prev-btn');
+const dijkstraNextBtn = document.getElementById('dijkstra-next-btn');
+const dijkstraCommentary = document.getElementById('dijkstra-commentary');
+const dijkstraStepCounter = document.getElementById('dijkstra-step-counter');
+
+// --- CONSTANTS ---
+const NODE_RADIUS = 18;
+
+// ===================================================================
+// MAIN CONTROL FUNCTIONS
+// ===================================================================
+function generateAndStart() {
+    generateBtn.disabled = true;
+    generateBtn.textContent = "Генерація...";
+    
+    generateGraphStructure(parseInt(nodeCountInput.value));
+    
+    runPhysicsLayout(() => {
+        restartSearch();
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Згенерувати Новий Граф";
+    });
+}
+
+function restartSearch() {
+    if (!graph.nodes || graph.nodes.length === 0) return;
+
+    const n = graph.nodes.length;
+    const startNode = parseInt(startNodeInput.value);
+    const endNode = parseInt(endNodeInput.value);
+
+    if (startNode > n || endNode > n || startNode < 1 || endNode < 1) {
+        alert(`Стартова та фінішна вершини повинні бути в діапазоні від 1 до ${n}.`);
+        return;
+    }
+
+    runDijkstra(startNode, endNode);
+}
+
+function generateGraphStructure(n) {
+    graph.nodes = [];
+    graph.edges = [];
+    graph.adj.clear();
+    graph.isDirected = directedCheckbox.checked;
+    const width = dijkstraSVG.clientWidth;
+    const height = dijkstraSVG.clientHeight;
+
+    for (let i = 1; i <= n; i++) {
+        graph.nodes.push({ id: i, x: Math.random() * (width - 40) + 20, y: Math.random() * (height - 40) + 20, vx: 0, vy: 0 });
+        graph.adj.set(i, []);
+    }
+    
+    // Generate a connected graph
+    const visited = new Set([1]);
+    let unvisited = Array.from({length: n-1}, (_, i) => i + 2);
+
+    while(unvisited.length > 0) {
+      const u = [...visited][Math.floor(Math.random() * visited.size)];
+      const vIndex = Math.floor(Math.random() * unvisited.length);
+      const v = unvisited[vIndex];
+      visited.add(v);
+      unvisited.splice(vIndex, 1);
+      
+      const weight = Math.floor(Math.random() * 15) + 1;
+      graph.edges.push({ source: u, target: v, weight });
+      graph.adj.get(u).push({ node: v, weight });
+      if (!graph.isDirected) graph.adj.get(v).push({ node: u, weight });
+    }
+    
+    // Add some extra edges, including potential reciprocal edges
+    const extraEdges = Math.floor(n * 1.2);
+    for(let i=0; i<extraEdges; i++) {
+        let u = Math.floor(Math.random() * n) + 1;
+        let v = Math.floor(Math.random() * n) + 1;
+        const exists = graph.edges.some(e => (e.source === u && e.target === v) || (!graph.isDirected && e.source === v && e.target === u));
+        if(u !== v && !exists) {
+            const weight = Math.floor(Math.random() * 15) + 1;
+            graph.edges.push({ source: u, target: v, weight });
+            graph.adj.get(u).push({ node: v, weight });
+            if (!graph.isDirected) graph.adj.get(v).push({ node: u, weight });
+        }
+    }
+}
+
+// ===================================================================
+// ALGORITHM (Dijkstra)
+// ===================================================================
+function runDijkstra(start, end) {
+    dijkstraState = { steps: [], currentStep: -1 };
+    
+    let dist = new Map();
+    let prev = new Map();
+    let pq = []; // Using a simple array as a priority queue
+    let visited = new Set();
+    
+    graph.nodes.forEach(node => {
+        dist.set(node.id, Infinity);
+        prev.set(node.id, null);
+    });
+    
+    dist.set(start, 0);
+    pq.push({ node: start, priority: 0 });
+
+    const saveStep = (current, commentary, relaxingEdge = null, path = null) => {
+        dijkstraState.steps.push({
+            dist: new Map(dist),
+            visited: new Set(visited),
+            pq: JSON.parse(JSON.stringify(pq.sort((a,b) => a.priority - b.priority))),
+            current,
+            relaxingEdge,
+            path,
+            commentary
+        });
+    };
+
+    saveStep(null, `Ініціалізація. Всі відстані встановлено на ∞, крім стартової (<b>${start}</b>), яка дорівнює 0.`);
+    
+    let found = false;
+    while (pq.length > 0) {
+        pq.sort((a, b) => a.priority - b.priority);
+        let { node: u } = pq.shift();
+
+        if (visited.has(u)) continue;
+        visited.add(u);
+        
+        saveStep(u, `Вибираємо вершину <b>${u}</b> з найменшою відстанню (${dist.get(u)}) з пріоритетної черги.`);
+
+        if (u === end) {
+            found = true;
+            let path = [];
+            for (let curr = end; curr !== null; curr = prev.get(curr)) {
+                path.unshift(curr);
+            }
+            saveStep(u, `Знайдено ціль <b>${end}</b>! Найкоротший шлях має вагу ${dist.get(end)}.`, null, path);
+            break;
+        }
+
+        const neighbors = graph.adj.get(u) || [];
+        for (const { node: v, weight } of neighbors) {
+            if (visited.has(v)) continue;
+            
+            const newDist = dist.get(u) + weight;
+            if (newDist < dist.get(v)) {
+                dist.set(v, newDist);
+                prev.set(v, u);
+                pq.push({ node: v, priority: newDist });
+                saveStep(u, `Релаксація ребра (<b>${u} → ${v}</b>). Новий шлях коротший: ${dist.get(u)} + ${weight} = <b>${newDist}</b>.`, {u, v});
+            } else {
+                saveStep(u, `Перевірка ребра (<b>${u} → ${v}</b>). Новий шлях (${dist.get(u)} + ${weight} = ${dist.get(u) + weight}) не є коротшим за поточний (${dist.get(v)}).`);
+            }
+        }
+    }
+
+    if (!found) {
+        saveStep(null, `Черга порожня. Шлях до <b>${end}</b> з вершини <b>${start}</b> не існує.`);
+    }
+
+    dijkstraState.currentStep = 0;
+    updateDijkstraView();
+}
+
+
+function updateDijkstraView() {
+    const step = dijkstraState.steps[dijkstraState.currentStep];
+    if (!step) return;
+    updateVisualization(dijkstraSVG, step);
+    dijkstraCommentary.innerHTML = step.commentary;
+    dijkstraStepCounter.textContent = `Крок: ${dijkstraState.currentStep + 1} / ${dijkstraState.steps.length}`;
+    dijkstraPrevBtn.disabled = dijkstraState.currentStep === 0;
+    dijkstraNextBtn.disabled = dijkstraState.currentStep === dijkstraState.steps.length - 1;
+}
+
+// ===================================================================
+// DRAWING, PHYSICS & INTERACTION
+// ===================================================================
+function drawGraphLayout(svgElement) {
+    svgElement.innerHTML = ''; 
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <marker id="arrowhead" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#999" /></marker>
+        <marker id="arrowhead-path" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--path-color')}" /></marker>
+        <marker id="arrowhead-relaxing" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${getComputedStyle(document.documentElement).getPropertyValue('--relaxing-edge-color')}" /></marker>
+    `;
+    svgElement.appendChild(defs);
+
+    const edgeSet = new Set(graph.edges.map(e => `${e.source}-${e.target}`));
+    const drawnEdges = new Set();
+    
+    graph.edges.forEach(({ source, target, weight }) => {
+        const edgeKey = `${source}-${target}`;
+        if (drawnEdges.has(edgeKey)) return;
+
+        const nodeU = graph.nodes.find(n => n.id === source);
+        const nodeV = graph.nodes.find(n => n.id === target);
+        
+        const hasReciprocal = graph.isDirected && edgeSet.has(`${target}-${source}`);
+        
+        if (hasReciprocal) {
+            // Draw this edge as an arc
+            drawCurvedEdge(svgElement, nodeU, nodeV, weight, 1);
+            // Find and draw the reciprocal edge as an arc
+            const reciprocalEdge = graph.edges.find(e => e.source === target && e.target === source);
+            drawCurvedEdge(svgElement, nodeV, nodeU, reciprocalEdge.weight, 1);
+            drawnEdges.add(`${target}-${source}`);
+        } else {
+            drawStraightEdge(svgElement, nodeU, nodeV, weight);
+        }
+        drawnEdges.add(edgeKey);
+    });
+
+    graph.nodes.forEach(node => {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('data-id', node.id);
+        group.classList.add('node');
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', NODE_RADIUS);
+        
+        const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idText.setAttribute('x', node.x);
+        idText.setAttribute('y', node.y);
+        idText.textContent = node.id;
+        idText.classList.add('node-id');
+
+        const distText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        distText.setAttribute('x', node.x);
+        distText.setAttribute('y', node.y);
+        distText.classList.add('node-distance');
+        distText.textContent = '?';
+
+        group.appendChild(circle);
+        group.appendChild(idText);
+        group.appendChild(distText);
+        svgElement.appendChild(group);
+
+        group.addEventListener('mousedown', startDrag);
+    });
+}
+
+function drawStraightEdge(svg, u, v, weight) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('data-u', u.id);
+    line.setAttribute('data-v', v.id);
+    line.classList.add('edge');
+    
+    const dx = v.x - u.x;
+    const dy = v.y - u.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    let endX = v.x, endY = v.y;
+    if (graph.isDirected) {
+        const ratio = (dist - NODE_RADIUS - 2) / dist;
+        endX = u.x + dx * ratio;
+        endY = u.y + dy * ratio;
+        line.setAttribute('marker-end', 'url(#arrowhead)');
+    }
+    
+    line.setAttribute('d', `M ${u.x} ${u.y} L ${endX} ${endY}`);
+    svg.appendChild(line);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const labelPosRatio = graph.isDirected ? 0.75 : 0.5;
+    const textX = u.x + dx * labelPosRatio;
+    const textY = u.y + dy * labelPosRatio;
+    const offsetX = -dy / dist * 8;
+    const offsetY = dx / dist * 8;
+
+    text.setAttribute('x', textX + offsetX);
+    text.setAttribute('y', textY + offsetY);
+    text.textContent = weight;
+    text.classList.add('edge-weight');
+    
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = 'Подвійний клік для зміни ваги';
+    text.appendChild(title);
+    text.addEventListener('dblclick', () => editEdgeWeight(u.id, v.id));
+
+    svg.appendChild(text);
+}
+
+function drawCurvedEdge(svg, u, v, weight, direction) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('data-u', u.id);
+    path.setAttribute('data-v', v.id);
+    path.classList.add('edge');
+
+    const dx = v.x - u.x;
+    const dy = v.y - u.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const midX = u.x + dx * 0.5;
+    const midY = u.y + dy * 0.5;
+    const CURVATURE = 0.2 * direction;
+    
+    const ctrlX = midX - CURVATURE * dy;
+    const ctrlY = midY + CURVATURE * dx;
+    
+    let endX = v.x, endY = v.y;
+    const dxEnd = v.x - ctrlX;
+    const dyEnd = v.y - ctrlY;
+    const distEnd = Math.sqrt(dxEnd*dxEnd + dyEnd*dyEnd);
+    if(distEnd > 0) {
+        endX = v.x - dxEnd * (NODE_RADIUS + 2) / distEnd;
+        endY = v.y - dyEnd * (NODE_RADIUS + 2) / distEnd;
+    }
+    
+    path.setAttribute('d', `M ${u.x} ${u.y} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`);
+    if (graph.isDirected) path.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(path);
+
+    const textX = u.x * 0.25 + ctrlX * 0.5 + endX * 0.25;
+    const textY = u.y * 0.25 + ctrlY * 0.5 + endY * 0.25;
+    
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', textX);
+    text.setAttribute('y', textY);
+    text.textContent = weight;
+    text.classList.add('edge-weight');
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = 'Подвійний клік для зміни ваги';
+    text.appendChild(title);
+    text.addEventListener('dblclick', () => editEdgeWeight(u.id, v.id));
+    
+    svg.appendChild(text);
+}
+
+function updateVisualization(svgElement, step) {
+    drawGraphLayout(svgElement);
+    const { dist, visited, current, path, relaxingEdge } = step;
+    
+    const pathEdges = new Set();
+    if (path) {
+        for (let i = 0; i < path.length - 1; i++) {
+            pathEdges.add(`${path[i]}-${path[i+1]}`);
+        }
+    }
+
+    svgElement.querySelectorAll('.edge').forEach(edge => {
+        const u = parseInt(edge.getAttribute('data-u'));
+        const v = parseInt(edge.getAttribute('data-v'));
+        
+        const key1 = `${u}-${v}`;
+        const key2 = `${v}-${u}`;
+        
+        if (pathEdges.has(key1) || (!graph.isDirected && pathEdges.has(key2))) {
+            edge.classList.add('path');
+            if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-path)');
+        } else if (relaxingEdge && relaxingEdge.u === u && relaxingEdge.v === v) {
+            edge.classList.add('relaxing');
+            if (graph.isDirected) edge.setAttribute('marker-end', 'url(#arrowhead-relaxing)');
+        }
+    });
+
+    svgElement.querySelectorAll('.node').forEach(group => {
+        const nodeId = parseInt(group.getAttribute('data-id'));
+        if (path && path.includes(nodeId)) {
+            group.classList.add('path');
+        } else if (nodeId === current) {
+            group.classList.add('current');
+        } else if (visited.has(nodeId)) {
+            group.classList.add('visited');
+        }
+
+        const distance = dist.get(nodeId);
+        group.querySelector('.node-distance').textContent = distance === Infinity ? '∞' : distance;
+    });
+
+    drawDataStructure(svgElement, step.pq);
+}
+
+function drawDataStructure(svg, items) {
+    const BOX_WIDTH = 45, BOX_HEIGHT = 25, PADDING = 10, SPACING = 5;
+    const dsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', PADDING);
+    label.setAttribute('y', PADDING + 10);
+    label.classList.add('ds-label');
+    label.textContent = "Пріоритетна черга (вершина, відстань):";
+    dsGroup.appendChild(label);
+
+    items.forEach((item, i) => {
+        const x = PADDING + i * (BOX_WIDTH + SPACING);
+        const y = PADDING + 20;
+        const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        box.setAttribute('x', x);
+        box.setAttribute('y', y);
+        box.setAttribute('width', BOX_WIDTH);
+        box.setAttribute('height', BOX_HEIGHT);
+        box.classList.add('ds-box');
+        dsGroup.appendChild(box);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x + BOX_WIDTH / 2);
+        text.setAttribute('y', y + BOX_HEIGHT / 2);
+        text.classList.add('ds-text');
+        text.textContent = `${item.node} (${item.priority})`;
+        dsGroup.appendChild(text);
+    });
+    
+    svg.appendChild(dsGroup);
+}
+
+function runPhysicsLayout(onComplete) {
+    if (physicsAnimationId) cancelAnimationFrame(physicsAnimationId);
+    let iterations = 150;
+    function step() {
+        physicsStep();
+        drawGraphLayout(dijkstraSVG);
+        if (--iterations > 0) {
+            physicsAnimationId = requestAnimationFrame(step);
+        } else {
+            onComplete();
+        }
+    }
+    step();
+}
+
+function physicsStep() {
+    const REPULSION = 4000, SPRING_K = 0.05, SPRING_LEN = 250, DAMPING = 0.85;
+    const width = dijkstraSVG.clientWidth, height = dijkstraSVG.clientHeight;
+    
+    graph.nodes.forEach(n => { n.fx = 0; n.fy = 0; });
+
+    for (let i = 0; i < graph.nodes.length; i++) {
+        for (let j = i + 1; j < graph.nodes.length; j++) {
+            const n1 = graph.nodes[i], n2 = graph.nodes[j];
+            const dx = n1.x - n2.x, dy = n1.y - n2.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > 1) {
+                const dist = Math.sqrt(distSq);
+                const force = REPULSION / distSq;
+                n1.fx += (dx / dist) * force; n1.fy += (dy / dist) * force;
+                n2.fx -= (dx / dist) * force; n2.fy -= (dy / dist) * force;
+            }
+        }
+    }
+
+    graph.edges.forEach(({ source, target }) => {
+        const n1 = graph.nodes.find(n => n.id === source);
+        const n2 = graph.nodes.find(n => n.id === target);
+        const dx = n1.x - n2.x, dy = n1.y - n2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const force = SPRING_K * (dist - SPRING_LEN);
+        n1.fx -= (dx / dist) * force; n1.fy -= (dy / dist) * force;
+        n2.fx += (dx / dist) * force; n2.fy += (dy / dist) * force;
+    });
+
+    graph.nodes.forEach(n => {
+        if (n === draggedNode) return; // Don't apply physics to the node being dragged
+        n.vx = (n.vx + n.fx) * DAMPING;
+        n.vy = (n.vy + n.fy) * DAMPING;
+        n.x += n.vx;
+        n.y += n.vy;
+
+        n.x = Math.max(NODE_RADIUS, Math.min(width - NODE_RADIUS, n.x));
+        n.y = Math.max(NODE_RADIUS, Math.min(height - NODE_RADIUS, n.y));
+    });
+}
+
+function editEdgeWeight(uId, vId) {
+    let edge = graph.edges.find(e => e.source === uId && e.target === vId);
+    let reciprocalEdge = graph.isDirected ? null : graph.edges.find(e => e.source === vId && e.target === uId);
+
+    if (!edge) {
+      // This might happen in undirected if the drawn edge was v->u
+      edge = reciprocalEdge;
+      reciprocalEdge = null;
+      if (!edge) return; // Should not happen
+      // Swap uId and vId to match the found edge
+      [uId, vId] = [vId, uId];
+    }
+    
+    const currentWeight = edge.weight;
+    const newWeightStr = prompt(`Введіть нову вагу для ребра (${uId} – ${vId}):`, currentWeight);
+
+    if (newWeightStr === null || newWeightStr.trim() === "") return;
+
+    const newWeight = parseInt(newWeightStr, 10);
+    if (isNaN(newWeight) || newWeight <= 0) {
+        alert("Будь ласка, введіть додатне числове значення.");
+        return;
+    }
+
+    edge.weight = newWeight;
+    const adjU = graph.adj.get(uId).find(e => e.node === vId);
+    if (adjU) adjU.weight = newWeight;
+
+    if (!graph.isDirected) {
+        if (reciprocalEdge) reciprocalEdge.weight = newWeight;
+        const adjV = graph.adj.get(vId).find(e => e.node === uId);
+        if (adjV) adjV.weight = newWeight;
+    }
+
+    restartSearch();
+}
+
+// --- DRAGGING LOGIC ---
+function getSVGPoint(event) {
+    const pt = dijkstraSVG.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    return pt.matrixTransform(dijkstraSVG.getScreenCTM().inverse());
+}
+
+function startDrag(event) {
+    const nodeId = parseInt(event.currentTarget.getAttribute('data-id'));
+    draggedNode = graph.nodes.find(n => n.id === nodeId);
+    if (draggedNode) {
+        event.preventDefault();
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('mouseup', endDrag);
+    }
+}
+
+function drag(event) {
+    if (draggedNode) {
+        event.preventDefault();
+        const coords = getSVGPoint(event);
+        draggedNode.x = coords.x;
+        draggedNode.y = coords.y;
+        updateDijkstraView(); // Redraw graph while dragging
+    }
+}
+
+function endDrag(event) {
+    draggedNode = null;
+    window.removeEventListener('mousemove', drag);
+    window.removeEventListener('mouseup', endDrag);
+}
+
+// --- EVENT LISTENERS ---
+generateBtn.addEventListener('click', generateAndStart);
+startNodeInput.addEventListener('change', restartSearch);
+endNodeInput.addEventListener('change', restartSearch);
+directedCheckbox.addEventListener('change', generateAndStart);
+
+dijkstraNextBtn.addEventListener('click', () => { if (dijkstraState.currentStep < dijkstraState.steps.length - 1) { dijkstraState.currentStep++; updateDijkstraView(); }});
+dijkstraPrevBtn.addEventListener('click', () => { if (dijkstraState.currentStep > 0) { dijkstraState.currentStep--; updateDijkstraView(); }});
+
+nodeCountInput.addEventListener('change', () => {
+    const n = parseInt(nodeCountInput.value);
+    startNodeInput.max = n; endNodeInput.max = n;
+    if (parseInt(startNodeInput.value) > n) startNodeInput.value = 1;
+    if (parseInt(endNodeInput.value) > n) endNodeInput.value = n;
+});
+
+window.addEventListener('load', generateAndStart);
+</script>
+</body>
+</html>

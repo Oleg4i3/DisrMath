@@ -1,0 +1,3177 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор: Планарність, 3-зв'язність та Укладання Тутте</title>
+    
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #3f51b5; /* Indigo */
+            --primary-hover: #303f9f;
+            --secondary-color: #17a2b8; /* Tutte Outer */
+            --tertiary-color: #28a745; /* Tutte Inner */
+            --planar-color: #4CAF50;    /* Green */
+            --non-planar-color: #F44336; /* Red */
+            --highlight-color: #ffc107; /* Amber */
+            --highlight-secondary-color: #03a9f4; /* Light Blue */
+            --flash-color: #e91e63; /* Pink */
+            --removed-color: #bdbdbd;
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #111;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* --- Стилі для вкладок --- */
+        .stage-tabs {
+            display: flex;
+            background: #e0e0e0;
+            border-radius: 8px;
+            padding: 5px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+            justify-content: space-around;
+        }
+        .stage-tab {
+            flex: 1;
+            padding: 12px 15px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #777;
+            background: #f0f0f0;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: not-allowed;
+            transition: all 0.3s ease;
+        }
+        .stage-tab.active {
+            background: var(--white-bg);
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .stage-tab.enabled {
+             color: #333;
+             cursor: pointer;
+        }
+        .stage-tab.enabled:not(.active):hover {
+            background: #d5d5d5;
+        }
+        .stage-tab.completed {
+            color: var(--planar-color);
+            border-color: var(--planar-color);
+        }
+        .stage-tab.failed {
+            color: var(--non-planar-color);
+            border-color: var(--non-planar-color);
+        }
+
+        /* --- Контейнери етапів --- */
+        .stage-container {
+            width: 100%;
+            background-color: var(--white-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .controls-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 500;
+        }
+
+        .control-group input[type="number"],
+        .control-group input[type="range"] {
+            width: 70px;
+            padding: 5px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+        .control-group input[type="range"] { width: 100px; padding: 0; }
+
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #adb5bd; cursor: not-allowed; }
+        button.success { background-color: var(--planar-color); }
+        button.success:hover { background-color: #388E3C; }
+        button.danger { background-color: var(--non-planar-color); }
+        button.danger:hover { background-color: #D32F2F; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+
+        #graph-svg-container {
+            width: 100%;
+            position: relative;
+        }
+
+        #graph-svg {
+            width: 100%;
+            min-height: 500px;
+            display: block;
+            background-color: #fdfdfd;
+        }
+
+        /* --- Стилі для графа (D3/SVG) --- */
+        .edge {
+            stroke: #999;
+            stroke-width: 3;
+            transition: stroke 0.3s, stroke-width 0.3s, opacity 0.3s;
+        }
+        .edge.highlight { stroke: var(--non-planar-color); stroke-width: 5; }
+        .edge.highlight-new { stroke: var(--primary-color); stroke-width: 4; stroke-dasharray: 5 5; }
+        .edge.edge-new.highlight { stroke: var(--non-planar-color); stroke-width: 5; stroke-dasharray: none; }
+        .edge.removed { opacity: 0.5; }
+        
+        /* Спеціальні стилі для Тутте */
+        .edge.tutte-outer { stroke: var(--secondary-color); stroke-width: 4; }
+        .edge.tutte-highlight { stroke: var(--non-planar-color); stroke-width: 4; }
+
+
+        .node {
+            cursor: move;
+            transition: fill 0.3s, stroke 0.3s, opacity 0.3s;
+        }
+        .node-circle {
+            stroke: var(--white-bg);
+            stroke-width: 3;
+            fill: var(--primary-color);
+            r: 16; /* Збільшено для номерів */
+        }
+        .node-label {
+            font-size: 14px;
+            font-weight: bold;
+            fill: white;
+            text-anchor: middle;
+            dy: ".35em";
+            pointer-events: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .node.highlight .node-circle { fill: var(--highlight-color); }
+        .node.highlight .node-label { fill: #333; }
+        .node.highlight-secondary .node-circle { fill: var(--highlight-secondary-color); }
+        .node.highlight-secondary .node-label { fill: #333; }
+        .node.flash .node-circle { fill: var(--flash-color); stroke: #333; }
+		.node.selected .node-circle { fill: var(--flash-color); stroke: #333; }
+        .node.removed .node-circle { fill: var(--removed-color); opacity: 0.8; }
+        .node.removed .node-label { opacity: 0.4; }
+        
+        /* Спеціальні стилі для Тутте */
+        .node.tutte-outer .node-circle { fill: var(--secondary-color); r: 14; }
+        .node.tutte-inner .node-circle { fill: var(--tertiary-color); }
+        .node.tutte-highlight .node-circle { fill: var(--non-planar-color); r: 14; }
+        .node.tutte-neighbor .node-circle { fill: var(--highlight-color); }
+        .node.tutte-neighbor .node-label { fill: #333; }
+        
+        /* Кластери для Тутте */
+        .tutte-cluster {
+            stroke-width: 3;
+            stroke: white;
+            fill: var(--non-planar-color);
+            opacity: 0.8;
+        }
+        .tutte-cluster-label {
+            font-size: 16px;
+            font-weight: bold;
+            fill: white;
+            text-anchor: middle;
+            dy: ".35em";
+            pointer-events: none;
+        }
+        
+        /* Центроїди для Тутте */
+        .tutte-centroid {
+            fill: var(--highlight-color);
+            stroke: #333;
+            stroke-width: 2px;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        .tutte-centroid-line {
+            stroke: var(--highlight-color);
+            stroke-width: 2;
+            stroke-dasharray: 3 3;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+
+        .simulation-footer {
+            padding: 15px 20px;
+            background-color: #fafafa;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        #step-commentary, #connectivity-commentary, #tutte-commentary {
+            min-height: 5em;
+            font-size: 1.1em;
+            line-height: 1.5;
+            color: var(--comment-color);
+            padding: 15px;
+            border-radius: 6px;
+            background: #eee;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        #step-commentary .result, #connectivity-commentary .result, #tutte-commentary .result {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .result.planar { color: var(--planar-color); }
+        .result.non-planar { color: var(--non-planar-color); }
+
+        .step-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .step-controls button { background-color: #6c757d; }
+        .step-controls button:hover { background-color: #5a6268; }
+        .step-controls button:disabled { background-color: #adb5bd; cursor: not-allowed; }
+        
+        #stage-transition-controls {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .theory-spoiler {
+            width: 100%;
+            max-width: 1200px;
+            background: var(--white-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        .theory-spoiler summary {
+            font-size: 1.2em;
+            font-weight: 600;
+            padding: 15px 20px;
+            cursor: pointer;
+            color: var(--primary-color);
+        }
+        .theory-spoiler div { padding: 0 20px 20px 20px; line-height: 1.6; }
+        .theory-spoiler h4 { color: var(--text-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 5px; margin-top: 20px; }
+
+    </style>
+</head>
+<body>
+
+    <h3>Планарність, 3-зв'язність та Укладання Тутте</h3>
+
+    <div class="main-container">
+
+        <div class="stage-tabs">
+            <div class="stage-tab active" id="tab-stage-1">Етап 1: Планарність</div>
+            <div class="stage-tab" id="tab-stage-2">Етап 2: 3-Зв'язність</div>
+            <div class="stage-tab" id="tab-stage-3">Етап 3: Укладання Тутте</div>
+        </div>
+
+        <div class="stage-container" id="stage-1-planarity">
+            <div class="controls-panel">
+                <div class="control-group">
+                    <label>Приклади графів:</label>
+                    <button id="gen-planar-btn">Тестовий Граф Петерсона</button>
+                    <button id="gen-planar-2cut-btn">Планарний (2-зв'язний)</button>
+                    <button id="gen-icosahedron-btn">Ікосаєдр (-1)</button> <button id="gen-k5-btn">K5</button>
+                    <button id="gen-k33-btn">K3,3</button>
+                    <button id="gen-homeo-k5-btn">Непланарний (Ейлер OК)</button>
+                    <button id="gen-random-btn">Випадковий</button>
+				
+					<button id="toggle-physics-btn" class="secondary">🔌 Вимкнути фізику</button>
+
+                </div>
+                <div class="control-group">
+                    <label for="node-count-input">Вершини:</label>
+                    <input type="number" id="node-count-input" value="10" min="4" max="12">
+                </div>
+                <div class="control-group">
+                    <label for="edge-prob-input">Щільність:</label>
+                    <input type="range" id="edge-prob-input" value="0.5" min="0.1" max="1.0" step="0.05">
+					 <p>Редагування (при вимкненій "фізиці"): Подвійний клік створіє вершину, клік з ctrl видаляє, натискання з Shift на 2 вершини створює ребро</p>
+                </div>
+				
+            </div>
+            
+            <div class="simulation-footer">
+                <div id="step-commentary">Завантажте граф для початку симуляції...</div>
+                <div class="step-controls">
+                    <button id="prev-step-btn" disabled>◄ Попередній крок</button>
+                    <button id="next-step-btn" disabled>Наступний крок ►</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stage-container" id="stage-2-connectivity" style="display: none;">
+            <div class="controls-panel">
+                <button id="start-connectivity-test-btn">Почати тест на 3-зв'язність</button>
+            </div>
+            <div class="simulation-footer">
+                <div id="connectivity-commentary">
+                    Граф планарний. Натисніть кнопку, щоб перевірити його на 3-зв'язність.
+                    <br>Це необхідно для коректного укладання за теоремою Тутте.
+                </div>
+				
+				
+				
+				
+                <div class="step-controls" id="tutte-options" style="display: none; flex-direction: column; gap: 10px;">
+                    </div>
+            </div>
+        </div>
+        
+        <div class="stage-container" id="stage-3-tutte" style="display: none;">
+             <div class="controls-panel">
+                <label>Керування укладанням:</label>
+                <button id="tutte-toggle-physics-btn" class="secondary">🔌 Увімкнути фізику</button>
+                <button id="tutte-prev-step-btn" disabled>◄ Крок Назад</button>
+                <button id="tutte-next-step-btn" disabled>2. Крок Вперед ►</button>
+                <button id="tutte-run-auto-btn" disabled>Авто (10 ітерацій)</button>
+             </div>
+             <div class="simulation-footer">
+                <div id="tutte-commentary">
+                    Налаштування укладання Тутте...
+                </div>
+             </div>
+        </div>
+
+        <div id="graph-svg-container">
+            <svg id="graph-svg"></svg>
+        </div>
+
+        <details class="theory-spoiler" open>
+            <summary>Теорія: Планарність, Зв'язність та Укладання Тутте</summary>
+            <div>
+                <h4>Етап 1: Критерій планарності</h4>
+                <p>Граф називається <strong>планарним</strong>, якщо його можна зобразити на площині так, щоб його ребра перетиналися лише у вершинах.</p>
+                <p><strong>Критерій Ейлера (Наслідок):</strong> Для $v \ge 3$ та $e$ ребер, планарний граф повинен задовольняти $e \le 3v - 6$. Це швидка перевірка "на ні".</p>
+                <p><strong>Теорема Куратовського:</strong> Граф планарний $\iff$ він не містить підграфа, гомеоморфного $K_5$ або $K_{3,3}$.</p>
+                
+				<h4>Деталі Етапу 1: Пошук K₅ та K₃,₃ (Реалізація)</h4>
+<p>
+    Щоб довести, що граф непланарний, нам потрібно знайти підграф,
+    <em>гомеоморфний</em> K₅ або K₃,₃. Це означає, що ми шукаємо 5 (або 6) "термінальних"
+    вершин і 10 (або 9) шляхів між ними, які є <strong>внутрішньо-неперетинними</strong>
+    (тобто, вони можуть ділити між собою лише "термінальні" вершини, але
+    жодні дві пари шляхів не можуть використовувати один і той самий <em>внутрішній</em>
+    вузол).
+</p>
+<p>
+    Цей симулятор використовує для цього "чесний" алгоритм
+    <strong>рекурсивного пошуку з бектрекінгом (DFS)</strong>.
+    Він працює так:
+</p>
+<ol>
+    <li>Вибирає пару терміналів (наприклад, $A$ і $B$).</li>
+    <li>
+        Знаходить <em>перший</em> простий шлях між ними,
+        використовуючи лише вільні внутрішні вузли.
+    </li>
+    <li>
+        "Блокує" внутрішні вузли цього шляху.
+    </li>
+    <li>
+        Рекурсивно намагається знайти решту 9 (або 8) шляхів.
+    </li>
+    <li>
+        Якщо на якомусь етапі рекурсія зазнає невдачі (шлях не знайдено),
+        вона "відкочується" (backtracks), розблоковує вузли і
+        пробує <em>інший</em> шлях для пари $A$ і $B$.
+    </li>
+</ol>
+<p>
+    Цей метод гарантує знаходження гомеоморфного підграфу, якщо
+    він існує, але він має високу комбінаторну складність.
+</p>
+
+<h4>Комбінаторна складність (Чому це повільно)</h4>
+<p>
+    "Жадібний" алгоритм (пошух шляхів без перевірки незалежності) працює
+    швидко, але може помилятися. Повний перебір 
+    є коректним, але повільним, оскільки кількість комбінацій для
+    перевірки величезна.
+</p>
+<ul>
+    <li>
+        <strong>Для K₅:</strong> Ми маємо перевірити кожну комбінацію з 5 вершин у графі.
+        Кількість таких комбінацій:
+        $$
+        \binom{v}{5} = \frac{v!}{5!(v-5)!}
+        $$
+        Для $v=10$ (як у графі Петерсона) це $\binom{10}{5} = 252$ комбінації.
+        Для $v=12$ це вже $\binom{12}{5} = 792$ комбінації.
+    </li>
+    <li>
+        <strong>Для K₃,₃:</strong> Це ще гірше. Ми маємо вибрати 6 вершин, а потім
+        розділити їх на 2 групи по 3 (це можна зробити 10-ма способами):
+        $$
+        \binom{v}{6} \times \frac{1}{2}\binom{6}{3} = \binom{v}{6} \times 10
+        $$
+        Для $v=10$ це $\binom{10}{6} \times 10 = 2100$ комбінацій.
+        Для $v=12$ це $\binom{12}{6} \times 10 = 9240$ комбінацій.
+    </li>
+</ul>
+<p>
+    Саме тому симулятор обмежує кількість вершин до 12.
+</p>
+
+<h4>Сучасні алгоритми планарності</h4>
+<p>
+    У професійних застосунках <strong>ніхто не</strong> використовує такий
+    "грубий" пошук K₅/K₃,₃. Це неефективно. Сучасні алгоритми
+    тестування планарності, такі як класичний
+    <strong>алгоритм Хопкрофта-Тарджана (1974)</strong> або більш нові методи
+    (наприклад, <strong>алгоритм Бойєра-Мірвольда</strong>, що базується на PQ-деревах),
+    працюють за лінійний час $O(v)$ (тобто, неймовірно швидко).
+</p>
+<p>
+    Вони не "шукають" K₅, а намагаються побудувати планарне укладання
+    "шматок за шматком". Якщо на якомусь етапі вони не можуть додати
+    нове ребро, не порушивши вже побудовану структуру, вони можуть
+    (завдяки складній структурі даних) гарантовано заявити, що
+    перешкодою є гомеоморфний K₅ або K₃,₃, і зупинити процес.
+</p>
+				
+				
+                <h4 id="theory-stage-2">Етап 2: 3-Зв'язність</h4>
+                <p><strong>Зв'язність</strong> графа $k$ означає, що потрібно видалити щонайменше $k$ вершин, щоб розбити граф на компоненти.</p>
+                <ul>
+                    <li><strong>Шарнір (Cut Vertex):</strong> Вершина, видалення якої збільшує кількість компонент. Граф з шарніром є <strong>1-зв'язним</strong>.</li>
+                    <li><strong>Пара-розділювач (Separation Pair):</strong> Пара вершин, видалення яких роз'єднує граф. Граф без шарнірів, але з парою-розділювачем, є <strong>2-зв'язним</strong>.</li>
+                    <li><strong>3-зв'язний граф:</strong> Граф, що не має ані шарнірів, ані пар-розділювачів.</li>
+                </ul>
+                <p>Цей симулятор візуально перевіряє наявність шарнірів та пар-розділювачів, "розтягуючи" граф фізичною симуляцією після видалення кандидатів.</p>
+
+                <h4 id="theory-stage-3">Етап 3: Укладання Тутте (Spring Embedding)</h4>
+                <p>Теорема Тутте (1963) стверджує, що будь-який <strong>3-зв'язний планарний граф</strong> можна укласти на площині так, що:</p>
+                <ol>
+                    <li>Одна з його граней (циклів) утворює опуклий багатокутник (це наш "зовнішній" цикл).</li>
+                    <li>Кожна "внутрішня" вершина розміщується в <strong>центрі мас (баріцентрі)</strong> своїх сусідів.</li>
+                </ol>
+                <p>Це гарантує планарне укладання без перетинів. Алгоритм моделює "систему пружин", де кожне ребро - це пружина з однаковим коефіцієнтом жорсткості. Позиції вершин зовнішнього циклу фіксовані, а внутрішні "знаходять" своє положення рівноваги.</p>
+                <p><strong>Чому 3-зв'язність критична?</strong> Якщо граф не 3-зв'язний (має шарнір або пару-розділювач), система "пружин" стає нестабільною. Внутрішні вершини, що належать до одного "шматка", "сколапсують" в одну точку, оскільки їхні позиції залежать лише одна від одної, а не від фіксованого зовнішнього циклу.</p>
+            </div>
+			<h4>Теорема Тутте як СЛАР (Система Лінійних Алгебраїчних Рівнянь)</h4>
+<p>
+    Умова, що кожна внутрішня вершина $v_i$ є барицентром (центром мас) своїх сусідів,
+    насправді є системою лінійних рівнянь. Ми можемо розв'язати її,
+    щоб <em>миттєво</em> знайти фінальні позиції, замість ітерацій.
+</p>
+<p>
+    Розглянемо окремо $x$ та $y$ координати. Для $x$-координат кожної
+    <strong>внутрішньої</strong> вершини $v_i$ (з невідомою $x_i$) маємо:
+</p>
+$$
+x_i = \frac{1}{\text{deg}(v_i)} \sum_{j \in N(v_i)} x_j
+$$
+<p>
+    де $N(v_i)$ — це множина сусідів $v_i$.
+    Перегрупуємо це у стандартну форму СЛАР (<code>Ax = b</code>),
+    перенісши всі <em>невідомі</em> (інші внутрішні вершини $I$) ліворуч,
+    а <em>відомі</em> (фіксовані зовнішні вершини $O$) залишивши праворуч:
+</p>
+$$
+\text{deg}(v_i) \cdot x_i - \sum_{j \in N(v_i) \cap I} x_j = \sum_{k \in N(v_i) \cap O} \bar{x}_k
+$$
+<p>
+    Де:
+</p>
+<ul>
+    <li>$v_i$ - внутрішня вершина, $I$ - множина всіх внутрішніх вершин.</li>
+    <li>$O$ - множина всіх зовнішніх (фіксованих) вершин.</li>
+    <li>$x_i$ та $x_j$ - <strong>невідомі</strong> $x$-координати внутрішніх вершин.</li>
+    <li>$\bar{x}_k$ - <strong>відомі</strong> (фіксовані) $x$-координати сусідів на зовнішній грані.</li>
+    <li>$\text{deg}(v_i)$ - повний степінь вершини $v_i$.</li>
+</ul>
+<p>
+    Аналогічна, але незалежна система рівнянь існує і для $y$-координат.
+</p>
+
+<h4>Укладання як Метод Якобі</h4>
+<p>
+    Ітераційна процедура укладання, яку ви бачите на Етапі 3,
+    насправді є візуалізацією <strong>методу Якобі</strong> для розв'язання
+    цієї СЛАР.
+</p>
+<p>
+    Метод Якобі — це ітераційний алгоритм, де нове положення $(k+1)$ для <em>кожної</em> вершини
+    обчислюється <strong>виключно</strong> на основі положень <em>усіх</em> вершин
+    на попередньому кроці $(k)$.
+</p>
+$$
+x_i^{(k+1)} = \frac{1}{\text{deg}(v_i)} \left( \sum_{j \in N(v_i) \cap I} x_j^{(k)} + \sum_{k \in N(v_i) \cap O} \bar{x}_k \right)
+$$
+<p>
+    Це <em>точно</em> те, що робить симулятор: на кожному "кроці" він
+    перераховує барицентр для кожного вузла на основі "старих"
+    позицій, а потім переміщує їх усі одночасно.
+</p>
+<p>
+    Матриця цієї системи (яка є частиною матриці Лапласа)
+    має властивості (вона є <strong> діагонально домінуючою</strong>),
+    які <strong>гарантують</strong>, що метод Якобі (і ітераційне укладання Тутте)
+    завжди буде збігатися до єдиного коректного, планарного розв'язку.
+</p>
+        </details>
+    </div>
+
+  
+  <script type="module">
+        // --- DOM Елементи ---
+        const svgEl = d3.select("#graph-svg");
+        const svgContainer = d3.select("#graph-svg-container");
+        
+        // Етап 1 (Планарність)
+        const stage1Container = d3.select("#stage-1-planarity");
+        const tabStage1 = d3.select("#tab-stage-1");
+        const commentaryEl = d3.select("#step-commentary");
+        const nextBtn = d3.select("#next-step-btn");
+        const prevBtn = d3.select("#prev-step-btn");
+        const nodeCountInput = d3.select("#node-count-input");
+        const edgeProbInput = d3.select("#edge-prob-input");
+        const genPlanarBtn = d3.select("#gen-planar-btn");
+        const genPlanar2CutBtn = d3.select("#gen-planar-2cut-btn"); 
+        const genIcosahedronBtn = d3.select("#gen-icosahedron-btn"); // ДОДАНО
+        const genK5Btn = d3.select("#gen-k5-btn");
+        const genK33Btn = d3.select("#gen-k33-btn");
+        const genHomeoK5Btn = d3.select("#gen-homeo-k5-btn");
+        const genRandomBtn = d3.select("#gen-random-btn");
+        const togglePhysicsBtn = d3.select("#toggle-physics-btn");
+        const allGenButtons = [genPlanarBtn, genPlanar2CutBtn, genIcosahedronBtn, genK5Btn, genK33Btn, genHomeoK5Btn, genRandomBtn, nodeCountInput, edgeProbInput];
+        
+        // Етап 2 (Зв'язність)
+        const stage2Container = d3.select("#stage-2-connectivity");
+        const tabStage2 = d3.select("#tab-stage-2");
+        const connectivityCommentaryEl = d3.select("#connectivity-commentary");
+        const startConnectivityTestBtn = d3.select("#start-connectivity-test-btn");
+        const tutteOptionsContainer = d3.select("#tutte-options");
+
+        // Етап 3 (Тутте)
+        const stage3Container = d3.select("#stage-3-tutte");
+        const tabStage3 = d3.select("#tab-stage-3");
+        const tutteCommentaryEl = d3.select("#tutte-commentary");
+        const tuttePrevBtn = d3.select("#tutte-prev-step-btn");
+        const tutteNextBtn = d3.select("#tutte-next-step-btn");
+        const tutteAutoBtn = d3.select("#tutte-run-auto-btn");
+        const tutteTogglePhysicsBtn = d3.select("#tutte-toggle-physics-btn"); // ЗМІНЕНО
+        let tutteSimulation = null; // Окрема симуляція для Тутте
+
+
+        // --- Константи ---
+        const NODE_RADIUS = 12;
+        let width, height;
+
+        // --- Глобальний стан ---
+        let mainGraph = { nodes: [], edges: [] }; // {id, x, y}, {source: id, target: id}
+        let d3Nodes = []; // Масив для D3 симуляції
+        let d3Edges = []; // Масив для D3 симуляції
+        let simulation;
+		let selectedNodesForEdge = new Set();
+        let currentStage = 'planarity'; // 'planarity', 'connectivity', 'tutte'
+
+        // --- D3 Елементи ---
+        let linkGroup, nodeGroup, labelGroup, newEdgeGroup;
+        // Для Тутте
+        let tutteClusterGroup;
+        let tutteCentroidGroup;
+
+        // --- Стан Етапу 1 (Планарність) ---
+        let planarityState = {
+            steps: [],
+            currentStep: 0,
+            originalGraphD3: { nodes: [], edges: [] } // {id}, {source: {id}, target: {id}}
+        };
+
+        // --- Стан Етапу 3 (Тутте) ---
+        let tutteState = {
+            history: [],
+            currentStep: -1,
+            adj: [], // Список суміжності (по id)
+            outerFaceIds: [],
+            innerNodeIds: []
+        };
+
+
+        // ====================================================================
+        // --- ІНІЦІАЛІЗАЦІЯ ТА КЕРУВАННЯ ЕТАПАМИ ---
+        // ====================================================================
+
+        function switchStage(stageName) {
+            currentStage = stageName;
+            
+            stage1Container.style('display', 'none');
+            stage2Container.style('display', 'none');
+            stage3Container.style('display', 'none');
+
+            tabStage1.classed('active', false);
+            tabStage2.classed('active', false);
+            tabStage3.classed('active', false);
+
+            // Зупиняємо симуляцію Тутте, якщо вона була
+            if (tutteSimulation) {
+                tutteSimulation.stop();
+                tutteSimulation = null;
+                tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+            }
+
+            if (stageName === 'planarity') {
+                stage1Container.style('display', 'block');
+                tabStage1.classed('active', true);
+                // resetToPlanarityStage(); // Не викликаємо звідси, щоб уникнути рекурсії
+            } else if (stageName === 'connectivity') {
+                stage2Container.style('display', 'block');
+                tabStage2.classed('active', true);
+                initConnectivityStage();
+            } else if (stageName === 'tutte') {
+                stage3Container.style('display', 'block');
+                tabStage3.classed('active', true);
+                // Ініціалізація Тутте викликається з кнопок Етапу 2
+            }
+            
+            // Скидання симуляції, якщо вона є (для етапів 1 і 2)
+            if (simulation && stageName !== 'tutte') {
+                simulation.stop();
+                simulation = null;
+            }
+            
+            // Запуск відповідної візуалізації
+            if (stageName === 'planarity') {
+                // При поверненні на 1 етап, ми маємо відновити симуляцію
+                // Використовуємо *збережені* d3Nodes/d3Edges, які вже мають позиції
+                if (d3Nodes.length === 0) { // Якщо це перший запуск
+                     d3Nodes = planarityState.originalGraphD3.nodes.map(n => ({...n, x: 0, y: 0}));
+                     d3Edges = planarityState.originalGraphD3.edges.map(e => ({
+                        id: e.id,
+                        source: d3Nodes.find(n => n.id === e.source.id), 
+                        target: d3Nodes.find(n => n.id === e.target.id)
+                    }));
+                }
+                
+                // Ми маємо зберегти позиції, якщо вони є з mainGraph
+                if (mainGraph.nodes.length > 0) {
+                    d3Nodes.forEach(d3n => {
+                        const mainN = mainGraph.nodes.find(mn => mn.id === d3n.id);
+                        if (mainN && mainN.x) { // Якщо позиції вже були
+                            d3n.x = mainN.x;
+                            d3n.y = mainN.y;
+                        }
+                    });
+                }
+                
+                initPlanaritySimulation(d3Nodes, d3Edges);
+                updatePlanarityView();
+                
+            } else if (stageName === 'connectivity') {
+                // Використовуємо d3Nodes/d3Edges, оновлені з mainGraph
+                d3Nodes = mainGraph.nodes.map(n => ({...n}));
+                d3Edges = mainGraph.edges.map((e, i) => ({
+                    id: `e${i}`, // Переконаємось, що є ID
+                    source: d3Nodes.find(n => n.id === e.source), 
+                    target: d3Nodes.find(n => n.id === e.target)
+                }));
+                initConnectivityStage(); // initConnectivityStage тепер сам малює
+            } else if (stageName === 'tutte') {
+                // Ініціалізація візуалізації Тутте (без симуляції)
+                if(simulation) {
+                    simulation.stop(); // Зупиняємо головну симуляцію
+                    simulation = null;
+                }
+                initTutteVisuals();
+                updateTutteView();
+            }
+        }
+        
+        // !!! ВИПРАВЛЕНО (ДОДАНО ОБРОБНИКИ НАТИСКАННЯ) !!!
+        tabStage1.on('click', () => {
+            // При натисканні на Етап 1, ми скидаємо все до початкового стану
+            resetToPlanarityStage();
+        });
+        
+        tabStage2.on('click', () => {
+            // На Етап 2 можна перейти, тільки якщо він "enabled"
+            if (tabStage2.classed('enabled')) {
+                switchStage('connectivity');
+            }
+        });
+        
+        tabStage3.on('click', () => {
+            // На Етап 3 можна перейти, тільки якщо він "enabled"
+            if (tabStage3.classed('enabled')) {
+                switchStage('tutte');
+            }
+        });
+
+
+        function resetToPlanarityStage() {
+            currentStage = 'planarity'; // Встановлюємо примусово
+            
+            // Скидаємо стани 2 і 3
+            tabStage1.classed('active', true);
+            tabStage2.classed('active', false).classed('enabled', false).classed('completed', false).classed('failed', false);
+            tabStage3.classed('active', false).classed('enabled', false).classed('completed', false).classed('failed', false);
+            
+            stage1Container.style('display', 'block');
+            stage2Container.style('display', 'none');
+            stage3Container.style('display', 'none');
+
+            mainGraph = { nodes: [], edges: [] };
+            d3Nodes = [];
+            d3Edges = [];
+            
+            tutteState = { history: [], currentStep: -1, adj: [], outerFaceIds: [], innerNodeIds: [] };
+            
+            tutteOptionsContainer.style('display', 'none').html('');
+            startConnectivityTestBtn.property('disabled', false);
+
+            allGenButtons.forEach(btn => btn.property('disabled', false));
+            
+            generatePlanarityGraph('planar');
+        }
+
+        // ====================================================================
+        // --- D3 СИМУЛЯЦІЯ (СПІЛЬНА) ---
+        // ====================================================================
+        
+        function initBaseSimulation(nodes, edges) {
+            if (simulation) {
+                simulation.stop();
+            }
+
+            // Очищення SVG
+            svgEl.selectAll("*").remove();
+
+            // Групи для елементів (ребра під вершинами)
+            linkGroup = svgEl.append("g").attr("class", "links-group");
+            newEdgeGroup = svgEl.append("g").attr("class", "new-edges-group");
+            nodeGroup = svgEl.append("g").attr("class", "nodes-group");
+            labelGroup = svgEl.append("g").attr("class", "labels-group");
+            tutteClusterGroup = svgEl.append("g").attr("class", "tutte-clusters-group");
+            tutteCentroidGroup = svgEl.append("g").attr("class", "tutte-centroids-group");
+            
+			
+			
+			// Очищуємо виділення при кожному перемальовуванні
+            selectedNodesForEdge.clear();
+
+            // 1. Подвійний клік на канві (Додати Вершину)
+            svgEl.on('dblclick', (event) => {
+                event.preventDefault();
+                // Працює тільки на Етапі 1 з вимкненою фізикою
+                if (currentStage !== 'planarity' || physicsEnabled === true) return;
+                
+                if (d3Nodes.length >= 12) {
+                    alert("Досягнуто ліміту в 12 вершин.");
+                    return;
+                }
+                
+                const [x, y] = d3.pointer(event);
+                // Знаходимо новий унікальний ID
+                const newId = (d3Nodes.length > 0 ? Math.max(...d3Nodes.map(n => n.id)) : 0) + 1;
+                const newNode = { id: newId, x: x, y: y, fx: x, fy: y }; // fx/fy, щоб він не рухався
+
+                // Додаємо вузол до ВСІХ джерел даних
+                d3Nodes.push(newNode);
+                mainGraph.nodes.push({ id: newId, x: x, y: y });
+                planarityState.originalGraphD3.nodes.push({ id: newId });
+                
+                // Перезапускаємо тест (це оновить все, в т.ч. d3Edges)
+				initPlanaritySimulation(d3Nodes, d3Edges);
+                runPlanarityTest();
+            });
+
+            // 2. Клік на Вершині (Виділити / Видалити)
+            // Використовуємо делегування на групі-батьку
+            nodeGroup.on('click', (event) => {
+                // Знаходимо дані вузла, на який клікнули
+                const d = d3.select(event.target.closest('.node'))?.datum();
+                if (!d) return; // Клікнули не на вузол
+
+                if (currentStage !== 'planarity' || physicsEnabled === true) return;
+                
+                const clickedNodeId = d.id;
+
+                if (event.ctrlKey) {
+                    // --- ВИДАЛИТИ ВЕРШИНУ ---
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    // Видаляємо з усіх джерел даних
+                    d3Nodes = d3Nodes.filter(n => n.id !== clickedNodeId);
+                    d3Edges = d3Edges.filter(e => e.source.id !== clickedNodeId && e.target.id !== clickedNodeId);
+                    
+                    mainGraph.nodes = mainGraph.nodes.filter(n => n.id !== clickedNodeId);
+                    mainGraph.edges = mainGraph.edges.filter(e => e.source !== clickedNodeId && e.target !== clickedNodeId);
+                    
+                    planarityState.originalGraphD3.nodes = planarityState.originalGraphD3.nodes.filter(n => n.id !== clickedNodeId);
+                    planarityState.originalGraphD3.edges = planarityState.originalGraphD3.edges.filter(e => e.source.id !== clickedNodeId && e.target.id !== clickedNodeId);
+                    
+                    selectedNodesForEdge.clear();
+					initPlanaritySimulation(d3Nodes, d3Edges);
+                    runPlanarityTest(); // Перезапускаємо
+
+                } else if (event.shiftKey) {
+                    // --- ДОДАТИ РЕБРО (Виділення) ---
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    selectedNodesForEdge.add(clickedNodeId);
+                    // Оновлюємо виділення візуально
+                    nodeGroup.selectAll('.node').classed('selected', n => selectedNodesForEdge.has(n.id));
+
+                    if (selectedNodesForEdge.size === 2) {
+                        const [id1, id2] = Array.from(selectedNodesForEdge);
+                        
+                        // Перевірка, чи ребро вже існує
+                        const exists = d3Edges.some(e => (e.source.id === id1 && e.target.id === id2) || (e.source.id === id2 && e.target.id === id1));
+                        
+                        if (!exists) {
+                            const newEdgeId = `e_${Date.now()}`;
+                            const newEdge = { 
+                                id: newEdgeId, 
+                                source: d3Nodes.find(n => n.id === id1), 
+                                target: d3Nodes.find(n => n.id === id2) 
+                            };
+                            
+                            // Додаємо ребро до ВСІХ джерел
+                            d3Edges.push(newEdge); 
+                            mainGraph.edges.push({ source: id1, target: id2 });
+                            planarityState.originalGraphD3.edges.push({ id: newEdgeId, source: {id: id1}, target: {id: id2} });
+                            initPlanaritySimulation(d3Nodes, d3Edges);
+                            runPlanarityTest(); // Перезапуск зніме виділення
+                        } else {
+                             selectedNodesForEdge.clear();
+                             nodeGroup.selectAll('.node').classed('selected', false);
+                        }
+                    }
+                } else {
+                    // Простий клік (без Shift/Ctrl) знімає виділення
+                    selectedNodesForEdge.clear();
+                    nodeGroup.selectAll('.node').classed('selected', false);
+                }
+            });
+
+            // 3. Клік на Ребрі (Видалити)
+            linkGroup.on('click', (event) => {
+                const d = d3.select(event.target.closest('.edge'))?.datum();
+                if (!d) return; // Клікнули не на ребро
+
+                if (currentStage !== 'planarity' || physicsEnabled === true || !event.ctrlKey) return;
+                
+                event.preventDefault();
+                event.stopPropagation();
+
+                const edgeIdToDelete = d.id;
+                const sourceId = d.source.id;
+                const targetId = d.target.id;
+
+                // Видаляємо з усіх джерел
+                d3Edges = d3Edges.filter(e => e.id !== edgeIdToDelete);
+                mainGraph.edges = mainGraph.edges.filter(e => !((e.source === sourceId && e.target === targetId) || (e.source === targetId && e.target === sourceId)));
+                planarityState.originalGraphD3.edges = planarityState.originalGraphD3.edges.filter(e => e.id !== edgeIdToDelete);
+                initPlanaritySimulation(d3Nodes, d3Edges);
+                runPlanarityTest(); // Перезапускаємо
+            });
+			
+				
+            simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(edges).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-400))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(NODE_RADIUS * 2.5))
+                .on("tick", ticked);
+                
+            initNodeDrag(nodes);
+            return simulation;
+        }
+        
+        // --- Toggle physics та оновлені drag-хендлери ---
+        let physicsEnabled = true;
+
+        if (!togglePhysicsBtn.empty()) {
+            togglePhysicsBtn.on("click", () => {
+                physicsEnabled = !physicsEnabled;
+
+                if (physicsEnabled) {
+                    // Увімкнути сили з потрібними параметрами
+                    simulation.force("charge", d3.forceManyBody().strength(-400));
+                    simulation.force("link", d3.forceLink(d3Edges).id(d => d.id).distance(100).strength(1));
+                    simulation.force("collision", d3.forceCollide().radius(NODE_RADIUS * 2.5));
+                    
+                    // ВИПРАВЛЕННЯ 2: Зменшуємо "поштовх" при перезапуску
+                    simulation.alpha(0.1).restart(); 
+                    
+                    togglePhysicsBtn.text("🔌 Вимкнути фізику");
+                } else {
+                    // Вимкнути вплив сил
+                    simulation.force("charge", d3.forceManyBody().strength(0));
+                    simulation.force("link", d3.forceLink(d3Edges).id(d => d.id).distance(100).strength(() => 0));
+                    simulation.force("collision", null);
+
+                    simulation.alpha(0);
+                    simulation.stop();
+
+                    togglePhysicsBtn.text("⚡ Увімкнути фізику");
+                }
+            });
+        }
+
+        // Оновлені drag-хендлери
+        function initNodeDrag(nodes) {
+            const drag = d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+            
+            nodeGroup.selectAll('.node')
+                .data(nodes, d => d.id)
+                .call(drag);
+        }
+
+        function dragstarted(event, d) {
+            // ВИПРАВЛЕННЯ 3: Дозволяємо перетягування на всіх етапах
+            // (Видалено перевірку: currentStage === 'tutte' && !d.isOuter)
+
+            if (physicsEnabled && simulation && simulation.alpha() > 0) {
+                 if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            } else if (tutteSimulation) { // Окремий обробник для фізики Тутте
+                 if (!event.active) tutteSimulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            else {
+                // фізика вимкнена
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+        }
+
+        function dragged(event, d) {
+            // ВИПРАВЛЕННЯ 3: Дозволяємо перетягування на всіх етапах
+            // (Видалено перевірку: currentStage === 'tutte' && !d.isOuter)
+
+            if (physicsEnabled && simulation && simulation.alpha() > 0) {
+                d.fx = event.x;
+                d.fy = event.y;
+            } else if (tutteSimulation) { // Окремий обробник для фізики Тутте
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            else {
+                // фізика вимкнена
+                d.x = event.x;
+                d.y = event.y;
+                d.fx = event.x;
+                d.fy = event.y;
+                
+                // ручний "тик"
+                if (currentStage === 'tutte') {
+                    updateTutteView(); // Тутте використовує власний апдейтер
+                } else {
+                    ticked(); // Етапи 1-2 використовують загальний
+                }
+            }
+        }
+
+        function dragended(event, d) {
+            // ВИПРАВЛЕННЯ 3: Дозволяємо перетягування на всіх етапах
+            // (Видалено перевірку: currentStage === 'tutte' && !d.isOuter)
+
+            if (physicsEnabled && simulation && simulation.alpha() > 0) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            } else if (tutteSimulation) { // Окремий обробник для фізики Тутте
+                 if (!event.active) tutteSimulation.alphaTarget(0);
+                 if (d.isOuter) { // Зовнішні завжди фіксовані у Тутте
+                    d.fx = d.x;
+                    d.fy = d.y;
+                 } else {
+                    d.fx = null;
+                    d.fy = null;
+                 }
+            }
+            else {
+                // фізика вимкнена
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        function ticked() {
+            // Оновлення позицій вершин
+            nodeGroup.selectAll('.node')
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+            
+            labelGroup.selectAll('.node-label')
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            // Оновлення позицій оригінальних ребер
+            // (d.source - це об'єкт вузла)
+            linkGroup.selectAll('.edge')
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+            
+            // Оновлення позицій нових ребер (для етапу 1)
+            newEdgeGroup.selectAll('.edge-new')
+                .attr("x1", d => d3Nodes.find(n => n.id === d.source).x)
+                .attr("y1", d => d3Nodes.find(n => n.id === d.source).y)
+                .attr("x2", d => d3Nodes.find(n => n.id === d.target).x)
+                .attr("y2", d => d3Nodes.find(n => n.id === d.target).y);
+            
+             // Оновлення кластерів (для Тутте)
+            tutteClusterGroup.selectAll('.tutte-cluster-path')
+                .attr('d', d => {
+                    const points = d.nodeIds
+                        .map(id => d3Nodes.find(n => n.id === id))
+                        .filter(Boolean) // Фільтруємо, якщо вузол не знайдено
+                        .map(n => [n.x, n.y]);
+                    if (points.length < 3) return null; // Потрібно 3+ точки для оболонки
+                    return d3.polygonHull(points);
+                });
+            
+             tutteClusterGroup.selectAll('.tutte-cluster-label')
+                 .attr('x', d => {
+                    const points = d.nodeIds
+                        .map(id => d3Nodes.find(n => n.id === id))
+                        .filter(Boolean);
+                    if (points.length === 0) return 0;
+                    return d3.mean(points, p => p.x);
+                 })
+                 .attr('y', d => {
+                    const points = d.nodeIds
+                        .map(id => d3Nodes.find(n => n.id === id))
+                        .filter(Boolean);
+                    if (points.length === 0) return 0;
+                    return d3.mean(points, p => p.y);
+                 });
+        }
+
+
+        // ====================================================================
+        // --- ЕТАП 1: ПЛАНАРНІСТЬ ---
+        // ====================================================================
+
+        genPlanarBtn.on('click', () => generatePlanarityGraph('planar'));
+        genPlanar2CutBtn.on('click', () => generatePlanarityGraph('planar-2cut'));
+        genIcosahedronBtn.on('click', () => generatePlanarityGraph('icosahedron')); // ДОДАНО
+        genK5Btn.on('click', () => generatePlanarityGraph('k5'));
+        genK33Btn.on('click', () => generatePlanarityGraph('k33'));
+        genHomeoK5Btn.on('click', () => generatePlanarityGraph('homeo-k5'));
+        genRandomBtn.on('click', () => generatePlanarityGraph('random'));
+
+        function generatePlanarityGraph(type) {
+            let nodes = [];
+            let edges = [];
+            
+            switch(type) {
+                case 'planar': //насправді ні, це Граф Петерсона
+                    nodes = Array.from({length: 10}, (_, i) => ({ id: i + 1 }));
+                    edges = [
+                        {source: 1, target: 2}, {source: 2, target: 3}, {source: 3, target: 4}, {source: 4, target: 5}, {source: 5, target: 1},
+                        {source: 9, target: 7}, {source: 9, target: 6}, {source: 8, target: 6}, {source: 8, target: 10}, {source: 10, target: 7},
+                        {source: 1, target: 6}, {source: 2, target: 7}, {source: 3, target: 8}, {source: 4, target: 9}, {source: 5, target: 10}
+                    ];
+                    break;
+                
+                case 'planar-2cut': // Планарний, але з 2-розділювачем (не 3-зв'язний)
+                    nodes = Array.from({length: 8}, (_, i) => ({ id: i + 1 }));
+                    edges = [
+                        {source: 1, target: 2}, {source: 2, target: 3}, {source: 3, target: 1},
+                 
+                        {source: 1, target: 3}, {source: 3, target: 4}, {source: 4, target: 1},
+                        // "Міст"
+                        {source: 1, target: 5}, {source: 3, target: 6},
+                      
+                        {source: 5, target: 6}, {source: 6, target: 7}, {source: 7, target: 5},
+                     
+                        {source: 5, target: 7}, {source: 7, target: 8}, {source: 8, target: 5},
+						{source: 6, target: 8}, {source: 2, target: 4} 
+                    ];
+                    break;
+                
+                // ДОДАНО НОВИЙ ПРЕСЕТ
+                case 'icosahedron': // Ікосаедр (мінус одна вершина). Планарний, 3-зв'язний.
+                    nodes = Array.from({length: 11}, (_, i) => ({ id: i + 1 }));
+                    edges = [
+                        // Верхня "шапка" (v1)
+                        {source: 1, target: 2}, {source: 1, target: 3}, {source: 1, target: 4}, {source: 1, target: 5}, {source: 1, target: 6},
+                        // Середнє кільце (v2-v6)
+                        {source: 2, target: 3}, {source: 3, target: 4}, {source: 4, target: 5}, {source: 5, target: 6}, {source: 6, target: 2},
+                        // Ребра від "шапки" до нижнього кільця
+                        {source: 2, target: 7}, {source: 3, target: 8}, {source: 4, target: 9}, {source: 5, target: 10}, {source: 6, target: 11},
+                        // "Діагональні" ребра
+                        {source: 2, target: 8}, {source: 3, target: 9}, {source: 4, target: 10}, {source: 5, target: 11}, {source: 6, target: 7},
+                        // Нижнє кільце (v7-v11)
+                        {source: 7, target: 8}, {source: 8, target: 9}, {source: 9, target: 10}, {source: 10, target: 11}, {source: 11, target: 7}
+                    ];
+                    break;
+
+                case 'k5':
+                    nodes = Array.from({length: 5}, (_, i) => ({ id: i + 1 }));
+                    edges = [];
+                    for (let i = 1; i <= 5; i++) {
+                        for (let j = i + 1; j <= 5; j++) {
+                            edges.push({source: i, target: j});
+                        }
+                    }
+                    break;
+
+                case 'k33':
+                    nodes = Array.from({length: 6}, (_, i) => ({ id: i + 1 }));
+                    edges = [];
+                    for (let i = 1; i <= 3; i++) {
+                        for (let j = 4; j <= 6; j++) {
+                            edges.push({source: i, target: j});
+                        }
+                    }
+                    break;
+                
+                case 'homeo-k5': // Гомеоморфний K3,3 з 7 вершинами
+                     nodes = Array.from({length: 7}, (_, i) => ({ id: i + 1 }));
+                     edges = [
+                        {source: 1, target: 4}, {source: 1, target: 5}, 
+                        {source: 1, target: 7}, {source: 7, target: 6}, // шлях (1,7,6)
+                        {source: 2, target: 4}, {source: 2, target: 5}, {source: 2, target: 6},
+                        {source: 3, target: 4}, {source: 3, target: 5}, {source: 3, target: 6}
+                     ]; // v=7, e=10. (3v-6 = 15). OK.
+                    break;
+                
+                case 'random':
+                default:
+                    const nodeCount = parseInt(nodeCountInput.property('value'), 10);
+                    const edgeProb = parseFloat(edgeProbInput.property('value'));
+                    nodes = Array.from({length: nodeCount}, (_, i) => ({ id: i + 1 }));
+                    edges = [];
+                    for (let i = 1; i <= nodeCount; i++) {
+                        for (let j = i + 1; j <= nodeCount; j++) {
+                            if (Math.random() < edgeProb) {
+                                edges.push({source: i, target: j});
+                            }
+                        }
+                    }
+                    break;
+            }
+            
+            // Надаємо ребрам унікальні ID для D3
+            edges.forEach((e, i) => e.id = `e${i}`);
+
+            // Зберігаємо копію для D3 симуляції
+            d3Nodes = nodes.map(n => ({ ...n }));
+            d3Edges = edges.map(e => ({ 
+                id: e.id, 
+                source: d3Nodes.find(n => n.id === e.source), 
+                target: d3Nodes.find(n => n.id === e.target) 
+            }));
+            
+            // Зберігаємо копію для логіки
+            planarityState.originalGraphD3 = {
+                nodes: nodes.map(n => ({ id: n.id })),
+                edges: edges.map(e => ({ id: e.id, source: {id: e.source}, target: {id: e.target} }))
+            };
+            
+            // Зберігаємо головний граф для інших етапів
+            mainGraph = {
+                nodes: nodes.map(n => ({ id: n.id, x: 0, y: 0 })), // x, y будуть заповнені симуляцією
+                edges: edges.map(e => ({ source: e.source, target: e.target }))
+            };
+            
+            initPlanaritySimulation(d3Nodes, d3Edges);
+            runPlanarityTest();
+        }
+        
+        function setPlanarityButtonsDisabled(disabled) {
+            nextBtn.property('disabled', disabled);
+            prevBtn.property('disabled', disabled);
+            allGenButtons.forEach(btn => btn.property('disabled', disabled));
+        }
+
+        async function runPlanarityTest() {
+            setPlanarityButtonsDisabled(true);
+            planarityState.steps = [];
+            planarityState.currentStep = 0;
+            
+            const originalGraph = planarityState.originalGraphD3;
+            
+            // Створюємо логічний граф (тільки ID)
+            planarityLogic.logicalGraph = {
+                nodes: originalGraph.nodes.map(n => n.id),
+                edges: originalGraph.edges.map(e => ({source: e.source.id, target: e.target.id}))
+            };
+            
+            // Ініціалізуємо візуальні стани
+            planarityLogic.currentVisuals = { nodes: {}, edges: {} };
+            originalGraph.nodes.forEach(n => planarityLogic.currentVisuals.nodes[n.id] = 'normal');
+            originalGraph.edges.forEach(e => planarityLogic.currentVisuals.edges[e.id] = 'normal');
+            
+            planarityLogic.currentNewEdges = [];
+            
+            planarityLogic.addStep("Початковий граф. Починаємо перевірку.");
+            
+            // Запускаємо симуляцію, щоб вузли "розійшлися"
+            simulation.alpha(0.3).restart();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Даємо час
+
+            let v = planarityLogic.logicalGraph.nodes.length;
+            let e = planarityLogic.logicalGraph.edges.length;
+
+            if (v < 3) {
+                planarityLogic.addStep(`<span class="result planar">ПЛАНАРНИЙ</span><br>Граф має менше 3 вершин.`, true, "v < 3");
+                await finishPlanarityTest(true);
+                return;
+            }
+
+            let eulerLimit = 3 * v - 6;
+            if (e > eulerLimit) {
+                let comment = `<span class="result non-planar">НЕ ПЛАНАРНИЙ</span><br>Порушено умову Ейлера: \\(e > 3v - 6\\).<br>\\(e = ${e}\\), \\(3v - 6 = ${3*v - 6}\\).`;
+                planarityLogic.addStep(comment, false, "Порушено умову Ейлера");
+                await finishPlanarityTest(false);
+                return;
+            }
+            
+            planarityLogic.addStep(`Крок 1: Умова Ейлера \\(e \\le 3v - 6\\) виконується.<br>(\\( ${e} \\le ${eulerLimit} \\)). Переходимо до згладжування.`);
+
+            // Крок 2: Згладжування (видалення вершин степеня 2)
+            let smoothingPerformed = false;
+            let nodesToRemove = [];
+            
+            // Збираємо всіх кандидатів на видалення
+            planarityLogic.logicalGraph.nodes.forEach(nodeId => {
+                if (planarityLogic.getDegree(nodeId, planarityLogic.logicalGraph) === 2) {
+                    nodesToRemove.push(nodeId);
+                }
+            });
+
+            if (nodesToRemove.length > 0) {
+                 planarityLogic.addStep(`Крок 2: Знайдено ${nodesToRemove.length} вершин степеня 2. Починаємо згладжування...`);
+            }
+
+            // Обробляємо кандидатів
+            while(nodesToRemove.length > 0) {
+                const nodeToRemove = nodesToRemove.shift();
+                
+                // Можливо, степінь змінився, перевіряємо ще раз
+                if (planarityLogic.getDegree(nodeToRemove, planarityLogic.logicalGraph) !== 2) {
+                    continue; 
+                }
+
+                smoothingPerformed = true;
+                const neighbors = planarityLogic.getNeighbors(nodeToRemove, planarityLogic.logicalGraph);
+                
+                if (neighbors.length === 2) {
+                    const [n1, n2] = neighbors;
+                    
+                    // Візуалізація: підсвічуємо вузол та сусідів
+                    Object.keys(planarityLogic.currentVisuals.nodes).forEach(k => planarityLogic.currentVisuals.nodes[k] = (planarityLogic.currentVisuals.nodes[k] === 'removed' ? 'removed' : 'normal'));
+                    planarityLogic.currentVisuals.nodes[nodeToRemove] = 'flash';
+                    planarityLogic.currentVisuals.nodes[n1] = 'highlight';
+                    planarityLogic.currentVisuals.nodes[n2] = 'highlight';
+                    
+                    planarityLogic.logicalGraph.edges.forEach(e_orig => {
+                        const e_id = planarityState.originalGraphD3.edges.find(e => (e.source.id === e_orig.source && e.target.id === e_orig.target) || (e.source.id === e_orig.target && e.target.id === e_orig.source))?.id;
+                        if (!e_id) return;
+                        
+                        if (planarityLogic.currentVisuals.edges[e_id] !== 'removed') {
+                           planarityLogic.currentVisuals.edges[e_id] = 'normal';
+                        }
+                    });
+                    
+                    // Видаляємо вузол та 2 інцидентні ребра
+                    planarityLogic.logicalGraph.nodes = planarityLogic.logicalGraph.nodes.filter(id => id !== nodeToRemove);
+                    
+                    let removedEdges = [];
+                    planarityLogic.logicalGraph.edges = planarityLogic.logicalGraph.edges.filter(edge => {
+                        if (edge.source === nodeToRemove || edge.target === nodeToRemove) {
+                            removedEdges.push(edge);
+                            return false;
+                        }
+                        return true;
+                    });
+                    
+                    // Візуалізація видалення
+                    planarityLogic.currentVisuals.nodes[nodeToRemove] = 'removed';
+                    removedEdges.forEach(e_rem => {
+                        const e_id = planarityState.originalGraphD3.edges.find(e => (e.source.id === e_rem.source && e.target.id === e_rem.target) || (e.source.id === e_rem.target && e.target.id === e_rem.source))?.id;
+                        if(e_id) planarityLogic.currentVisuals.edges[e_id] = 'removed';
+                    });
+                    
+                    
+                    // Додаємо нове ребро (якщо його ще немає)
+                    if (!planarityLogic.edgeExists(n1, n2, planarityLogic.logicalGraph)) {
+                        planarityLogic.logicalGraph.edges.push({ source: n1, target: n2 });
+                        
+                        // Візуалізація нового ребра
+                        let newEdge = { 
+                            id: planarityLogic.edgeKey(n1, n2), 
+                            source: n1, 
+                            target: n2, 
+                            class: 'highlight-new' 
+                        };
+                        planarityLogic.currentNewEdges.push(newEdge);
+                        
+                        planarityLogic.addStep(`Видалено ${nodeToRemove}. Створено нове ребро (${n1}, ${n2}).`);
+                        
+                        // Змінюємо клас для наступного кроку
+                        planarityLogic.currentNewEdges.find(e => e.id === newEdge.id).class = 'normal-new';
+
+                    } else {
+                        planarityLogic.addStep(`Видалено ${nodeToRemove}. Ребро (${n1}, ${n2}) вже існує.`);
+                    }
+                    
+                    // Скидаємо візуалізацію вузлів (окрім видалених)
+                    planarityLogic.currentVisuals.nodes = Object.keys(planarityLogic.currentVisuals.nodes).reduce((acc, key) => {
+                        if (planarityLogic.currentVisuals.nodes[key] !== 'removed') acc[key] = 'normal';
+                        else acc[key] = 'removed';
+                        return acc;
+                    }, {});
+                }
+            }
+
+            if (smoothingPerformed) {
+                planarityLogic.addStep("Крок 2: Згладжування завершено.");
+            } else {
+                planarityLogic.addStep("Крок 2: Вершин степеня 2 не знайдено.");
+            }
+            
+            // Скидаємо всі візуалізації до "normal"
+            planarityLogic.currentNewEdges.forEach(e => e.class = 'normal-new');
+            Object.keys(planarityLogic.currentVisuals.nodes).forEach(k => {
+                if(planarityLogic.currentVisuals.nodes[k] !== 'removed') planarityLogic.currentVisuals.nodes[k] = 'normal';
+            });
+            Object.keys(planarityLogic.currentVisuals.edges).forEach(k => {
+                if(planarityLogic.currentVisuals.edges[k] !== 'removed') planarityLogic.currentVisuals.edges[k] = 'normal';
+            });
+
+
+            // Крок 3: Пошук гомеоморфних K5 та K3,3
+          //  planarityLogic.addStep("Крок 3: Пошук підграфів, гомеоморфних K₅ та K₃,₃...<br><small>(Використовується 'жадібна' евристика. Вона ніколи не дасть хибного 'Так', але може пропустити складний випадок, як граф Петерсона)</small>");
+            
+			planarityLogic.addStep("Крок 3: Пошук підграфів, гомеоморфних K₅ та K₃,₃...<br><small>(Запуск повного пошуку з бектрекінгом. Це може зайняти 1-2 секунди...)</small>");
+            // Готуємо список суміжності для згладженого графа
+            const adjList = buildAdjList(planarityLogic.logicalGraph);
+
+            // Шукаємо K5
+            let k5Found = false;
+            let k5Subgraph = null;
+            
+            let degreesAfterSmoothing = {};
+            planarityLogic.logicalGraph.nodes.forEach(id => degreesAfterSmoothing[id] = (adjList[id] || []).length);
+            
+            let highDegreeNodes = planarityLogic.logicalGraph.nodes.filter(id => degreesAfterSmoothing[id] >= 4);
+
+            if (highDegreeNodes.length >= 5) {
+                planarityLogic.addStep(`Перевіряємо ${highDegreeNodes.length} вершин зі степенем ≥4 на наявність K₅...`);
+                
+                const combos5 = planarityLogic.getCombinations(highDegreeNodes, 5);
+                
+                for (const combo of combos5) {
+                    const paths = findK5Paths(combo, planarityLogic.logicalGraph, adjList);
+                    if (paths) {
+                        k5Found = true;
+                        k5Subgraph = { vertices: combo, paths: paths };
+                        break;
+                    }
+                }
+            }
+
+            if (k5Found) {
+                // Візуалізація знайденого K5
+                Object.keys(planarityLogic.currentVisuals.nodes).forEach(k => {
+                    if(planarityLogic.currentVisuals.nodes[k] !== 'removed') planarityLogic.currentVisuals.nodes[k] = 'normal';
+                });
+                
+                k5Subgraph.vertices.forEach(id => planarityLogic.currentVisuals.nodes[id] = 'highlight');
+                
+                // Фарбуємо всі ребра/шляхи
+                Object.values(k5Subgraph.paths).forEach(path => {
+                    for(let i = 0; i < path.length - 1; i++) {
+                        planarityLogic.highlightPathSegment(path[i], path[i+1]);
+                    }
+                });
+                
+                planarityLogic.addStep(`<span class="result non-planar">НЕ ПЛАНАРНИЙ</span><br>Знайдено підграф, гомеоморфний K₅.`, false, "Знайдено K5");
+                await finishPlanarityTest(false);
+                return;
+            }
+
+            // Шукаємо K3,3
+            let k33Found = false;
+            let k33Subgraph = null;
+            
+            let mediumDegreeNodes = planarityLogic.logicalGraph.nodes.filter(id => degreesAfterSmoothing[id] >= 3);
+            
+            if (mediumDegreeNodes.length >= 6) {
+                planarityLogic.addStep(`Перевіряємо ${mediumDegreeNodes.length} вершин зі степенем ≥3 на наявність K₃,₃...`);
+                
+                const combos6 = planarityLogic.getCombinations(mediumDegreeNodes, 6);
+                
+                comboLoop:
+                for (const combo of combos6) {
+                    // Ділимо комбінацію 6 вершин на 2 по 3 (10 варіантів)
+                    const splits = planarityLogic.getCombinations(combo, 3);
+                    
+                    for (const setA of splits) {
+                        const setB = combo.filter(id => !setA.includes(id));
+                        
+                        const paths = findK33Paths(setA, setB, planarityLogic.logicalGraph, adjList);
+                        if (paths) {
+                            k33Found = true;
+                            k33Subgraph = { A: setA, B: setB, paths: paths };
+                            break comboLoop;
+                        }
+                    }
+                }
+            }
+
+            if (k33Found) {
+                // Візуалізація знайденого K3,3
+                Object.keys(planarityLogic.currentVisuals.nodes).forEach(k => {
+                    if(planarityLogic.currentVisuals.nodes[k] !== 'removed') planarityLogic.currentVisuals.nodes[k] = 'normal';
+                });
+                
+                k33Subgraph.A.forEach(id => planarityLogic.currentVisuals.nodes[id] = 'highlight');
+                k33Subgraph.B.forEach(id => planarityLogic.currentVisuals.nodes[id] = 'highlight-secondary');
+                
+                Object.values(k33Subgraph.paths).forEach(path => {
+                    for(let i = 0; i < path.length - 1; i++) {
+                        planarityLogic.highlightPathSegment(path[i], path[i+1]);
+                    }
+                });
+
+                planarityLogic.addStep(`<span class="result non-planar">НЕ ПЛАНАРНИЙ</span><br>Знайдено підграф, гомеоморфний K₃,₃.`, false, "Знайдено K3,3");
+                await finishPlanarityTest(false);
+                return;
+            }
+
+            // Якщо нічого не знайдено
+            //planarityLogic.addStep(`<span class="result planar">ПЛАНАРНИЙ</span><br>K₅ та K₃,₃ (гомеоморфні) не знайдено.<br><small>(Або евристика не змогла їх знайти, як у графі Петерсона).</small>`, true, "Пройшов евристичні перевірки");
+     planarityLogic.addStep(`<span class="result planar">ПЛАНАРНИЙ</span><br>K₅ та K₃,₃ (гомеоморфні) не знайдено. Можете спробувати укласти його без перетинів вручну (при відключеній "фізиці")`, true, "Пройшов перевірку");
+	 await finishPlanarityTest(true);
+
+        }
+
+        const planarityLogic = {
+            logicalGraph: { nodes: [], edges: [] },
+            currentVisuals: { nodes: {}, edges: {} },
+            currentNewEdges: [],
+            
+            addStep: function(comment, isPlanar = null, reason = "") {
+                const step = {
+                    commentary: comment,
+                    logicalGraph: JSON.parse(JSON.stringify(planarityLogic.logicalGraph)),
+                    visuals: JSON.parse(JSON.stringify(planarityLogic.currentVisuals)),
+                    newEdges: JSON.parse(JSON.stringify(planarityLogic.currentNewEdges)),
+                    isPlanar: isPlanar,
+                    reason: reason
+                };
+                planarityState.steps.push(step);
+                
+                // Одразу оновлюємо вигляд, щоб показати крок
+                planarityState.currentStep = planarityState.steps.length - 1;
+                updatePlanarityView();
+            },
+            
+            getDegree: function(nodeId, g) {
+                return g.edges.reduce((acc, edge) => (edge.source === nodeId || edge.target === nodeId) ? acc + 1 : acc, 0);
+            },
+            
+            getNeighbors: function(nodeId, g) {
+                const neighbors = new Set();
+                g.edges.forEach(edge => {
+                    if(edge.source === nodeId) neighbors.add(edge.target);
+                    if(edge.target === nodeId) neighbors.add(edge.source);
+                });
+                return Array.from(neighbors);
+            },
+            
+            edgeExists: function(n1, n2, g) {
+                return g.edges.some(e => (e.source === n1 && e.target === n2) || (e.source === n2 && e.target === n1));
+            },
+            
+            edgeKey: (id1, id2) => id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`,
+            
+            highlightPathSegment: function(n1, n2) {
+                const key = planarityLogic.edgeKey(n1, n2);
+                
+                // Перевіряємо, чи це "нове" ребро
+                const newEdge = planarityLogic.currentNewEdges.find(e => e.id === key);
+                if (newEdge) {
+                    newEdge.class = 'highlight'; // або 'edge-new highlight'
+                    return;
+                }
+                
+                // Інакше, шукаємо в оригінальних ребрах
+                const origEdge = planarityState.originalGraphD3.edges.find(e => 
+                    (e.source.id === n1 && e.target.id === n2) || (e.source.id === n2 && e.target.id === n1)
+                );
+                if (origEdge) {
+                    if (planarityLogic.currentVisuals.edges[origEdge.id] !== 'removed') {
+                         planarityLogic.currentVisuals.edges[origEdge.id] = 'highlight';
+                    }
+                }
+            },
+
+            getCombinations: function(arr, k) {
+                if (k === 0) return [[]];
+                if (k > arr.length) return [];
+                
+                const first = arr[0];
+                const rest = arr.slice(1);
+                
+                const combosWithFirst = planarityLogic.getCombinations(rest, k - 1).map(combo => [first, ...combo]);
+                const combosWithoutFirst = planarityLogic.getCombinations(rest, k);
+                
+                return [...combosWithFirst, ...combosWithoutFirst];
+            }
+        };
+
+        //
+        // !!! ЦЯ ФУНКЦІЯ ОНОВЛЕНА (ПРИБРАНО АВТО-ПЕРЕХІД) !!!
+        //
+        async function finishPlanarityTest(isPlanar) {
+            await new Promise(resolve => setTimeout(resolve, 100)); // Даємо час на рендер
+            
+            setPlanarityButtonsDisabled(false);
+            
+            updatePlanarityView(); // Оновлюємо до останнього кроку
+            
+            // Зберігаємо позиції вузлів з симуляції в mainGraph
+            d3Nodes.forEach(d3Node => {
+                const mainNode = mainGraph.nodes.find(n => n.id === d3Node.id);
+                if (mainNode) {
+                    mainNode.x = d3Node.x;
+                    mainNode.y = d3Node.y;
+                }
+            });
+            
+            if (isPlanar) {
+                tabStage1.classed('completed', true).classed('failed', false);
+                tabStage2.classed('enabled', true);
+                
+                // !!! ПРИБРАНО АВТОМАТИЧНИЙ ПЕРЕХІД !!!
+                // switchStage('connectivity');
+
+            } else {
+                tabStage1.classed('completed', false).classed('failed', true);
+                tabStage2.classed('enabled', false);
+            }
+			
+			// Гарантуємо, що якщо фізика була вимкнена, 
+            // вона залишається вимкненою (оскільки runPlanarityTest її запускає)
+            if (physicsEnabled === false && simulation) {
+                simulation.force("charge", d3.forceManyBody().strength(0));
+                simulation.force("link", d3.forceLink(d3Edges).id(d => d.id).distance(100).strength(() => 0));
+                simulation.force("collision", null);
+                simulation.alpha(0).stop();
+                // "Заморожуємо" вузли на їх місцях
+                d3Nodes.forEach(n => { 
+                    n.fx = n.x; 
+                    n.fy = n.y; 
+                });
+            }
+        }
+        
+        function initPlanaritySimulation(nodes, edges) {
+            // d3Nodes = nodes; // Вже встановлено
+            // d3Edges = edges; // Вже встановлено
+            
+            initBaseSimulation(nodes, edges);
+        }
+
+        //
+        // !!! ЦЯ ФУНКЦІЯ ОНОВЛЕНА (ВИПРАВЛЕНО РЕБРА) !!!
+        //
+        function updatePlanarityView() {
+            if (planarityState.steps.length === 0) return;
+            
+            const step = planarityState.steps[planarityState.currentStep];
+            if (!step) return;
+            
+            // const originalGraph = planarityState.originalGraphD3; // Більше не потрібно
+
+            // 1. Оновлюємо оригінальні ребра
+            // !!! ВИПРАВЛЕНО: Використовуємо d3Edges, щоб 'ticked' працював
+            linkGroup.selectAll('.edge')
+                .data(d3Edges, d => d.id) // Використовуємо d3Edges
+                .join('line')
+                .attr('class', d => `edge ${step.visuals.edges[d.id] || 'normal'}`)
+                // Координати тепер будуть оновлюватися функцією ticked()
+                // але ми встановимо їх тут для першого малювання
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+                
+            // 2. Оновлюємо "нові" ребра (зі згладжування)
+            newEdgeGroup.selectAll('.edge-new')
+                .data(step.newEdges, d => d.id)
+                .join('line')
+                .attr('class', d => `edge edge-new ${d.class || 'normal-new'}`)
+                .attr('x1', d => d3Nodes.find(n => n.id === d.source).x)
+                .attr('y1', d => d3Nodes.find(n => n.id === d.source).y)
+                .attr('x2', d => d3Nodes.find(n => n.id === d.target).x)
+                .attr('y2', d => d3Nodes.find(n => n.id === d.target).y);
+            
+            // 3. Оновлюємо вузли
+            const nodeSelection = nodeGroup.selectAll('.node')
+                .data(d3Nodes, d => d.id)
+                .join('g')
+                .attr('class', d => `node ${step.visuals.nodes[d.id] || 'normal'}`)
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+            
+            nodeSelection.selectAll('.node-circle')
+                .data(d => [d])
+                .join('circle')
+                .attr('class', 'node-circle');
+            
+            // 4. Оновлюємо мітки
+            labelGroup.selectAll('.node-label')
+                .data(d3Nodes, d => d.id)
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .text(d => d.id);
+            
+            // 5. Оновлюємо drag-хендлери
+            initNodeDrag(d3Nodes);
+            
+            // 6. Оновлюємо коментар
+            commentaryEl.html(step.commentary);
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise([commentaryEl.node()]).catch(err => console.error('MathJax Error:', err));
+            }
+            
+            // 7. Оновлюємо кнопки
+            prevBtn.property('disabled', planarityState.currentStep === 0);
+            nextBtn.property('disabled', planarityState.currentStep === planarityState.steps.length - 1);
+        }
+
+        nextBtn.on('click', () => {
+            if (planarityState.currentStep < planarityState.steps.length - 1) {
+                planarityState.currentStep++;
+                updatePlanarityView();
+            }
+        });
+        
+        prevBtn.on('click', () => {
+            if (planarityState.currentStep > 0) {
+                planarityState.currentStep--;
+                updatePlanarityView();
+            }
+        });
+
+
+        // ====================================================================
+        // --- ЕТАП 2: 3-ЗВ'ЯЗНІСТЬ ---
+        // ====================================================================
+        
+        //
+        // !!! ЦЯ ФУНКЦІЯ ОНОВЛЕНА (ДОДАНО updateConnectivityView) !!!
+        //
+        function initConnectivityStage() {
+            // d3Nodes/d3Edges вже мають бути готові (з switchStage)
+            initConnectivitySimulation(d3Nodes, d3Edges);
+
+            // !!! ДОДАНО ВИПРАВЛЕННЯ: Малюємо ребра одразу !!!
+            updateConnectivityView(mainGraph.nodes.map(n => n.id), []);
+
+            startConnectivityTestBtn.property('disabled', false);
+            tutteOptionsContainer.style('display', 'none').html('');
+            connectivityCommentaryEl.html("Граф планарний. Натисніть кнопку, щоб перевірити його на 3-зв'язність.");
+        }
+        
+        function initConnectivitySimulation(nodes, edges) {
+            initBaseSimulation(nodes, edges);
+            
+            // Увімкнути фізику на етапі 2
+            physicsEnabled = true;
+            if (simulation) {
+                simulation.alpha(0.3).restart();
+            }
+            togglePhysicsBtn.text("🔌 Вимкнути фізику").style('display', 'inline-block');
+        }
+
+     startConnectivityTestBtn.on('click', async () => {
+            startConnectivityTestBtn.property('disabled', true);
+            // Зупиняємо симуляцію з Етапу 1, якщо вона ще працює
+            if(simulation) {
+                simulation.stop();
+                simulation = null;
+            }
+            
+            const graph = mainGraph;
+            const adj = buildAdjList(graph);
+            const nodeIds = graph.nodes.map(n => n.id);
+
+            // --- 1. Покрокова Перевірка на 1-зв'язність (Шарніри) ---
+            connectivityCommentaryEl.html("Починаємо перевірку на 1-зв'язність (пошук шарнірів)...");
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Початкова пауза
+
+            let foundCutVertex = false;
+            for (const nodeId of nodeIds) {
+                const remainingNodes = nodeIds.filter(id => id !== nodeId);
+                if (remainingNodes.length < 2) continue; // Немає чого перевіряти
+
+                // Анімація: "Видаляємо" вузол (робимо його 'removed')
+                updateConnectivityView(remainingNodes, [nodeId]); 
+                connectivityCommentaryEl.html(`Перевірка на шарнір: <strong>${nodeId}</strong>...`);
+                
+                await new Promise(resolve => setTimeout(resolve, 500)); // Пауза для анімації
+
+                const { isConnected } = isGraphConnected(remainingNodes[0], remainingNodes, adj, new Set([nodeId]));
+                
+                if (!isConnected) {
+                    foundCutVertex = true;
+                    // Знайшли! Запускаємо фінальну анімацію "розпаду"
+                    const components = await visualizeConnectivityFailure(
+                        [nodeId], 
+                        "НЕ 3-ЗВ'ЯЗНИЙ", 
+                        `Знайдено шарнір (cut-vertex): <strong>${nodeId}</strong>. Граф є 1-зв'язним.`
+                    );
+                    tabStage2.classed('failed', true);
+                    tabStage3.classed('enabled', true);
+                    showTutteOptions(false, components); // Показуємо опції для *всіх* компонент
+                    return; // Завершуємо тест
+                }
+            }
+            
+            if (!foundCutVertex) {
+                connectivityCommentaryEl.html("Шарнірів не знайдено. Граф 2-зв'язний.");
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // --- 2. Покрокова Перевірка на 2-зв'язність (Пари-розділювачі) ---
+            connectivityCommentaryEl.html("Починаємо перевірку на 2-зв'язність (пошук пар-розділювачів)...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            let foundSeparationPair = false;
+            const nodePairs = planarityLogic.getCombinations(nodeIds, 2);
+            
+            // Зменшуємо паузу для пар, бо їх багато
+            const pairPause = Math.max(50, 5000 / nodePairs.length); // прибл. 5 сек на весь тест
+
+            for (const pair of nodePairs) {
+                const [u, v] = pair;
+                const remainingNodes = nodeIds.filter(id => id !== u && id !== v);
+                if (remainingNodes.length < 1) continue;
+                
+                // Анімація: "Видаляємо" пару
+                updateConnectivityView(remainingNodes, pair);
+                connectivityCommentaryEl.html(`Перевірка на пару-розділювач: <strong>(${u}, ${v})</strong>...`);
+
+                await new Promise(resolve => setTimeout(resolve, pairPause)); 
+
+                const { isConnected } = isGraphConnected(remainingNodes[0], remainingNodes, adj, new Set([u, v]));
+                
+                if (!isConnected) {
+                    foundSeparationPair = true;
+                    // Знайшли! Запускаємо фінальну анімацію "розпаду"
+                    const components = await visualizeConnectivityFailure(
+                        pair, 
+                        "НЕ 3-ЗВ'ЯЗНИЙ", 
+                        `Знайдено пару-розділювач: <strong>${pair.join(', ')}</strong>. Граф є 2-зв'язним.`
+                    );
+                    tabStage2.classed('failed', true);
+                    tabStage3.classed('enabled', true);
+                    showTutteOptions(false, components); // Показуємо опції для *всіх* компонент
+                    return; // Завершуємо тест
+                }
+            }
+            
+            // --- 3. Успіх ---
+            if (!foundSeparationPair) {
+                connectivityCommentaryEl.html("<span class='result planar'>ГРАФ 3-ЗВ'ЯЗНИЙ</span><br>Шарнірів та пар-розділювачів не знайдено.");
+                // Повертаємо всі вузли
+                updateConnectivityView(nodeIds, []);
+                tabStage2.classed('completed', true);
+                tabStage3.classed('enabled', true);
+                showTutteOptions(true, null);
+            }
+        });
+        function isGraphConnected(startNode, nodePool, adj, removedNodes) {
+            let count = 0;
+            const visited = new Set();
+            const stack = [startNode];
+            visited.add(startNode);
+            
+            while(stack.length > 0) {
+                const node = stack.pop();
+                count++;
+                
+                const neighbors = adj[node] || [];
+                for (const neighbor of neighbors) {
+                    if (removedNodes.has(neighbor)) continue;
+                    if (!visited.has(neighbor) && nodePool.includes(neighbor)) {
+                        visited.add(neighbor);
+                        stack.push(neighbor);
+                    }
+                }
+            }
+            return { isConnected: count === nodePool.length, count: count };
+        }
+
+        async function visualizeConnectivityFailure(removedNodes, title, commentary) {
+            const removedSet = new Set(removedNodes);
+            const remainingNodes = mainGraph.nodes.map(n => n.id).filter(id => !removedSet.has(id));
+            const adj = buildAdjList(mainGraph);
+            
+            // Знаходимо компоненти
+            let components = [];
+            let visited = new Set();
+            
+            for (const nodeId of remainingNodes) {
+                if (!visited.has(nodeId)) {
+                    const { isConnected, count } = isGraphConnected(nodeId, remainingNodes, adj, removedSet);
+                    // Потрібно отримати список вузлів у компоненті
+                    const componentNodes = [];
+                    const stack = [nodeId];
+                    visited.add(nodeId);
+                    componentNodes.push(nodeId);
+                    
+                    while(stack.length > 0) {
+                        const node = stack.pop();
+                        const neighbors = adj[node] || [];
+                        for (const neighbor of neighbors) {
+                            if (!removedSet.has(neighbor) && !visited.has(neighbor) && remainingNodes.includes(neighbor)) {
+                                visited.add(neighbor);
+                                stack.push(neighbor);
+                                componentNodes.push(neighbor);
+                            }
+                        }
+                    }
+                    components.push(componentNodes);
+                }
+            }
+
+            connectivityCommentaryEl.html(`<span class='result non-planar'>${title}</span><br>${commentary}`);
+            
+            // Візуалізація
+            updateConnectivityView(remainingNodes, removedNodes);
+            
+            // Зупиняємо стару симуляцію
+            if(simulation) simulation.stop();
+            
+            // Нова симуляція для "розтягування"
+            const visibleNodes = d3Nodes.filter(n => remainingNodes.includes(n.id));
+            const visibleEdges = d3Edges.filter(e => 
+                remainingNodes.includes(e.source.id) && remainingNodes.includes(e.target.id)
+            );
+            
+            // Надаємо компонентам різні сили
+            const componentMap = new Map();
+            components.forEach((comp, i) => {
+                comp.forEach(nodeId => componentMap.set(nodeId, i));
+            });
+
+            // Симуляція, що розтягує компоненти
+            simulation = d3.forceSimulation(visibleNodes)
+                .force("link", d3.forceLink(visibleEdges).id(d => d.id).strength(0.1))
+                .force("charge", d3.forceManyBody().strength(-200))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX(d => componentMap.get(d.id) % 2 === 0 ? width/4 : 3*width/4).strength(0.1))
+                .force("y", d3.forceY(d => componentMap.get(d.id) < 2 ? height/3 : 2*height/3).strength(0.1))
+                .on("tick", ticked);
+            
+            physicsEnabled = true;
+            togglePhysicsBtn.text("🔌 Вимкнути фізику").style('display', 'inline-block');
+            
+            return components;
+        }
+        
+        function updateConnectivityView(visibleNodeIds, removedNodeIds) {
+            const visibleSet = new Set(visibleNodeIds);
+            const removedSet = new Set(removedNodeIds);
+            
+            // 1. Вершини
+            const nodes = nodeGroup.selectAll('.node')
+                .data(d3Nodes, d => d.id)
+                .join('g')
+                .attr('class', d => {
+                    let c = 'node ';
+                    if (removedSet.has(d.id)) c += 'removed';
+                    else if (visibleSet.has(d.id)) c += 'normal'; // 'normal'
+                    return c;
+                })
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .style('display', d => (visibleSet.has(d.id) || removedSet.has(d.id)) ? null : 'none');
+                
+            nodes.selectAll('.node-circle').data(d => [d]).join('circle').attr('class', 'node-circle');
+            
+            // 2. Мітки
+            labelGroup.selectAll('.node-label')
+                .data(d3Nodes, d => d.id)
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .text(d => d.id)
+                .style('display', d => (visibleSet.has(d.id) || removedSet.has(d.id)) ? null : 'none');
+            
+            // 3. Ребра
+            linkGroup.selectAll('.edge')
+                .data(d3Edges, d => d.id)
+                .join('line')
+                .attr('class', d => {
+                    let c = 'edge ';
+                    if (removedSet.has(d.source.id) || removedSet.has(d.target.id)) c += 'removed';
+                    return c;
+                })
+                .attr('x1', d => d.source.x) // d.source - це об'єкт
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y)
+                .style('display', d => (visibleSet.has(d.source.id) && visibleSet.has(d.target.id)) || removedSet.has(d.source.id) || removedSet.has(d.target.id) ? null : 'none');
+                
+            initNodeDrag(d3Nodes);
+        }
+
+  function showTutteOptions(is3Connected, components) {
+            tutteOptionsContainer.style('display', 'flex').html(''); // Очищуємо
+            
+            if (is3Connected) {
+                tutteOptionsContainer.append('button')
+                    .attr('class', 'success')
+                    .text('Запустити Укладання Тутте ►')
+                    .on('click', () => {
+                        setupTutteLayout(mainGraph, '3-connected');
+                    });
+            } else {
+                tutteOptionsContainer.append('h3')
+                    .style('width', '100%')
+                    .text('Граф не 3-зв\'язний. Оберіть дію:');
+                
+                tutteOptionsContainer.append('button')
+                    .attr('class', 'danger')
+                    .text('Показати Колапс (на всьому графі)')
+                    .on('click', () => {
+                        setupTutteLayout(mainGraph, 'collapse');
+                    });
+                
+                // !!! ВИПРАВЛЕНО: Перевіряємо зв'язність *кожного* компонента !!!
+                if (components && components.length > 0) {
+                    
+                    // Сортуємо компоненти (найбільші спочатку)
+                    components.sort((a, b) => b.length - a.length);
+
+                    components.forEach((componentNodeIds, index) => {
+                        // Компонента має мати хоча б 3 вузли, щоб її укласти
+                        if (componentNodeIds.length > 2) {
+                            
+                            // !!! ЗАПУСКАЄМО РЕКУРСИВНУ ПЕРЕВІРКУ !!!
+                            const isComponentAlso3Connected = isComponent3Connected(componentNodeIds);
+
+                            // Створюємо міні-граф *лише* для цієї компоненти
+                            const componentGraph = {
+                                nodes: mainGraph.nodes.filter(n => componentNodeIds.includes(n.id)),
+                                edges: mainGraph.edges.filter(e => 
+                                    componentNodeIds.includes(e.source) && componentNodeIds.includes(e.target)
+                                )
+                            };
+                            
+                            let buttonText = "";
+                            let buttonClass = "";
+                            
+                            if (isComponentAlso3Connected) {
+                                 buttonText = `Укласти Компонент ${index + 1} (${componentNodeIds.length} в.) (3-зв'язний)`;
+                                 buttonClass = "success"; // Зелена кнопка
+                            } else {
+                                 buttonText = `Укласти Компонент ${index + 1} (${componentNodeIds.length} в.) (Але він теж НЕ 3-зв'язний)`;
+                                 buttonClass = "secondary"; // Сіра кнопка
+                            }
+                            
+                            tutteOptionsContainer.append('button')
+                                .attr('class', buttonClass)
+                                .text(buttonText)
+                                .on('click', () => {
+                                    // Передаємо лише під-граф
+                                    // Визначаємо режим: якщо він не 3-зв'язний, він має колапсувати
+                                    const mode = isComponentAlso3Connected ? 'component' : 'collapse';
+                                    setupTutteLayout(componentGraph, mode); 
+                                });
+                        }
+                    });
+                }
+            }
+        }
+
+
+        /**
+         * Нова допоміжна функція: "тихо" перевіряє, чи є компонент 3-зв'язним.
+         * @param {Array<number>} componentNodeIds - Список ID вузлів у компоненті.
+         * @returns {boolean} - true, якщо 3-зв'язний, false - в іншому випадку.
+         */
+        function isComponent3Connected(componentNodeIds) {
+            if (componentNodeIds.length < 4) {
+                // Граф з 3 або менше вершинами не може мати розділювачів, 
+                // він "тривіально" 3-зв'язний для наших цілей (або є циклом K3).
+                return true; 
+            }
+
+            // 1. Створюємо під-граф (тільки ID) та список суміжності
+            const subgraph = {
+                nodes: componentNodeIds,
+                edges: mainGraph.edges.filter(e => 
+                    componentNodeIds.includes(e.source) && componentNodeIds.includes(e.target)
+                )
+            };
+            const adj = buildAdjList(subgraph);
+            const nodeIds = subgraph.nodes;
+            
+            if (nodeIds.length === 0 || !adj) return false; // Запобіжник
+
+            // 2. Перевірка на 1-зв'язність (шарніри)
+            for (const nodeId of nodeIds) {
+                const remainingNodes = nodeIds.filter(id => id !== nodeId);
+                if (remainingNodes.length < 2) continue;
+                
+                // Важливо: передаємо 'adj' під-графа!
+                const { isConnected } = isGraphConnected(remainingNodes[0], remainingNodes, adj, new Set([nodeId]));
+                
+                if (!isConnected) {
+                    // console.log("Знайдено внутрішній шарнір:", nodeId);
+                    return false; // Знайдено шарнір
+                }
+            }
+
+            // 3. Перевірка на 2-зв'язність (пари-розділювачі)
+            const nodePairs = planarityLogic.getCombinations(nodeIds, 2);
+            
+            for (const pair of nodePairs) {
+                const [u, v] = pair;
+                const remainingNodes = nodeIds.filter(id => id !== u && id !== v);
+                if (remainingNodes.length < 1) continue;
+                
+                const { isConnected } = isGraphConnected(remainingNodes[0], remainingNodes, adj, new Set([u, v]));
+                
+                if (!isConnected) {
+                    // console.log("Знайдено внутрішню пару-розділювач:", pair);
+                    return false; // Знайдено пару-розділювач
+                }
+            }
+
+            // 4. Якщо нічого не знайдено
+            return true;
+        }
+      
+
+
+        // ====================================================================
+        // --- ЕТАП 3: УКЛАДАННЯ ТУТТЕ ---
+        // ====================================================================
+
+  /*      function setupTutteLayout(graphData, mode) {
+            tutteState = { history: [], currentStep: -1, adj: [], outerFaceIds: [], innerNodeIds: [] };
+            tutteState.adj = buildAdjList(graphData);
+            
+            let outerFaceIds = [];
+            let explanation = "";
+
+            if (mode === '3-connected' || mode === 'component') {
+                // Знаходимо цикл (в ідеалі, зовнішню грань)
+                // Для простоти, візьмемо опуклу оболонку поточного D3-розташування
+                const points = graphData.nodes.map(n => [n.x, n.y]);
+                const delaunay = d3.Delaunay.from(points);
+                const hullIndices = Array.from(delaunay.hull);
+                outerFaceIds = hullIndices.map(idx => graphData.nodes[idx].id);
+                
+                // Перевірка, чи це справді цикл у графі
+                let isCycle = true;
+                if (outerFaceIds.length > 0) {
+                    for(let i = 0; i < outerFaceIds.length; i++) {
+                        const u = outerFaceIds[i];
+                        const v = outerFaceIds[(i + 1) % outerFaceIds.length];
+                        if (!tutteState.adj[u] || !tutteState.adj[u].includes(v)) {
+                            // Це не ребро, отже опукла оболонка не є циклом
+                            isCycle = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isCycle || outerFaceIds.length < 3) {
+                    // Якщо опукла оболонка не цикл (або < 3 вершин), шукаємо будь-який цикл
+                    outerFaceIds = findCycleDFS(graphData);
+                }
+                
+                explanation = "Крок 0: Фіксуємо зовнішню грань (опуклий $n$-кутник).<br>Решта вузлів - 'внутрішні'.";
+            
+            } else if (mode === 'collapse') {
+                // Для демонстрації колапсу - також беремо опуклу оболонку
+                const points = graphData.nodes.map(n => [n.x, n.y]);
+                const delaunay = d3.Delaunay.from(points);
+                const hullIndices = Array.from(delaunay.hull);
+                outerFaceIds = hullIndices.map(idx => graphData.nodes[idx].id);
+                
+                // Якщо для колапсу не 3-зв'язного графа ми не знайшли гарний цикл,
+                // це навіть краще - демонстрація буде яскравішою.
+                if (outerFaceIds.length < 3) {
+                    // Спробуємо взяти вузли з найбільшим степенем
+                    const allDegrees = graphData.nodes.map(n => ({ id: n.id, degree: (tutteState.adj[n.id] || []).length }));
+                    allDegrees.sort((a,b) => b.degree - a.degree);
+                    outerFaceIds = allDegrees.slice(0, Math.min(allDegrees.length, 5)).map(n => n.id);
+                }
+                explanation = "Крок 0: Фіксуємо зовнішні вузли.<br>Граф не 3-зв'язний, очікується 'колапс'.";
+            }
+            
+            if (outerFaceIds.length < 3) {
+                tutteCommentaryEl.html("<span class='result non-planar'>Помилка: Неможливо знайти цикл з 3+ вершин для укладання.</span>");
+                return;
+            }
+
+            tutteState.outerFaceIds = outerFaceIds;
+            const outerSet = new Set(outerFaceIds);
+            tutteState.innerNodeIds = graphData.nodes
+                .map(n => n.id)
+                .filter(id => !outerSet.has(id));
+
+            // Створюємо D3-сумісні дані (копії)
+            const d3GraphNodes = graphData.nodes.map(n => ({
+                id: n.id,
+                x: n.x, // Початкові позиції
+                y: n.y,
+                isOuter: outerSet.has(n.id)
+            }));
+            
+            const d3GraphEdges = graphData.edges.map(e => ({
+                source: e.source,
+                target: e.target
+            }));
+
+            // Розміщуємо зовнішні вузли по колу
+            const n_outer = outerFaceIds.length;
+            const radius = Math.min(width, height) / 2 - 50;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            const outerNodeMap = new Map();
+            outerFaceIds.forEach((id, i) => {
+                const angle = (i / n_outer) * 2 * Math.PI;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                outerNodeMap.set(id, {x, y});
+            });
+            
+            // Встановлюємо позиції (внутрішні - в центр)
+            d3GraphNodes.forEach(n => {
+                if (n.isOuter) {
+                    const pos = outerNodeMap.get(n.id);
+                    n.x = pos.x;
+                    n.y = pos.y;
+                } else {
+                    n.x = centerX;
+                    n.y = centerY;
+                }
+            });
+            
+            // Зберігаємо ID ребер зовнішньої грані
+            const outerEdgeIds = new Set();
+            for(let i = 0; i < outerFaceIds.length; i++) {
+                const u = outerFaceIds[i];
+                const v = outerFaceIds[(i + 1) % outerFaceIds.length];
+                outerEdgeIds.add(`${u}-${v}`);
+                outerEdgeIds.add(`${v}-${u}`);
+            }
+
+            // Зберігаємо початковий стан
+            const initialState = {
+                nodes: d3GraphNodes, // Масив об'єктів {id, x, y, isOuter}
+                edges: d3GraphEdges, // Масив об'єктів {source, target}
+                outerEdgeIds: outerEdgeIds,
+                subStep: 0, // 0 - highlight, 1 - move
+                highlight: null,
+                newPositions: {},
+                explanation: explanation
+            };
+            
+            tutteState.history = [initialState];
+            tutteState.currentStep = 0;
+            
+            // Одразу малюємо
+            switchStage('tutte');
+
+            // Оновлюємо кнопки
+            tutteNextBtn.property('disabled', false);
+            tuttePrevBtn.property('disabled', false);
+            tutteAutoBtn.property('disabled', false);
+            tutteTogglePhysicsBtn.property('disabled', false); // Кнопка фізики
+        }
+*/
+function setupTutteLayout(graphData, mode) {
+            tutteState = { history: [], currentStep: -1, adj: [], outerFaceIds: [], innerNodeIds: [] };
+            tutteState.adj = buildAdjList(graphData);
+            
+            let outerFaceIds = [];
+            let explanation = "";
+
+            if (mode === '3-connected' || mode === 'component') {
+                // !!! ВИПРАВЛЕННЯ: Спочатку шукаємо цикл (грань) !!!
+                // findCycleDFS гарантовано знайде цикл (наприклад, трикутник у K4),
+                // що є коректною гранню для 3-зв'язного графа.
+                // Використання опуклої оболонки було помилкою,
+                // оскільки воно залежить від *фізичного* стану, а не *топології*.
+                outerFaceIds = findCycleDFS(graphData);
+
+                // Запасний варіант (якщо DFS з якоїсь причини не спрацював)
+                if (!outerFaceIds || outerFaceIds.length < 3) {
+                    console.warn("findCycleDFS не вдалося знайти цикл, використовуємо опуклу оболонку як запасний варіант.");
+                    // Спробуємо взяти опуклу оболонку як останній шанс
+                    const points = graphData.nodes.map(n => [n.x, n.y]);
+                    const delaunay = d3.Delaunay.from(points);
+                    const hullIndices = Array.from(delaunay.hull);
+                    outerFaceIds = hullIndices.map(idx => graphData.nodes[idx].id);
+                }
+                
+                explanation = "Крок 0: Фіксуємо зовнішню грань (цикл).<br>Решта вузлів - 'внутрішні'.";
+            
+            } else if (mode === 'collapse') {
+                // Для демонстрації колапсу - також беремо опуклу оболонку
+                const points = graphData.nodes.map(n => [n.x, n.y]);
+                const delaunay = d3.Delaunay.from(points);
+                const hullIndices = Array.from(delaunay.hull);
+                outerFaceIds = hullIndices.map(idx => graphData.nodes[idx].id);
+                
+                if (outerFaceIds.length < 3) {
+                    const allDegrees = graphData.nodes.map(n => ({ id: n.id, degree: (tutteState.adj[n.id] || []).length }));
+                    allDegrees.sort((a,b) => b.degree - a.degree);
+                    outerFaceIds = allDegrees.slice(0, Math.min(allDegrees.length, 5)).map(n => n.id);
+                }
+                explanation = "Крок 0: Фіксуємо зовнішні вузли.<br>Граф не 3-зв'язний, очікується 'колапс'.";
+            }
+            
+            if (outerFaceIds.length < 3) {
+                tutteCommentaryEl.html("<span class='result non-planar'>Помилка: Неможливо знайти цикл з 3+ вершин для укладання.</span>");
+                return;
+            }
+
+            tutteState.outerFaceIds = outerFaceIds;
+            const outerSet = new Set(outerFaceIds);
+            tutteState.innerNodeIds = graphData.nodes
+                .map(n => n.id)
+                .filter(id => !outerSet.has(id));
+
+            // Створюємо D3-сумісні дані (копії)
+            const d3GraphNodes = graphData.nodes.map(n => ({
+                id: n.id,
+                x: n.x, // Початкові позиції
+                y: n.y,
+                isOuter: outerSet.has(n.id)
+            }));
+            
+            const d3GraphEdges = graphData.edges.map(e => ({
+                source: e.source,
+                target: e.target
+            }));
+
+            // Розміщуємо зовнішні вузли по колу
+            const n_outer = outerFaceIds.length;
+            const radius = Math.min(width, height) / 2 - 50;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            const outerNodeMap = new Map();
+            outerFaceIds.forEach((id, i) => {
+                const angle = (i / n_outer) * 2 * Math.PI;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                outerNodeMap.set(id, {x, y});
+            });
+            
+            // Встановлюємо позиції (внутрішні - в центр)
+            d3GraphNodes.forEach(n => {
+                if (n.isOuter) {
+                    const pos = outerNodeMap.get(n.id);
+                    n.x = pos.x;
+                    n.y = pos.y;
+                } else {
+                    n.x = centerX;
+                    n.y = centerY;
+                }
+            });
+            
+            // Зберігаємо ID ребер зовнішньої грані
+            const outerEdgeIds = new Set();
+            for(let i = 0; i < outerFaceIds.length; i++) {
+                const u = outerFaceIds[i];
+                const v = outerFaceIds[(i + 1) % outerFaceIds.length];
+                
+                // Переконуємося, що це ребро *справді* існує в графі
+                // (це важливо, якщо опукла оболонка не була циклом)
+                if (tutteState.adj[u] && tutteState.adj[u].includes(v)) {
+                   outerEdgeIds.add(`${u}-${v}`);
+                   outerEdgeIds.add(`${v}-${u}`);
+                }
+            }
+
+            // Зберігаємо початковий стан
+            const initialState = {
+                nodes: d3GraphNodes, // Масив об'єктів {id, x, y, isOuter}
+                edges: d3GraphEdges, // Масив об'єктів {source, target}
+                outerEdgeIds: outerEdgeIds, // Це тепер Set
+                subStep: 0, // 0 - highlight, 1 - move
+                highlight: null,
+                newPositions: {},
+                explanation: explanation
+            };
+            
+            tutteState.history = [initialState];
+            tutteState.currentStep = 0;
+            
+            // Одразу малюємо
+            switchStage('tutte');
+
+            // Оновлюємо кнопки
+            tutteNextBtn.property('disabled', false);
+            tuttePrevBtn.property('disabled', false);
+            tutteAutoBtn.property('disabled', false);
+            tutteTogglePhysicsBtn.property('disabled', false); // Кнопка фізики
+        }
+        function initTutteVisuals() {
+            // Скидаємо головну симуляцію
+            if(simulation) {
+                simulation.stop();
+                simulation = null;
+            }
+            // Скидаємо симуляцію Тутте (про всяк випадок)
+            if (tutteSimulation) {
+                tutteSimulation.stop();
+                tutteSimulation = null;
+                tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+            }
+            
+            svgEl.selectAll("*").remove();
+            
+            // Групи для елементів
+            linkGroup = svgEl.append("g").attr("class", "links-group");
+            nodeGroup = svgEl.append("g").attr("class", "nodes-group");
+            labelGroup = svgEl.append("g").attr("class", "labels-group");
+            tutteClusterGroup = svgEl.append("g").attr("class", "tutte-clusters-group");
+            tutteCentroidGroup = svgEl.append("g").attr("class", "tutte-centroids-group");
+        }
+
+
+        function updateTutteView() {
+            if (tutteState.currentStep < 0) return;
+            const state = tutteState.history[tutteState.currentStep];
+            if (!state) return;
+
+            const { nodes, edges, highlight, newPositions, subStep, outerEdgeIds } = state;
+            
+            // d3Nodes оновлюється з поточного стану для drag-n-drop
+            d3Nodes = nodes;
+
+            // --- Логіка кластеризації (для колапсу) ---
+            let clusters = [];
+            let clusteredNodeIds = new Set();
+            
+            if (state.explanation && state.explanation.includes("колапс")) {
+                const innerNodes = nodes.filter(n => !n.isOuter);
+                const positions = innerNodes.map(n => `${n.x.toFixed(3)},${n.y.toFixed(3)}`);
+                const posCounts = positions.reduce((acc, pos) => {
+                    acc[pos] = (acc[pos] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const clusterPositions = Object.keys(posCounts).filter(pos => posCounts[pos] > 1);
+
+                clusters = clusterPositions.map((pos, i) => {
+                    const [x, y] = pos.split(',').map(Number);
+                    const nodeIds = innerNodes
+                        .filter(n => n.x.toFixed(3) === x.toFixed(3) && n.y.toFixed(3) === y.toFixed(3))
+                        .map(n => n.id);
+                    nodeIds.forEach(id => clusteredNodeIds.add(id));
+                    return { id: `c${i}`, x, y, nodeIds };
+                });
+            }
+
+            // --- 1. Малюємо Ребра ---
+            const linkSelection = linkGroup.selectAll('.edge')
+                .data(edges, d => `${d.source}-${d.target}`)
+                .join('line')
+                .attr('class', d => {
+                    let c = 'edge ';
+                    // Перевіряємо, чи обидва вузли - зовнішні І чи ребро є на зовнішній грані
+                    const sourceNode = nodes.find(n => n.id === d.source);
+                    const targetNode = nodes.find(n => n.id === d.target);
+                    
+                    if (!sourceNode || !targetNode) return 'edge removed'; // На випадок помилки
+
+                    const isOuter = sourceNode.isOuter && targetNode.isOuter;
+                    if (isOuter && (outerEdgeIds.has(`${d.source}-${d.target}`) || outerEdgeIds.has(`${d.target}-${d.source}`))) {
+                        c += 'tutte-outer';
+                    }
+                    
+                    if (highlight && highlight.edges && highlight.edges.includes(`${d.source}-${d.target}`)) {
+                        c += ' tutte-highlight';
+                    }
+                    // Ховаємо ребра, що ведуть до кластеризованих вузлів (якщо вони не між кластерами)
+                     if (clusteredNodeIds.has(d.source) && clusteredNodeIds.has(d.target)) c += ' removed';
+                     
+                    return c;
+                })
+                .attr('x1', d => {
+                    const node = nodes.find(n => n.id === d.source);
+                    return node ? node.x : 0;
+                })
+                .attr('y1', d => {
+                    const node = nodes.find(n => n.id === d.source);
+                    return node ? node.y : 0;
+                })
+                .attr('x2', d => {
+                    const node = nodes.find(n => n.id === d.target);
+                    return node ? node.x : 0;
+                })
+                .attr('y2', d => {
+                    const node = nodes.find(n => n.id === d.target);
+                    return node ? node.y : 0;
+                });
+
+            // --- 2. Малюємо Вершини ---
+            // Малюємо тільки ті, що НЕ в кластерах
+            const nodeSelection = nodeGroup.selectAll('.node')
+                .data(nodes.filter(n => !clusteredNodeIds.has(n.id)), d => d.id)
+                .join('g')
+                .attr('class', d => {
+                    let c = 'node ';
+                    if (d.isOuter) c += 'tutte-outer';
+                    else c += 'tutte-inner';
+                    if (highlight && highlight.node === d.id) c += ' tutte-highlight';
+                    else if (highlight && highlight.neighbors && highlight.neighbors.includes(d.id)) c += ' tutte-neighbor';
+                    return c;
+                })
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+
+            nodeSelection.selectAll('.node-circle').data(d => [d]).join('circle').attr('class', 'node-circle');
+            
+            // --- 3. Малюємо Мітки ---
+            // Також ховаємо мітки для кластеризованих
+            labelGroup.selectAll('.node-label')
+                .data(nodes.filter(n => !clusteredNodeIds.has(n.id)), d => d.id)
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .text(d => d.id);
+
+            // --- 4. Додаємо/Оновлюємо drag handler ---
+             const drag = d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+            
+            nodeSelection.call(drag); // Застосовуємо drag до всіх видимих вершин
+            
+            // --- 5. Малюємо Кластери (якщо є) ---
+            const clusterPaths = tutteClusterGroup.selectAll('.tutte-cluster-path')
+                .data(clusters, d => d.id)
+                .join('path')
+                .attr('class', 'tutte-cluster-path')
+                .attr('d', d => {
+                    // const points = d.nodeIds
+                    //     .map(id => nodes.find(n => n.id === id))
+                    //     .map(n => [n.x, n.Y]); // Вони всі в одній точці
+                    // Штучно створюємо область навколо точки
+                    const center = [d.x, d.y];
+                    const radius = NODE_RADIUS * 1.5 * Math.sqrt(d.nodeIds.length); // Радіус залежить від к-сті
+                    const angle = Math.PI * 2 / 6;
+                    const poly = Array.from({length: 6}, (_, i) => [
+                        center[0] + radius * Math.cos(angle * i),
+                        center[1] + radius * Math.sin(angle * i)
+                    ]);
+                    return d3.polygonHull(poly);
+                })
+                .style('fill', 'var(--non-planar-color)')
+                .style('opacity', 0.8)
+                .style('stroke', 'white')
+                .style('stroke-width', 2);
+            
+            const clusterLabels = tutteClusterGroup.selectAll('.tutte-cluster-label')
+                .data(clusters, d => d.id)
+                .join('text')
+                .attr('class', 'tutte-cluster-label')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y)
+                .text(d => `(${d.nodeIds.length} вузлів)`);
+
+            // --- 6. Малюємо Центроїди (якщо є) ---
+            tutteCentroidGroup.selectAll("*").remove(); // Очищуємо
+            
+            if (highlight && highlight.node && newPositions[highlight.node] && subStep === 0) {
+                const node = nodes.find(n => n.id === highlight.node);
+                const centroidPos = newPositions[highlight.node];
+                
+                // Лінія від вузла до центроїда
+                tutteCentroidGroup.append('line')
+                    .attr('class', 'tutte-centroid-line')
+                    .attr('x1', node.x)
+                    .attr('y1', node.y)
+                    .attr('x2', centroidPos.x)
+                    .attr('y2', centroidPos.y);
+                
+                // "Ціль" - центроїд
+                tutteCentroidGroup.append('circle')
+                    .attr('class', 'tutte-centroid')
+                    .attr('cx', centroidPos.x)
+                    .attr('cy', centroidPos.y)
+                    .attr('r', 8);
+            }
+            
+            // 7. Оновлюємо коментар
+            tutteCommentaryEl.html(state.explanation);
+             if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise([tutteCommentaryEl.node()]).catch(err => console.error('MathJax Error:', err));
+            }
+
+            // 8. Оновлюємо кнопки
+            tuttePrevBtn.property('disabled', tutteState.currentStep === 0);
+        }
+
+        //
+        // !!! ЦЯ ФУНКЦІЯ ОНОВЛЕНА (ВИПРАВЛЕНА ПОМИЛКА SyntaxError) !!!
+        //
+        function runTutteStep(auto = false) {
+            // ВИПРАВЛЕННЯ 3: Зупиняємо симуляцію фізики, якщо вона запущена,
+            // оскільки крок Тутте перезапише позиції.
+            if (tutteSimulation) {
+                tutteSimulation.stop();
+                tutteSimulation = null;
+                tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+                tutteCommentaryEl.html("Фізику зупинено для розрахунку кроку Тутте.");
+            }
+
+            if (tutteState.currentStep < 0) return;
+            
+            let currentState = tutteState.history[tutteState.currentStep];
+            
+            // Якщо ми на підкроці 1 (вже пересунули), то генеруємо новий повний крок
+            if (currentState.subStep === 1 || auto) {
+                // Створюємо новий стан на основі поточного
+                const newNodes = JSON.parse(JSON.stringify(currentState.nodes));
+                const newPositions = {};
+                let totalDelta = 0;
+
+                // 1. Розрахувати нові позиції (центроїди) для ВСІХ внутрішніх вузлів
+                tutteState.innerNodeIds.forEach(id => {
+                    const neighbors = tutteState.adj[id] || [];
+                    let sumX = 0;
+                    let sumY = 0;
+                    
+                    neighbors.forEach(neighborId => {
+                        const neighborNode = newNodes.find(n => n.id === neighborId);
+                        sumX += neighborNode.x;
+                        sumY += neighborNode.y;
+                    });
+                    
+                    if (neighbors.length > 0) {
+                        newPositions[id] = { x: sumX / neighbors.length, y: sumY / neighbors.length };
+                    } else {
+                        // Ізольований вузол - залишається на місці
+                        const currentNode = newNodes.find(n => n.id === id);
+                        newPositions[id] = { x: currentNode.x, y: currentNode.y };
+                    }
+                });
+                
+                // 2. Застосувати нові позиції
+                newNodes.forEach(n => {
+                    if (!n.isOuter) {
+                        const oldX = n.x, oldY = n.y;
+                        n.x = newPositions[n.id].x;
+                        n.y = newPositions[n.id].y;
+                        totalDelta += Math.sqrt((n.x - oldX)**2 + (n.y - oldY)**2);
+                    }
+                });
+
+                const explanation = auto 
+                    ? `Авто-ітерація. Загальне зміщення: ${totalDelta.toFixed(2)}`
+                    : `Крок ${tutteState.history.length}: Всі вузли переміщено в баріцентри. Загальне зміщення: ${totalDelta.toFixed(2)}`;
+
+                const newState = {
+                    nodes: newNodes,
+                    edges: currentState.edges, // Ребра незмінні
+                    outerEdgeIds: currentState.outerEdgeIds,
+                    subStep: 0, // Починаємо з підкроку 0 (показ)
+                    highlight: null, // Скидаємо підсвітку
+                    newPositions: {}, // Скидаємо (буде заповнено на наступному кроці)
+                    explanation: explanation
+                };
+                
+                // Додаємо новий стан
+                tutteState.history.push(newState);
+                tutteState.currentStep = tutteState.history.length - 1;
+                
+            } 
+            // Якщо ми на підкроці 0 (показ), переходимо на підкрок 1 (пересування)
+            // АБО це перший крок (currentStep == 0)
+            else if (currentState.subStep === 0) {
+                
+                // --- ПЕРЕРОБЛЕНО (і ВИПРАВЛЕНО SyntaxError) ---
+                // Коли ми на 0, ми створюємо крок 0 (highlight) + крок 1 (move)
+                // для *всіх* внутрішніх вузлів
+                
+                const nextHistory = [];
+                
+                // 1. Створюємо крок 0 (Highlight)
+                const nodeToHighlight = tutteState.innerNodeIds[0];
+                const neighbors = tutteState.adj[nodeToHighlight] || [];
+                let sumX = 0, sumY = 0;
+                neighbors.forEach(nid => {
+                    const nn = currentState.nodes.find(n => n.id === nid);
+                    sumX += nn.x; sumY += nn.y;
+                });
+                const centroid = (neighbors.length > 0)
+                    ? { x: sumX / neighbors.length, y: sumY / neighbors.length }
+                    : currentState.nodes.find(n => n.id === nodeToHighlight);
+                
+                currentState.highlight = { node: nodeToHighlight, neighbors: neighbors };
+                currentState.newPositions = { [nodeToHighlight]: centroid };
+                currentState.subStep = 0;
+                currentState.explanation = `Крок ${tutteState.history.length}.1a: Вузол <strong>${nodeToHighlight}</strong>. <br>Розрахунок баріцентра (жовта точка).`;
+                
+                nextHistory.push(currentState); // Додаємо в історію (0)
+                
+                // 2. Створюємо крок 1 (Move)
+                //let lastState = JSON.parse(JSON.stringify(currentState));
+				let lastState = {
+                    ...currentState,
+                    nodes: JSON.parse(JSON.stringify(currentState.nodes)),
+                    highlight: { ...currentState.highlight },
+                    newPositions: { ...currentState.newPositions }
+                };
+				
+                const nodeToMove = lastState.nodes.find(n => n.id === nodeToHighlight);
+                nodeToMove.x = centroid.x;
+                nodeToMove.y = centroid.y;
+                lastState.subStep = 1;
+                lastState.explanation = `Крок ${tutteState.history.length}.1b: Вузол <strong>${nodeToHighlight}</strong> переміщено.`;
+                
+                nextHistory.push(lastState); // Додаємо в історію (1)
+                
+                // 3. Робимо це для решти вузлів
+                for(let i = 1; i < tutteState.innerNodeIds.length; i++) {
+                    const nodeId = tutteState.innerNodeIds[i];
+                    const prevNodePos = JSON.parse(JSON.stringify(lastState.nodes));
+                    
+                    const neighbors_i = tutteState.adj[nodeId] || [];
+                    let sumX_i = 0, sumY_i = 0;
+                    neighbors_i.forEach(nid => {
+                        // ВАЖЛИВО: Використовуємо позиції з *попереднього* кроку (currentState)
+                        // Ні, використовуємо *поточні* позиції (prevNodePos)
+                        const nn = prevNodePos.find(n => n.id === nid);
+                        sumX_i += nn.x; sumY_i += nn.y;
+                    });
+                    const centroid_i = (neighbors_i.length > 0)
+                        ? { x: sumX_i / neighbors_i.length, y: sumY_i / neighbors_i.length }
+                        : prevNodePos.find(n => n.id === nodeId);
+                    
+                    // Стан Highlight
+                   // let highlightState_i = JSON.parse(JSON.stringify(lastState));
+                    //highlightState_i.nodes = prevNodePos; // Використовуємо старі позиції
+                    // Стан Highlight
+                        let highlightState_i = {
+                            ...lastState, // Це перенесе outerEdgeIds (Set) як посилання
+                            nodes: prevNodePos // Використовуємо старі позиції
+                        };
+					
+					highlightState_i.highlight = { node: nodeId, neighbors: neighbors_i };
+                    highlightState_i.newPositions = { [nodeId]: centroid_i };
+                    highlightState_i.subStep = 0;
+                    highlightState_i.explanation = `Крок ${tutteState.history.length}.${i+1}a: Вузол <strong>${nodeId}</strong>.<br>Розрахунок баріцентра (жовта точка).`;
+                    nextHistory.push(highlightState_i); // (2)
+                    
+                    // Стан Move
+                   // let moveState_i = JSON.parse(JSON.stringify(highlightState_i));
+                    // Стан Move
+                        let moveState_i = {
+                            ...highlightState_i, // Переносимо outerEdgeIds (Set)
+                            nodes: JSON.parse(JSON.stringify(highlightState_i.nodes)) // Глибока копія *лише* вузлів
+                        };
+					
+					const nodeToMove_i = moveState_i.nodes.find(n => n.id === nodeId);
+                    nodeToMove_i.x = centroid_i.x;
+                    nodeToMove_i.y = centroid_i.y;
+                    moveState_i.subStep = 1;
+                    moveState_i.explanation = `Крок ${tutteState.history.length}.${i+1}b: Вузол <strong>${nodeId}</strong> переміщено.`;
+                    
+                    nextHistory.push(moveState_i); // (3)
+                    lastState = moveState_i;
+                }
+                
+                // Замінюємо поточний "пустий" крок 0 на всю послідовність
+                tutteState.history.pop(); // Видаляємо старий крок 0
+                tutteState.history = [...tutteState.history, ...nextHistory];
+                // Переходимо на перший з нових кроків
+                tutteState.currentStep = tutteState.history.length - nextHistory.length;
+            }
+            
+            updateTutteView();
+        }
+
+        // Керування кроками Тутте
+        //tutteNextBtn.on('click', () => runTutteStep());
+		
+        tutteNextBtn.on('click', () => {
+            // Перевіряємо, чи ми НЕ в кінці згенерованої історії
+            if (tutteState.currentStep < tutteState.history.length - 1) {
+                // 1. Якщо є "наступний" крок, просто переходимо до нього
+                tutteState.currentStep++;
+                updateTutteView();
+            } else {
+                // 2. Якщо ми в кінці, *тільки тоді* генеруємо наступний крок (або серію кроків)
+                runTutteStep(false);
+                // (функція runTutteStep сама оновить лічильник та вигляд)
+            }
+        });
+
+        tuttePrevBtn.on('click', () => {
+             // ВИПРАВЛЕННЯ 3: Також зупиняємо фізику при кроці назад
+            if (tutteSimulation) {
+                tutteSimulation.stop();
+                tutteSimulation = null;
+                tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+            }
+            if (tutteState.currentStep <= 0) return;
+            tutteState.currentStep--;
+            updateTutteView();
+        });
+        
+        //
+        // !!! ЦЯ ФУНКЦІЯ ОНОВЛЕНА (ВИПРАВЛЕНА ПОМИЛКА З РЕБРАМИ) !!!
+        //
+        tutteTogglePhysicsBtn.on('click', () => {
+            if (tutteSimulation) {
+                // Фізика УВІМКНЕНА, вимикаємо її
+                tutteSimulation.stop();
+                tutteSimulation = null;
+                tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+                tutteCommentaryEl.html("Фізику зупинено.");
+            } else {
+                // Фізика ВИМКНЕНА, вмикаємо її
+                tutteTogglePhysicsBtn.text("🔌 Вимкнути фізику");
+                tutteCommentaryEl.html("Фізика увімкнена. Внутрішні вузли 'розслабляються'.");
+
+                const state = tutteState.history[tutteState.currentStep];
+                const nodes = state.nodes; // Це масив об'єктів {id, x, y, ...}
+                const edges = state.edges; // Це масив об'єктів {source: id, target: id}
+                
+                // Створюємо d3-сумісні ребра (з об'єктами, а не ID)
+                const d3EdgesTutte = edges.map(e => ({ 
+                    source: nodes.find(n => n.id === e.source), 
+                    target: nodes.find(n => n.id === e.target) 
+                }));
+
+                // Фіксуємо зовнішні вузли
+                nodes.forEach(n => {
+                    if (n.isOuter) {
+                        n.fx = n.x;
+                        n.fy = n.y;
+                    } else {
+                        // Дозволяємо внутрішнім рухатись
+                        n.fx = null;
+                        n.fy = null;
+                    }
+                });
+
+                tutteSimulation = d3.forceSimulation(nodes)
+                    .force("link", d3.forceLink(d3EdgesTutte).distance(50).strength(0.1))
+                    .force("charge", d3.forceManyBody().strength(-100))
+                    .force("collision", d3.forceCollide().radius(NODE_RADIUS * 1.5))
+                    .on("tick", () => {
+                        // На кожному тіку ми *змушені* вручну оновлювати
+                        // позиції, оскільки updateTutteView не викликається
+                        
+                        // Застосовуємо обмеження (фіксуємо зовнішні вузли)
+                        nodes.forEach(n => {
+                            if (n.isOuter) {
+                                n.x = n.fx;
+                                n.y = n.fy;
+                            }
+                        });
+
+                        // Ручне оновлення SVG (тільки позицій)
+                        nodeGroup.selectAll('.node')
+                            .attr("transform", d => `translate(${d.x},${d.y})`);
+                        labelGroup.selectAll('.node-label')
+                            .attr("transform", d => `translate(${d.x},${d.y})`);
+                        
+                        // !!! ВИПРАВЛЕННЯ ТУТ !!!
+                        // Дані 'd' на ребрах - це {source: id, target: id}
+                        // Ми маємо знайти вузли в масиві 'nodes', який оновлюється
+                        linkGroup.selectAll('.edge')
+                            .attr("x1", d => {
+                                const node = nodes.find(n => n.id === d.source);
+                                return node ? node.x : 0;
+                            })
+                            .attr("y1", d => {
+                                const node = nodes.find(n => n.id === d.source);
+                                return node ? node.y : 0;
+                            })
+                            .attr("x2", d => {
+                                const node = nodes.find(n => n.id === d.target);
+                                return node ? node.x : 0;
+                            })
+                            .attr("y2", d => {
+                                const node = nodes.find(n => n.id === d.target);
+                                return node ? node.y : 0;
+                            });
+                    });
+            }
+        });
+
+
+        tutteAutoBtn.on('click', async () => {
+            // Зупиняємо фізику, якщо вона є
+             if (tutteSimulation) {
+                tutteSimulation.stop();
+                tutteSimulation = null;
+                tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+            }
+            
+            tutteNextBtn.property('disabled', true);
+            tuttePrevBtn.property('disabled', true);
+            tutteAutoBtn.property('disabled', true);
+            
+            for (let i = 0; i < 10; i++) {
+                runTutteStep(true); // Запускаємо 1 повну ітерацію
+                updateTutteView();
+                
+                // Візуальна пауза
+                if (i < 9) {
+                     await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+            
+            tutteNextBtn.property('disabled', false);
+            tuttePrevBtn.property('disabled', false);
+            tutteAutoBtn.property('disabled', false);
+        });
+
+        // ====================================================================
+        // --- АЛГОРИТМИ: ПЛАНАРНІСТЬ (ВИПРАВЛЕННЯ K3,3) ---
+        // ====================================================================
+
+
+// ====================================================================
+        // --- АЛГОРИТМИ: ПЛАНАРНІСТЬ (РЕАЛІЗАЦІЯ З БЕКТРЕКІНГОМ) ---
+        // ====================================================================
+        
+        // Допоміжна функція для побудови списку суміжності
+        function buildAdjList(graph) {
+             const adj = {};
+             graph.nodes.forEach(n => adj[n.id || n] = []); // Працює і з {id} і з [id]
+             graph.edges.forEach(edge => {
+                const s = edge.source.id || edge.source;
+                const t = edge.target.id || edge.target;
+                (adj[s] = adj[s] || []).push(t);
+                (adj[t] = adj[t] || []).push(s);
+             });
+             return adj;
+        }
+
+        /**
+         * Знаходить всі прості шляхи (без циклів) від start до end, використовуючи DFS.
+         * @param {number} start - Початковий вузол
+         * @param {number} end - Кінцевий вузол
+         * @param {Object} adj - Список суміжності
+         * @param {Set<number>} terminals - Термінали (K5/K3,3 вузли)
+         * @param {Set<number>} avoidInternalNodes - Зайняті *внутрішні* вузли
+         * @returns {Array<Array<number>>} - Масив шляхів
+         */
+      /**
+         * Знаходить всі прості шляхи (без циклів) від start до end, використовуючи DFS.
+         * Ця версія суворо забороняє проходити через *інші* термінали.
+         * @param {number} start - Початковий вузол
+         * @param {number} end - Кінцевий вузол
+         * @param {Object} adj - Список суміжності
+         * @param {Set<number>} terminals - *Всі* термінали (K5/K3,3 вузли)
+         * @param {Set<number>} avoidInternalNodes - Зайняті *внутрішні* вузли
+         * @returns {Array<Array<number>>} - Масив шляхів
+         */
+        function findAllSimplePaths(start, end, adj, terminals, avoidInternalNodes) {
+            const allPaths = [];
+
+            function findPathsRecursive(currentNode, currentPath) {
+                if (!adj[currentNode]) return; // Тупик
+
+                for (const neighbor of adj[currentNode]) {
+                    
+                    // Умова 1: Це кінець шляху?
+                    if (neighbor === end) {
+                        allPaths.push([...currentPath, end]);
+                        continue; // Знайшли, але шукаємо далі (можливо, є інші шляхи)
+                    }
+
+                    // Умова 2: Це вузол, через який НЕ МОЖНА проходити?
+                    if (
+                        currentPath.includes(neighbor) ||           // 1. Вже є в шляху (цикл)
+                        terminals.has(neighbor) ||                // 2. Це *інший* термінал (!!! КЛЮЧОВЕ ВИПРАВЛЕННЯ !!!)
+                        avoidInternalNodes.has(neighbor)        // 3. Це зайнятий *внутрішній* вузол
+                    ) {
+                        continue; // Цей шлях недійсний
+                    }
+
+                    // Якщо все ОК (це звичайний, вільний, внутрішній вузол), йдемо далі
+                    currentPath.push(neighbor);
+                    findPathsRecursive(neighbor, currentPath);
+                    currentPath.pop(); // Backtrack
+                }
+            }
+
+            // Починаємо пошук з початкової точки
+            findPathsRecursive(start, [start]);
+            return allPaths;
+        }
+
+        /**
+         * Рекурсивна функція з бектрекінгом для пошуку K *внутрішньо-неперетинних* шляхів.
+         * @param {Array<Array<number>>} pairsToFind - Список пар, які треба з'єднати, e.g., [[1,6], [1,7], ...]
+         * @param {Object} adj - Список суміжності
+         * @param {Set<number>} terminals - Набір "термінальних" вузлів (K5/K3,3)
+         * @param {Set<number>} usedInternalNodes - Множина *вже* зайнятих внутрішніх вузлів
+         * @param {Object} foundPaths - Об'єкт { "1-6": [...] } зі знайденими шляхами
+         * @returns {Object|null} - Об'єкт 'foundPaths' у разі успіху, або null
+         */
+        function findDisjointPathsRecursive(pairsToFind, adj, terminals, usedInternalNodes, foundPaths) {
+            // Базовий випадок: всі пари з'єднано
+            if (pairsToFind.length === 0) {
+                return foundPaths;
+            }
+
+            const [start, end] = pairsToFind[0];
+            const remainingPairs = pairsToFind.slice(1);
+            const pathKey = `${start}-${end}`;
+
+            // 1. Знайти *всі* можливі шляхи для поточної пари
+            const allPossiblePaths = findAllSimplePaths(start, end, adj, terminals, usedInternalNodes);
+
+            // 2. Спробувати кожен шлях
+            for (const path of allPossiblePaths) {
+                // 3. Визначити, які *нові* внутрішні вузли цей шлях займає
+                const internalNodesInThisPath = path.slice(1, -1)
+                    .filter(node => !terminals.has(node));
+                
+                // 4. Створити новий набір зайнятих вузлів
+                const newUsedNodes = new Set([...usedInternalNodes, ...internalNodesInThisPath]);
+                
+                // 5. Оновити знайдені шляхи
+                const newFoundPaths = { ...foundPaths, [pathKey]: path };
+
+                // 6. Рекурсивний виклик
+                const result = findDisjointPathsRecursive(remainingPairs, adj, terminals, newUsedNodes, newFoundPaths);
+
+                // 7. Якщо рекурсія успішна - ми знайшли!
+                if (result) {
+                    return result;
+                }
+                
+                // 8. Якщо ні - цикл 'for' продовжується, пробуючи інший шлях (автоматичний бектрекінг)
+            }
+
+            // 9. Якщо жоден шлях не призвів до успіху
+            return null;
+        }
+
+
+        // Оновлена функція, що викликає "вирішувач"
+        function findK5Paths(vertices, graph, adj) {
+            const terminals = new Set(vertices);
+            const pairsToFind = [];
+            for (let i = 0; i < vertices.length; i++) {
+                for (let j = i + 1; j < vertices.length; j++) {
+                    pairsToFind.push([vertices[i], vertices[j]]);
+                }
+            }
+
+            // Починаємо рекурсивний пошук
+            return findDisjointPathsRecursive(
+                pairsToFind,       // 10 пар
+                adj,               // список суміжності
+                terminals,         // 5 вузлів K5
+                new Set(),         // початково зайнятих 0
+                {}                 // початково знайдено 0
+            );
+        }
+
+        // Оновлена функція, що викликає "вирішувач"
+        function findK33Paths(setA, setB, graph, adj) {
+            const terminals = new Set([...setA, ...setB]);
+            const pairsToFind = [];
+            for (let a of setA) {
+                for (let b of setB) {
+                    pairsToFind.push([a, b]);
+                }
+            }
+
+            // Починаємо рекурсивний пошук
+            return findDisjointPathsRecursive(
+                pairsToFind,       // 9 пар
+                adj,               // список суміжності
+                terminals,         // 6 вузлів K3,3
+                new Set(),         // початково зайнятих 0
+                {}                 // початково знайдено 0
+            );
+        }
+
+
+
+        // --- Допоміжна функція: Пошук циклу (DFS) ---
+        function findCycleDFS(graph) {
+            const adj = buildAdjList(graph);
+            const nodes = graph.nodes.map(n => n.id);
+            if (nodes.length === 0) return [];
+            
+            const visited = new Set();
+            const parent = new Map();
+            let cycle = null;
+            
+            function dfs(u, p) {
+                if (cycle) return; // Цикл вже знайдено
+                
+                visited.add(u);
+                parent.set(u, p);
+                
+                const neighbors = adj[u] || [];
+                for (const v of neighbors) {
+                    if (cycle) return;
+                    
+                    if (v === p) continue; // Не йдемо назад до батька
+                    
+                    if (visited.has(v)) {
+                        // Знайшли цикл!
+                        cycle = [v, u];
+                        let curr = u;
+                        while(parent.get(curr) !== v) {
+                            curr = parent.get(curr);
+                            cycle.push(curr);
+                        }
+                        cycle.push(v); // Замикаємо
+                        cycle = cycle.slice(1); // Прибираємо дублікат
+                        return;
+                    } else {
+                        dfs(v, u);
+                    }
+                }
+            }
+            
+            // Запускаємо DFS з першої вершини (або будь-якої)
+            for (const nodeId of nodes) {
+                if (!visited.has(nodeId)) {
+                    dfs(nodeId, null);
+                }
+                if (cycle) break; // Зупиняємо, якщо знайшли
+            }
+           
+            return cycle || []; // Повертаємо цикл або пустий масив
+        }
+        
+        // --- Ресайз ---
+        function handleResize() {
+            width = svgContainer.node().getBoundingClientRect().width;
+            height = Math.max(500, window.innerHeight * 0.7);
+            svgEl.attr("width", width).attr("height", height);
+            
+            if (simulation) {
+                simulation.force("center", d3.forceCenter(width / 2, height / 2)).restart();
+            }
+            if (currentStage === 'tutte' && tutteState.currentStep >= 0) {
+                 // Потрібно перебудувати Тутте, бо позиції фіксовані
+                 tutteCommentaryEl.html("<span class='result'>Розмір вікна змінено. Потрібно перезапустити укладання Тутте.</span>");
+                 tutteNextBtn.property('disabled', true);
+                 tuttePrevBtn.property('disabled', true);
+                 tutteAutoBtn.property('disabled', true);
+                 
+                 // Зупиняємо симуляцію Тутте
+                 if (tutteSimulation) {
+                    tutteSimulation.stop();
+                    tutteSimulation = null;
+                    tutteTogglePhysicsBtn.text("🔌 Увімкнути фізику");
+                 }
+            }
+        }
+        
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(svgContainer.node());
+
+        // --- Початковий запуск ---
+        handleResize();
+        resetToPlanarityStage();
+
+    </script>
+  
+  
+  
+</body>
+</html>

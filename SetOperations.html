@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Sets 3.0: Logic Master 🧠</title>
+    
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+
+    <style>
+        :root {
+            --bg: #0f0f12; 
+            --panel: #1b1b25;
+            --text: #e0e0e0;
+            --accent-a: #ff0055; 
+            --accent-b: #00f2ff; 
+            --accent-c: #39ff14; 
+            --border: rgba(255, 255, 255, 0.1);
+            --success: #00ff9d;
+            --danger: #ff2e63;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding-bottom: 40px;
+            user-select: none; /* Prevents text selection when clicking fast */
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
+            margin: 25px 0;
+            font-size: 2rem;
+        }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            width: 95%;
+            max-width: 1100px;
+        }
+
+        /* Canvas Area */
+        .universe-frame {
+            position: relative;
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.6);
+        }
+        
+        .universe-label {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-family: serif;
+            font-style: italic;
+            font-size: 1.5rem;
+            color: #444;
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            cursor: pointer;
+        }
+
+        /* Controls Area */
+        .controls-card {
+            flex: 1;
+            min-width: 320px;
+            max-width: 450px;
+            background: var(--panel);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .mode-switch {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 5px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .mode-btn.active {
+            background: var(--accent-b);
+            color: var(--bg);
+            box-shadow: 0 0 15px var(--accent-b);
+        }
+
+        .formula-box {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .formula-tex {
+            font-size: 1.5rem;
+            color: var(--accent-b);
+        }
+
+        .formula-desc {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+      /  .btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--accent-a), #ff4d88);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 0, 85, 0.6);
+        }
+
+        .feedback {
+            height: 25px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* Legend dots */
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 5px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Операції наж множинами</h1>
+
+    <div class="main-container">
+        
+        <div class="universe-frame">
+            <div class="universe-label">$U$</div>
+            <canvas id="vennCanvas" width="500" height="420"></canvas>
+        </div>
+
+        <div class="controls-card">
+            <div class="mode-switch">
+                <button class="mode-btn active" onclick="setMode('sandbox')">Пісочниця</button>
+                <button class="mode-btn" onclick="setMode('challenge')">Челендж</button>
+            </div>
+
+            <div id="sandbox-controls">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin:0; color: white;">Що вибрано?</h3>
+                    <button class="btn-outline" style="padding: 4px 12px; font-size: 0.75rem; border-radius: 4px;" onclick="clearSelection()">Скинути</button>
+                </div>
+                
+                <div class="formula-box" id="sandbox-status">
+                    <div class="formula-tex">$\varnothing$</div>
+                    <div class="formula-desc">Порожня множина</div>
+                </div>
+                
+                <div class="legend">
+                    <div><span class="dot" style="background:var(--accent-a)"></span>A</div>
+                    <div><span class="dot" style="background:var(--accent-b)"></span>B</div>
+                    <div><span class="dot" style="background:var(--accent-c)"></span>C</div>
+                    <div><span class="dot" style="border:1px solid #666"></span>U</div>
+                </div>
+                <p style="text-align:center; color:#555; font-size:0.8rem; margin-top:15px;">
+                    Підказка: Клікай по центру, щоб перевірити точність.
+                </p>
+            </div>
+
+            <div id="challenge-controls" style="display: none;">
+                <h3 style="margin:0">Завдання:</h3>
+                <p style="font-size: 0.9rem; color: #aaa;">Набери на діаграмі:</p>
+                
+                <div class="formula-box" style="border-color: var(--accent-b);">
+                    <div class="formula-tex" id="target-formula">?</div>
+                </div>
+                
+                <div class="feedback" id="feedback-msg"></div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-primary" onclick="checkAnswer()" style="flex: 2;">Перевірити</button>
+                    <button class="btn btn-outline" onclick="generateTask()" style="flex: 1;">Пропуск</button>
+                </div>
+                <div style="margin-top: 15px; text-align: center; color: #666;">
+                    Рахунок: <span id="score" style="color: white; font-weight: bold; font-size:1.2rem;">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIG & GEOMETRY ---
+        const canvas = document.getElementById('vennCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Виправлена геометрія: більші кола, ближче один до одного
+        const r = 100; // Було 85, стало 100 (більше перекриття)
+        
+        const centers = {
+            A: { x: 250, y: 150 }, // Трохи опустив
+            B: { x: 170, y: 270 }, // Зсунув вправо і вверх
+            C: { x: 330, y: 270 }  // Зсунув вліво і вверх
+        };
+        // Тепер центр трикутника "жирний"
+
+        const colors = {
+            A: "rgba(255, 0, 85, 1)",
+            B: "rgba(0, 242, 255, 1)",
+            C: "rgba(57, 255, 20, 1)",
+            U: "rgba(255, 255, 255, 0.1)"
+        };
+
+        let activeRegions = new Set(); 
+        let currentMode = 'sandbox';
+        let currentTaskTarget = []; 
+        let score = 0;
+
+        // --- 2. MATH ENGINE (BITMASKS) ---
+        // Region IDs:
+        // 0 = Universe
+        // 1=A, 2=B, 4=C (Binary flags)
+        // Example: 3 = 1+2 = A & B
+
+        function getRegionIndex(x, y) {
+            const inA = Math.hypot(x - centers.A.x, y - centers.A.y) < r;
+            const inB = Math.hypot(x - centers.B.x, y - centers.B.y) < r;
+            const inC = Math.hypot(x - centers.C.x, y - centers.C.y) < r;
+
+            let idx = 0;
+            if (inA) idx |= 1; 
+            if (inB) idx |= 2; 
+            if (inC) idx |= 4; 
+            
+            return idx;
+        }
+
+        // Pre-generate region paths logic
+        function pathCircle(ctx, key) {
+            ctx.beginPath();
+            ctx.arc(centers[key].x, centers[key].y, r, 0, Math.PI * 2);
+            ctx.closePath();
+        }
+
+        function getRegionShape(idx) {
+            const osc = document.createElement('canvas');
+            osc.width = canvas.width;
+            osc.height = canvas.height;
+            const octx = osc.getContext('2d');
+
+            if (idx === 0) {
+                octx.fillStyle = '#ffffff';
+                octx.fillRect(0, 0, osc.width, osc.height);
+                octx.globalCompositeOperation = 'destination-out';
+                pathCircle(octx, 'A'); octx.fill();
+                pathCircle(octx, 'B'); octx.fill();
+                pathCircle(octx, 'C'); octx.fill();
+                return osc;
+            }
+
+            const hasA = (idx & 1) !== 0;
+            const hasB = (idx & 2) !== 0;
+            const hasC = (idx & 4) !== 0;
+
+            octx.globalCompositeOperation = 'source-over';
+            octx.fillStyle = '#ffffff';
+            let first = true;
+
+            if (hasA) { pathCircle(octx, 'A'); octx.fill(); first = false; }
+            
+            if (hasB) {
+                pathCircle(octx, 'B');
+                if (first) { octx.fill(); first = false; } 
+                else { octx.globalCompositeOperation = 'source-in'; octx.fill(); }
+            }
+            
+            if (hasC) {
+                pathCircle(octx, 'C');
+                if (first) { octx.fill(); } 
+                else { octx.globalCompositeOperation = 'source-in'; octx.fill(); }
+            }
+
+            octx.globalCompositeOperation = 'destination-out';
+            if (!hasA) { pathCircle(octx, 'A'); octx.fill(); }
+            if (!hasB) { pathCircle(octx, 'B'); octx.fill(); }
+            if (!hasC) { pathCircle(octx, 'C'); octx.fill(); }
+
+            return osc;
+        }
+
+        // --- 3. RENDERER ---
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Selection Glows
+            ctx.globalCompositeOperation = 'screen';
+            activeRegions.forEach(idx => {
+                const shape = getRegionShape(idx);
+                if (idx === 0) {
+                    ctx.shadowColor = 'rgba(100, 150, 255, 0.4)';
+                    ctx.shadowBlur = 0;
+                    ctx.drawImage(shape, 0, 0);
+                    ctx.fillStyle = 'rgba(50, 50, 80, 0.3)'; 
+                    ctx.fillRect(0,0,canvas.width, canvas.height); // Tint U
+                } else {
+                    ctx.shadowColor = 'white';
+                    ctx.shadowBlur = 20;
+                    ctx.drawImage(shape, 0, 0);
+                    ctx.drawImage(shape, 0, 0); 
+                }
+            });
+
+            // Draw Outlines
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 2;
+
+            const drawOutline = (key, color) => {
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color.replace('1)', '0.05)'); 
+                pathCircle(ctx, key);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = 'white';
+                ctx.font = "bold 22px Arial";
+                let lx = centers[key].x, ly = centers[key].y;
+                // Smart label positioning
+                if(key === 'A') ly -= r - 30;
+                if(key === 'B') { lx -= r - 30; ly += r/2; }
+                if(key === 'C') { lx += r - 30; ly += r/2; }
+                ctx.fillText(key, lx, ly);
+            };
+
+            drawOutline('A', colors.A);
+            drawOutline('B', colors.B);
+            drawOutline('C', colors.C);
+        }
+
+        // --- 4. INTERACTION ---
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const idx = getRegionIndex(x, y);
+            
+            if (activeRegions.has(idx)) {
+                activeRegions.delete(idx);
+            } else {
+                activeRegions.add(idx);
+            }
+            
+            render();
+            updateFormulaText();
+        });
+
+        function clearSelection() {
+            activeRegions.clear();
+            render();
+            updateFormulaText();
+        }
+
+        // --- 5. LOGIC DICTIONARY (UPDATED) ---
+        
+        function getSelectionKey() {
+            return Array.from(activeRegions).sort((a,b) => a-b).join(',');
+        }
+
+        // Розширена база знань
+        const formulas = {
+            "": { tex: "\\varnothing", desc: "Нічого не вибрано" },
+            "0,1,2,3,4,5,6,7": { tex: "U", desc: "Універсум (Все)" },
+
+            // Поодинокі (ВИПРАВЛЕНО)
+            "1": { tex: "A \\setminus (B \\cup C)", desc: "Тільки A (без інших)" },
+            "2": { tex: "B \\setminus (A \\cup C)", desc: "Тільки B (без інших)" },
+            "4": { tex: "C \\setminus (A \\cup B)", desc: "Тільки C (без інших)" },
+
+            // Прості множини
+            "1,3,5,7": { tex: "A", desc: "Множина A" },
+            "2,3,6,7": { tex: "B", desc: "Множина B" },
+            "4,5,6,7": { tex: "C", desc: "Множина C" },
+
+            // Об'єднання
+            "1,2,3,5,6,7": { tex: "A \\cup B", desc: "A або B" },
+            "1,3,4,5,6,7": { tex: "A \\cup C", desc: "A або C" },
+            "2,3,4,5,6,7": { tex: "B \\cup C", desc: "B або C" },
+            "1,2,3,4,5,6,7": { tex: "A \\cup B \\cup C", desc: "Об'єднання трьох" },
+
+            // Перетини
+            "3,7": { tex: "A \\cap B", desc: "Спільне для A і B" },
+            "5,7": { tex: "A \\cap C", desc: "Спільне для A і C" },
+            "6,7": { tex: "B \\cap C", desc: "Спільне для B і C" },
+            "7":   { tex: "A \\cap B \\cap C", desc: "Центр (Спільне для всіх)" },
+
+            // Різниці (Прості)
+            "1,5": { tex: "A \\setminus B", desc: "A мінус B" },
+            "1,3": { tex: "A \\setminus C", desc: "A мінус C" },
+            "2,6": { tex: "B \\setminus A", desc: "B мінус A" },
+            "2,3": { tex: "B \\setminus C", desc: "B мінус C" },
+            "4,5": { tex: "C \\setminus B", desc: "C мінус B" },
+            "4,6": { tex: "C \\setminus A", desc: "C мінус A" },
+
+            // Симетричні різниці (ВИПРАВЛЕНО - додано 4 компоненти)
+            // A delta B = (A-B) U (B-A) = {1,5} U {2,6} = 1,2,5,6
+            "1,2,5,6": { tex: "A \\Delta B", desc: "Симетрична різниця A і B" },
+            "1,3,4,6": { tex: "A \\Delta C", desc: "Симетрична різниця A і C" },
+            "2,3,4,5": { tex: "B \\Delta C", desc: "Симетрична різниця B і C" },
+
+            // Специфічні "Тільки перетини" (без третього)
+            "3": { tex: "(A \\cap B) \\setminus C", desc: "Тільки A і B" },
+            "5": { tex: "(A \\cap C) \\setminus B", desc: "Тільки A і C" },
+            "6": { tex: "(B \\cap C) \\setminus A", desc: "Тільки B і C" },
+            
+            // "Рівно два"
+            "3,5,6": { tex: "(A \\cap B) \\cup (A \\cap C) \\cup (B \\cap C) \\setminus ABC", desc: "Елементи, що належать рівно двом множинам" },
+
+            // Доповнення
+            "0": { tex: "(A \\cup B \\cup C)'", desc: "Нічого з множин (зовнішній фон)" },
+            "0,2,4,6": { tex: "A'", desc: "Не A" },
+            
+            // Комбіновані різниці (як ви просили)
+            "1,4,5": { tex: "(A \\cup C) \\setminus B", desc: "A і C без B" },
+            "1,2,3": { tex: "(A \\cup B) \\setminus C", desc: "A і B без C" },
+            "2,4,6": { tex: "(B \\cup C) \\setminus A", desc: "B і C без A" }
+        };
+
+        function updateFormulaText() {
+            if (currentMode !== 'sandbox') return;
+
+            const texEl = document.querySelector('#sandbox-status .formula-tex');
+            const descEl = document.querySelector('#sandbox-status .formula-desc');
+            const key = getSelectionKey();
+
+            if (formulas[key]) {
+                texEl.innerHTML = `$ ${formulas[key].tex} $`;
+                descEl.innerText = formulas[key].desc;
+                texEl.style.color = "var(--accent-b)";
+            } else {
+                // Fallback for unknown
+                if (activeRegions.size === 0) {
+                    texEl.innerHTML = `$\\varnothing$`;
+                    descEl.innerText = "";
+                } else {
+                    texEl.innerHTML = `?`;
+                    descEl.innerText = "Користувацька комбінація";
+                    texEl.style.color = "#777";
+                }
+            }
+            MathJax.typesetPromise([texEl]);
+        }
+
+        // --- 6. CHALLENGE GENERATOR ---
+
+        // List of tasks using keys that DEFINITELY exist in our map
+        const tasks = [
+            { key: "1,2,3,5,6,7", tex: "A \\cup B" },
+            { key: "3,7", tex: "A \\cap B" },
+            { key: "1,2,5,6", tex: "A \\Delta B" }, // Symmetric Diff Test
+            { key: "1", tex: "A \\setminus (B \\cup C)" }, // Only A Test
+            { key: "7", tex: "A \\cap B \\cap C" },
+            { key: "1,4,5", tex: "(A \\cup C) \\setminus B" },
+            { key: "0", tex: "(A \\cup B \\cup C)'" }, // Universe test
+            { key: "3,5,6", tex: "\\text{Рівно дві множини}" }, // Logical description
+            { key: "1,5", tex: "A \\setminus B" }
+        ];
+
+        function generateTask() {
+            const t = tasks[Math.floor(Math.random() * tasks.length)];
+            currentTaskTarget = t.key.split(',').map(Number).sort((a,b)=>a-b);
+            
+            // Reset UI
+            activeRegions.clear();
+            render();
+            document.getElementById('feedback-msg').innerText = "";
+            document.getElementById('score').style.color = "white";
+            
+            const el = document.getElementById('target-formula');
+            el.innerHTML = `$ ${t.tex} $`;
+            MathJax.typesetPromise([el]);
+        }
+
+        function checkAnswer() {
+            const userKey = getSelectionKey();
+            const targetKey = currentTaskTarget.join(',');
+            const fb = document.getElementById('feedback-msg');
+            const scoreEl = document.getElementById('score');
+
+            if (userKey === targetKey) {
+                fb.innerText = "ВІРНО! 🔥";
+                fb.style.color = "var(--success)";
+                score += 100;
+                scoreEl.innerText = score;
+                scoreEl.style.color = "var(--success)";
+                
+                document.querySelector('.universe-frame').style.borderColor = "var(--success)";
+                setTimeout(() => {
+                    document.querySelector('.universe-frame').style.borderColor = "#333";
+                    generateTask();
+                }, 1000);
+            } else {
+                fb.innerText = "Помилка ❌";
+                fb.style.color = "var(--danger)";
+            }
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'sandbox') {
+                document.getElementById('sandbox-controls').style.display = 'block';
+                document.getElementById('challenge-controls').style.display = 'none';
+                clearSelection();
+            } else {
+                document.getElementById('sandbox-controls').style.display = 'none';
+                document.getElementById('challenge-controls').style.display = 'block';
+                generateTask();
+            }
+        }
+
+        // Init
+        render();
+
+    </script>
+</body>
+</html>

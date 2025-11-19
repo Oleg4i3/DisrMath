@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Комбінований Симулятор Збірки ДНК</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        /* --- Загальні стилі та стилі вкладок --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 2px solid #0078d4;
+            padding-bottom: 10px;
+        }
+        
+        /* --- Стилі Спільного Генератора --- */
+        .shared-controls {
+            background: #fff;
+            border: 1px solid #0078d4;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .shared-controls h3 {
+            color: #005a9c;
+            margin-top: 0;
+            border-bottom: 2px solid #005a9c;
+            padding-bottom: 5px;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .controls-grid label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .controls-grid input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .shared-controls button {
+            background-color: #0078d4;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+        }
+        .shared-controls button:hover {
+            background-color: #005a9c;
+        }
+        #shared_genome {
+            font-family: "Courier New", Courier, monospace;
+            font-weight: bold;
+            color: #d9006c;
+            word-break: break-all;
+        }
+
+        /* --- Стилі Вкладок --- */
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: #eee;
+            border-radius: 8px 8px 0 0;
+            border-bottom: none;
+        }
+        .tab-button.active {
+            background-color: #fff;
+            border-color: #ccc;
+            border-bottom: 1px solid #fff;
+            position: relative;
+            top: 1px;
+            font-weight: bold;
+            color: #005a9c;
+        }
+        .simulator-content {
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 0 8px 8px 8px;
+        }
+
+        /* --- ІЗОЛЬОВАНІ СТИЛІ ДЛЯ СИМУЛЯТОРА 1 (Held-Karp) --- */
+        #hk_simulator {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        #hk_simulator h2, #hk_simulator h3 {
+            color: #005a9c;
+            border-bottom: 2px solid #005a9c;
+            padding-bottom: 5px;
+        }
+        #hk_simulator .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        #hk_simulator .controls, #hk_simulator .results {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #hk_simulator .controls {
+            flex-basis: 300px;
+            flex-grow: 1;
+        }
+        #hk_simulator .results {
+            flex-basis: 400px;
+            flex-grow: 2;
+        }
+        #hk_simulator textarea {
+            width: 100%;
+            height: 150px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box; 
+        }
+        #hk_simulator button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #hk_simulator button:hover {
+            background-color: #005a9c;
+        }
+        #hk_simulator button.secondary {
+            background-color: #6c757d;
+            margin-top: 5px;
+        }
+        #hk_simulator button.secondary:hover {
+            background-color: #5a6268;
+        }
+        #hk_simulator #hk_graph-container {
+            position: relative;
+            width: 100%;
+            height: 450px; 
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 8px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        #hk_simulator #hk_matrix-container {
+            overflow-x: auto;
+        }
+        #hk_simulator table {
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+            font-family: "Courier New", Courier, monospace;
+            width: 100%;
+        }
+        #hk_simulator th, #hk_simulator td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+        }
+        #hk_simulator th {
+            background-color: #f2f2f2;
+        }
+        #hk_simulator td.header {
+            font-weight: bold;
+            background-color: #f2f2f2;
+        }
+        #hk_simulator pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            word-wrap: break-word;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        #hk_simulator .warning {
+            color: #d9534f;
+            font-weight: bold;
+        }
+        #hk_simulator #hk_sequenceDetails pre {
+            background: #fdfdfd;
+            border: none;
+            padding: 2px 0;
+            margin: 0;
+            line-height: 1.2;
+            white-space: pre;
+            font-size: 14px;
+        }
+        #hk_simulator .overlap-suffix {
+            color: #d9006c;
+            font-weight: bold;
+            background-color: #fdd8e8;
+            border-radius: 2px;
+        }
+        #hk_simulator .overlap-prefix {
+            color: #005a9c;
+            font-weight: bold;
+            background-color: #e6f7ff;
+            border-radius: 2px;
+        }
+        #hk_simulator .non-overlap {
+            color: #333;
+        }
+        #hk_simulator details {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        #hk_simulator summary {
+            padding: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #005a9c;
+            cursor: pointer;
+        }
+        #hk_simulator .theory-content {
+            padding: 0 20px 20px 20px;
+            border-top: 1px solid #ddd;
+        }
+        #hk_simulator .theory-content p {
+            margin-bottom: 1em;
+        }
+        #hk_simulator .theory-content code {
+            background-color: #e8eaed;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.95em;
+        }
+        #hk_simulator mjx-container {
+            font-size: 1.1em !important;
+            display: inline-block !important;
+            padding: 0 3px;
+        }
+        
+        /* --- ІЗОЛЬОВАНІ СТИЛІ ДЛЯ СИМУЛЯТОРА 2 (De Bruijn) --- */
+        #db_simulator {
+            font-family: Arial, sans-serif; 
+            color: #333;
+        }
+        #db_simulator h2 {
+            text-align: left;
+            color: #2c3e50;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 5px;
+        }
+        #db_simulator .container {
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 20px;
+        }
+        #db_simulator .right {
+            flex: 1;
+        }
+        #db_simulator input, #db_simulator textarea {
+            width: 100%; 
+            padding: 8px; 
+            margin-bottom: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        #db_simulator button {
+            background-color: #3498db; 
+            color: white; 
+            padding: 10px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-bottom: 10px;
+            width: auto; 
+        }
+        #db_simulator button:hover {
+            background-color: #2980b9;
+        }
+        #db_simulator #db_network {
+            width: 100%; 
+            height: 600px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            background-color: white;
+        }
+        #db_simulator #db_message {
+            margin-bottom: 10px; 
+            font-weight: bold;
+        }
+        #db_simulator #db_contigs {
+            margin-bottom: 20px;
+        }
+        #db_simulator details {
+            margin-top: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            padding: 10px; 
+            background-color: white;
+        }
+        #db_simulator summary {
+            font-weight: bold; 
+            cursor: pointer;
+            color: #333; 
+            font-size: 1.1em;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Комбінований Симулятор Збірки ДНК</h1>
+
+    <div class="shared-controls">
+        <h3>Спільна Генерація</h3>
+        <p>Згенеруйте геном та набір рідів. Вони будуть автоматично завантажені в обидва симулятори нижче.
+           Використовуйте 'k' для налаштування графів де Брьойна.</p>
+        <div class="controls-grid">
+            <div><label>k (для де Брьойна): <input id="shared_k" type="number" value="5" min="2"></label></div>
+            <div><label>Довжина генома: <input id="shared_genome_len" type="number" value="30" min="1"></label></div>
+            <div><label>Кількість рідів: <input id="shared_num_reads" type="number" value="20" min="1"></label></div>
+            <div><label>Середня довжина рідів: <input id="shared_avg_read_len" type="number" value="8" min="1"></label></div>
+        </div>
+        <button id="shared_generateButton">Згенерувати Геном і Ріди (для обох)</button>
+        <p style="margin-top: 15px;"><label><b>Згенерований Геном:</b> <span id="shared_genome"></span></label></p>
+    </div>
+    <div class="tabs-container">
+        <button id="tab_hk" class="tab-button active" onclick="showSimulator('hk_simulator')">Підхід 1: Граф Перекриттів (Held-Karp)</button>
+        <button id="tab_db" class="tab-button" onclick="showSimulator('db_simulator')">Підхід 2: Граф де Брьойна</button>
+    </div>
+
+    <div id="hk_simulator" class="simulator-content">
+        <h2>Симулятор збірки ДНК (Held-Karp)</h2>
+        <p>Введіть фрагменти ДНК (ріди), відфільтруйте включення, або згенеруйте набір (за допомогою панелі вище). Система обчислить граф перекриттів і знайде оптимальний шлях.</p>
+
+        <div class="container">
+            <div class="controls">
+                <h3>1. Вхідні дані</h3>
+                <label for="hk_readsInput">Фрагменти ДНК (ріди):</label>
+                <textarea id="hk_readsInput">TCAGCT
+TGCTAGCTAGCAT
+TCGATCAGCT
+CATCGAC
+CGGATCGA
+GATTACACGGAT
+ACTAGCATCGA
+GCATCGA
+GCTAGCAT
+</textarea>
+                <button id="hk_runButton">Зібрати послідовність</button>
+                <button id="hk_filterButton" class="secondary">Видалити повні включення</button>
+                <p id="hk_warningMessage" class="warning"></p>
+            </div>
+
+            <div class="results">
+                <h3>2. Результати</h3>
+                <div id="hk_pathOutput"></div>
+                <div id="hk_sequenceDetails"></div>
+                <div id="hk_finalSequence"></div>
+                <div id="hk_matchOutput"></div>
+                <div id="hk_matrixOutput"></div>
+            </div>
+        </div>
+
+        <h3>3. Граф Перекриттів</h3>
+        <div id="hk_graph-container"></div>
+
+        <details>
+            <summary>Теоретична довідка: Збірка геному, графи та NP-складність</summary>
+            <div class="theory-content">
+                 <h2>Проблема Читання Геному</h2>
+    <p>Геном організму є довгою послідовністю ДНК, яка складається з мільярдів азотистих основ. Сучасні секвенатори не можуть прочитати весь геном одразу через технічні обмеження. Замість цього, вони генерують мільйони коротких фрагментів, званих ріди (reads), довжиною від 100 до кількох тисяч основ. Проблема полягає в тому, щоб зібрати ці ріди назад у повну послідовність геному, враховуючи помилки читання, повторювані регіони та неповне покриття. Це задача, подібна до складання пазла з мільйонів частин, де деякі частини можуть бути ідентичними або відсутніми.</p>
+
+    <h2>Визначення Ключових Термінів</h2>
+    <ul>
+        <li><strong>Азотиста основа</strong>: Базовий елемент ДНК (аденін A, цитозин C, гуанін G, тимін T) або РНК (A, C, G, урацил U).</li>
+        <li><strong>Рід (read)</strong>: Коротка послідовність ДНК/РНК, прочитана секвенатором, наприклад, довжиною 100–1000 bp (base pairs).</li>
+        <li><strong>Контіг (contig)</strong>: Неперервна послідовність, зібрана з перекриваючихся рідів без прогалин.</li>
+        <li><strong>Скаффолд (scaffold)</strong>: Більша структура, що складається з контігів, з'єднаних з урахуванням прогалин (наприклад, за допомогою paired-end reads).</li>
+        <li><strong>k-мер (k-mer)</strong>: Підрядок послідовності довжиною k символів, використовуваний у графах де Брюйна.</li>
+        <li><strong>Покриття (coverage)</strong>: Кількість разів, коли певна основа геному прочитана в ріди.</li>
+        <li><strong>Перекриття (overlap)</strong>: Спільна частина між двома ріди.</li>
+    </ul>
+
+    <h2>Метод OLC та Зведення до TSP</h2>
+    <p>Метод OLC (Overlap-Layout-Consensus) є класичним підходом до збірки геному:</p>
+	
+	        <h3>Граф Перекриттів (Overlap Graph)</h3>
+            <p>Проблему можна змоделювати за допомогою <strong>орієнтованого графу перекриттів</strong>:</p>
+            <ul>
+                <li><strong>Вершини (Nodes):</strong> Кожен унікальний рід (наприклад, <code>"GATTACA"</code>).</li>
+                <li><strong>Ребра (Edges):</strong> Спрямоване ребро проводиться від вершини <code>U</code> до вершини <code>V</code>, якщо суфікс <code>U</code> збігається з префіксом <code>V</code>.</li>
+                <li><strong>Вага ребра:</strong> Вагою ребра <code>(U, V)</code> є довжина цього перекриття. 
+                Важливо, що граф <strong>орієнтований</strong>, оскільки перекриття від <code>A</code> до <code>B</code> — це не те саме, що перекриття від <code>B</code> до <code>A</code>.</li>
+            </ul>
+
+            <h3>Зв'язок із Задачею Комівояжора (TSP)</h3>
+            <p>Наша мета — знайти такий порядок рідів (шлях), який проходить через <strong>кожну вершину рівно один раз</strong> і при цьому <strong>максимізує сумарну вагу ребер</strong>. Це класичний <strong>найдовший шлях</strong> в графі.</p>
+            
+            <p>Ця задача є варіацією <strong>Задачі Комівояжора (TSP)</strong>. Класична TSP шукає найкоротший гамільтонів <em>цикл</em>. Наша задача — знайти найважчий гамільтонів <em>шлях</em>.</p>
+
+            <h3>Складність та Алгоритми</h3>
+            <p>TSP (і пов'язані з нею задачі) належать до класу <strong>NP-складних</strong> (NP-hard). Це означає, що не існує відомого алгоритму, який би знаходив *оптимальне* рішення за поліноміальний час.</p>
+            <ul>
+                <li><strong>Брутфорс (Повний перебір):</strong> Має складність \(O(N!)\). Стає неможливо вже для N > 60..70.</li>
+                <li><strong>Алгоритм Хелда-Карпа (Held-Karp):</strong> <strong>(Реалізовано у цій версії)</strong>. Це підхід, що використовує динамічне програмування. Його складність — \(O(N^2 2^N)\). Це дозволяє миттєво вирішувати задачу для N ≈ 15-20.</li>
+            </ul>
+          <p> В сучасних системах секвенування ДНК даний підхід вже є менш актуальним, оскільки сучасні програми, що збирають геном з фрагментів (асемблери), перейшли від десятків-сотень довгих рідів, до мільйонів коротких. Тому даний симулятор є ілюстративним матеріалом, оскільки складність алгоритма Хелда-Карпа експоненційна, що не дозволяє використовувати його на більше ніж кількох десятках рідів. В даний час більшість систем використовують алгоритми на основі графів де Брейна і пошуку ейлерівих шляхів. Але метод OCR є таким, що часто знаходить точний розв'язок, особливо для довгих рідів, тому він все ще має свої ніші застосування.</p>
+     
+  <h2>Ніші Застосування</h2>
+    <p>Метод OLC/superstring досі актуальний:</p>
+    <ul>
+        <li>Для довгих рідів (PacBio, Oxford Nanopore), де де Брюйн менш ефективний через помилки.</li>
+        <li>Для геномів вірусів (малі розміри, висока мутабельність), наприклад, у інструментах VICUNA або FEDRANN.</li>
+        <li>Для scaffolding — об'єднання контігів у більші структури (ARCS, OPERA).</li>
+        <li>У транскриптоміці РНК (Trinity, Oases) для повторюваних регіонів.</li>
+    </ul>
+	
+	
+	
+            </div>
+        </details>
+    </div>
+
+    <div id="db_simulator" class="simulator-content" style="display: none;">
+        <h2>Симулятор збірки ДНК (Граф де Брьойна)</h2>
+        
+        <div class="container">
+          <div class="right">
+            <label>k (встановлюється генератором): <input id="db_k" type="number" value="5" min="2"></label><br>
+            <label>Ріди (редаговані):</label><br>
+            <textarea id="db_reads" rows="10" cols="50"></textarea><br>
+            <button onclick="db_buildAndAssemble()">Побудувати Граф і Зібрати</button><br>
+          </div>
+        </div>
+
+        <div id="db_message"></div>
+        <div id="db_network"></div>
+        <div id="db_contigs"></div>
+        
+        <details>
+          <summary>Детальне пояснення роботи алгоритму</summary>
+          <div class="theory-content">
+            
+			 <p>Алгоритм збирання ДНК на основі графів де Брьойна працює наступним чином:</p>
+  <ol>
+    <li><strong>Генерація даних:</strong> Генерується випадковий геном заданої довжини з основ 'ACGT'. Потім з генома витягуються ріди (reads) заданої кількості та середньої довжини.</li>
+    <li><strong>Побудова графа де Брьойна:</strong> Кожен рід розбивається на k-мери (послідовності основ довжиною k, наприклад CGTTA). Вершини графа - це (k-1)-мери: префікси (CGTT-) та суфікси (-GTTA) k-мерів. Ребра з'єднують префікс з суфіксом і маркуються останньою основою k-мера. Якщо є повторювані ребра, вони враховуються з вагою (coverage).</li>
+    <li><strong>Виявлення розгалуджень:</strong> Перевіряється, чи має граф розгалудження (вершини з вхідним/вихідним ступенем >1 за унікальними сусідами).</li>
+    <li><strong>Пошук контігів:</strong> Використовується модифікований алгоритм Гірхольцера для пошуку ейлеревих шляхів. Починається з вершин непарного ступеня або розгалуджень. Для розгалуджень рекурсивно досліджуються всі гілки за допомогою DFS, з пріоритетом шляхів з вищим coverage. Обробляються цикли та лінійні компоненти окремо.</li>
+    <li><strong>Фільтрація контігів:</strong> Контіги сортуються за довжиною, видаляються ті, що є підрядками більших. Для кожного контіга обчислюється найдовший послідовний збіг з оригінальним геномом.</li>
+    <li><strong>Обробка особливих випадків:</strong> Якщо граф незв'язний - знаходяться окремі компоненти. Для розгалуджень генеруються всі можливі продовження шляхів. Цикли виявляються та маркуються.</li>
+    <p>Розгалудженість виникає, коли вершина має >1 вихідних/вхідних унікальних ребер (розгалудження через повтори або помилки). Граф не ейлерів, якщо >2 вершин непарного ступеня. Пошук ейлеревих шляхів — алгоритм Гірхольцера: DFS для побудови циклу/шляху, починаючи з вершин непарного ступеня.</p>
+    <p> Проблема розгалудженості та пошук ейлеревих шляхів: У симуляторі реалізований рекурсивний DFS (пошук у глибину) для всіх гілок у розгалудженнях, пріоритет за coverage (вага ребер). Обробка циклів (додавання останнього ребра до стартової вершини). Для незв'язних компонент — окрема обробка. Фільтрація контігів: видалення підрядків більших, кольорове маркування шляхів (паралельні нитки для перетинів).</p>
+  </ol>
+			
+			
+			
+          </div>
+        </details>
+    </div>
+
+
+    <script>
+        // --- Логіка перемикання вкладок ---
+        function showSimulator(simId) {
+            document.getElementById('hk_simulator').style.display = 'none';
+            document.getElementById('db_simulator').style.display = 'none';
+            document.getElementById('tab_hk').classList.remove('active');
+            document.getElementById('tab_db').classList.remove('active');
+            
+            document.getElementById(simId).style.display = 'block';
+            document.getElementById(simId === 'hk_simulator' ? 'tab_hk' : 'tab_db').classList.add('active');
+        }
+
+        // --- ГЛОБАЛЬНІ ЗМІННІ ТА СПІЛЬНІ ФУНКЦІЇ ---
+
+        let sharedGenome = ""; 
+
+        function shared_randomGenome(len) {
+            const bases = 'ACGT';
+            let s = '';
+            for (let i = 0; i < len; i++) {
+                s += bases[Math.floor(Math.random() * 4)];
+            }
+            return s;
+        }
+
+        function shared_generateReads(genome, num, avg, k) {
+            let reads = [];
+            for (let i = 0; i < num; i++) {
+                let len = Math.floor(avg + (Math.random() * 10 - 5));
+                len = Math.max(k, len);
+                if (len > genome.length) len = genome.length;
+                let start = Math.floor(Math.random() * (genome.length - len + 1));
+                reads.push(genome.substr(start, len));
+            }
+            return reads;
+        }
+
+        function shared_longestMatch(a, b) {
+            const m = a.length;
+            const n = b.length;
+            const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
+            let max = 0;
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (a[i - 1] === b[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                        if (dp[i][j] > max) max = dp[i][j];
+                    } else {
+                        dp[i][j] = 0;
+                    }
+                }
+            }
+            return max;
+        }
+
+        function generateSharedData() {
+            const genome_len = parseInt(document.getElementById('shared_genome_len').value);
+            const num_reads = parseInt(document.getElementById('shared_num_reads').value);
+            const avg_read_len = parseInt(document.getElementById('shared_avg_read_len').value);
+            const k = parseInt(document.getElementById('shared_k').value);
+
+            sharedGenome = shared_randomGenome(genome_len);
+            document.getElementById('shared_genome').innerText = sharedGenome;
+
+            const reads = shared_generateReads(sharedGenome, num_reads, avg_read_len, k);
+            const readsString = reads.join('\n');
+
+            document.getElementById('hk_readsInput').value = readsString;
+            document.getElementById('db_reads').value = readsString;
+            document.getElementById('db_k').value = k;
+            
+            const hkMatch = document.getElementById('hk_matchOutput');
+            const hkFinal = document.getElementById('hk_finalSequence');
+            const dbContigs = document.getElementById('db_contigs');
+            
+            if (hkMatch) hkMatch.innerHTML = "";
+            if (hkFinal) hkFinal.innerHTML = "<h3>Фінальна зібрана послідовність:</h3><p><i>Натисніть 'Зібрати послідовність' вище...</i></p>";
+            if (dbContigs) dbContigs.innerHTML = "";
+        }
+
+
+        // --- Головний DOMContentLoaded для спільного функціоналу ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const sharedButton = document.getElementById('shared_generateButton');
+            if (sharedButton) {
+                sharedButton.addEventListener('click', generateSharedData);
+            }
+        });
+
+
+        // --- Скрипти для Симулятора 1 (Held-Karp) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const runButton = document.getElementById('hk_runButton');
+            const filterButton = document.getElementById('hk_filterButton'); 
+            const readsInput = document.getElementById('hk_readsInput');
+            const pathOutput = document.getElementById('hk_pathOutput');
+            const sequenceDetails = document.getElementById('hk_sequenceDetails');
+            const finalSequence = document.getElementById('hk_finalSequence');
+            const matrixOutput = document.getElementById('hk_matrixOutput');
+            const graphContainer = document.getElementById('hk_graph-container');
+            const warningMessage = document.getElementById('hk_warningMessage');
+            const matchOutput = document.getElementById('hk_matchOutput');
+            
+            let cy; 
+
+            if (runButton) {
+                runButton.addEventListener('click', runSimulation);
+                filterButton.addEventListener('click', filterInclusions); 
+                runSimulation();
+            }
+
+            function filterInclusions() {
+                const lines = readsInput.value.split('\n');
+                const reads = [...new Set(lines
+                    .map(l => l.trim().toUpperCase())
+                    .filter(l => l.length > 0 && !l.startsWith('#'))
+                )];
+                
+                const containedReads = new Set();
+                for (const readA of reads) {
+                    for (const readB of reads) {
+                        if (readA === readB) continue;
+                        if (readA.includes(readB)) {
+                            containedReads.add(readB);
+                        }
+                    }
+                }
+                if (containedReads.size === 0) {
+                    warningMessage.textContent = "Повних включень не знайдено.";
+                   return;
+                } 
+                const newLines = lines.map(line => {
+                    const trimmedLine = line.trim().toUpperCase();
+                    if (containedReads.has(trimmedLine) && !line.trim().startsWith('#')) {
+                        return `# ${line}`; 
+                    }
+                    return line;
+                });
+                readsInput.value = newLines.join('\n');
+                warningMessage.textContent = `${containedReads.size} рід(ів) було виключено (закоментовано).`;
+                runSimulation(); 
+            }
+
+            function runSimulation() {
+                clearOutputs();
+                
+                const reads = readsInput.value
+                    .split('\n')
+                    .map(r => r.trim()) 
+                    .filter(r => r.length > 0 && !r.startsWith('#')) 
+                    .map(r => r.toUpperCase().replace(/[^ATGC]/g, '')) 
+                    .filter(r => r.length > 0) 
+                    .filter((r, i, arr) => arr.indexOf(r) === i); 
+
+                if (reads.length < 2) {
+                    warningMessage.textContent = "Будь ласка, введіть принаймні 2 унікальні, не закоментовані ріди.";
+                    return;
+                }
+                if (reads.length > 20) {
+                    warningMessage.textContent = `УВАГА: ${reads.length} рідів. Алгоритм Хелда-Карпа ($O(N^2 2^N)$) може працювати повільно.`;
+                }
+                
+                const graph = buildOverlapGraph(reads);
+                const solution = solveTSP_HeldKarp(graph);
+                
+                displayResults(reads, graph, solution);
+                drawGraphWithCytoscape(reads, graph, solution.path); 
+            }
+
+            function clearOutputs() {
+                pathOutput.innerHTML = "";
+                sequenceDetails.innerHTML = "";
+                finalSequence.innerHTML = "";
+                matrixOutput.innerHTML = "";
+                warningMessage.textContent = "";
+                if (matchOutput) matchOutput.innerHTML = "";
+            }
+
+            function getOverlap(s1, s2) {
+                if (s1 === s2) return 0; 
+                let maxOverlap = 0;
+                for (let k = 1; k < Math.min(s1.length, s2.length); k++) {
+                    if (s1.endsWith(s2.substring(0, k))) {
+                        maxOverlap = k;
+                    }
+                }
+                if (s1.includes(s2)) return 0; 
+                if (s2.includes(s1)) return 0;
+                return maxOverlap;
+            }
+
+            function buildOverlapGraph(reads) {
+                const n = reads.length;
+                const matrix = Array(n).fill(0).map(() => Array(n).fill(0));
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        if (i !== j) {
+                            matrix[i][j] = getOverlap(reads[i], reads[j]);
+                        }
+                    }
+                }
+                return { matrix, n };
+            }
+
+            function solveTSP_HeldKarp(graph) {
+                const n = graph.n;
+                const matrix = graph.matrix;
+                const dp = Array(1 << n).fill(0).map(() => Array(n).fill(-1));
+                const path = Array(1 << n).fill(0).map(() => Array(n).fill(null));
+
+                for (let i = 0; i < n; i++) {
+                    dp[1 << i][i] = 0;
+                }
+
+                for (let mask = 1; mask < (1 << n); mask++) {
+                    for (let j = 0; j < n; j++) {
+                        if (mask & (1 << j)) {
+                            const prevMask = mask ^ (1 << j);
+                            if (prevMask === 0) continue;
+                            for (let i = 0; i < n; i++) {
+                                if ((prevMask & (1 << i)) && dp[prevMask][i] !== -1) {
+                                    const overlap_i_j = matrix[i][j];
+                                    if (overlap_i_j > 0) {
+                                        const newOverlap = dp[prevMask][i] + overlap_i_j;
+                                        if (newOverlap > dp[mask][j]) {
+                                            dp[mask][j] = newOverlap;
+                                            path[mask][j] = i; 
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const fullMask = (1 << n) - 1;
+                let maxOverlap = -1;
+                let lastNode = -1;
+
+                for (let j = 0; j < n; j++) {
+                    if (dp[fullMask][j] > maxOverlap) {
+                        maxOverlap = dp[fullMask][j];
+                        lastNode = j;
+                    }
+                }
+
+                if (lastNode === -1) {
+                    return { path: [], overlap: 0 };
+                }
+
+                let solutionPath = [];
+                let currentMask = fullMask;
+                let currentNode = lastNode;
+
+                while (currentNode !== null) {
+                    solutionPath.unshift(currentNode); 
+                    const prevNode = path[currentMask][currentNode];
+                    currentMask ^= (1 << currentNode); 
+                    currentNode = prevNode;
+                }
+                return { path: solutionPath, overlap: maxOverlap };
+            }
+
+            function displayResults(reads, graph, solution) {
+                if (!solution.path || solution.path.length === 0) {
+                    pathOutput.innerHTML = "<h3>Неможливо знайти шлях.</h3>";
+                    return;
+                }
+                
+                const pathStr = solution.path.map(i => `R${i} [${reads[i]}]`).join(' &rarr; ');
+                pathOutput.innerHTML = `
+                    <h3>Оптимальний шлях:</h3>
+                    <p><b>Загальне перекриття:</b> ${solution.overlap}</p>
+                    <p style="font-size: 14px; word-break: break-all;">${pathStr}</p>`;
+
+                let sequenceHtml = '<h3>Детальна збірка:</h3>';
+                let finalAssembledSequence = "";
+                let currentIndent = 0;
+
+                if (solution.path.length > 0) {
+                    const firstReadIdx = solution.path[0];
+                    const firstRead = reads[firstReadIdx];
+                    finalAssembledSequence = firstRead;
+                    
+                    if (solution.path.length > 1) {
+                        const nextReadIdx = solution.path[1];
+                        const overlapLen = graph.matrix[firstReadIdx][nextReadIdx];
+                        const nonOverlap = firstRead.substring(0, firstRead.length - overlapLen);
+                        const overlap = firstRead.substring(firstRead.length - overlapLen);
+                        sequenceHtml += `<pre><span class="non-overlap">${nonOverlap}</span><span class="overlap-suffix">${overlap}</span></pre>`;
+                    } else {
+                        sequenceHtml += `<pre><span class="non-overlap">${firstRead}</span></pre>`;
+                    }
+                    currentIndent = finalAssembledSequence.length;
+                }
+
+                for (let i = 0; i < solution.path.length - 1; i++) {
+                    const u = solution.path[i];
+                    const v = solution.path[i+1];
+                    const readV = reads[v]; 
+                    const overlapPrefixLen = graph.matrix[u][v]; 
+                    
+                    const nonOverlapPart = readV.substring(overlapPrefixLen);
+
+                    let displayPrefix = readV.substring(0, overlapPrefixLen);
+                    let displaySuffix = "";
+                    let displayNonOverlap = "";
+                    
+                    if (i + 2 < solution.path.length) { 
+                        const w = solution.path[i+2]; 
+                        const overlapSuffixLen = graph.matrix[v][w]; 
+                        
+                        if (overlapSuffixLen > 0) {
+                            if (overlapPrefixLen + overlapSuffixLen > readV.length) {
+                                const prefixSplitPoint = readV.length - overlapSuffixLen;
+                                displayPrefix = readV.substring(0, prefixSplitPoint); 
+                                displaySuffix = readV.substring(prefixSplitPoint); 
+                                displayNonOverlap = ""; 
+                            } else {
+                                displayPrefix = readV.substring(0, overlapPrefixLen);
+                                displaySuffix = readV.substring(readV.length - overlapSuffixLen);
+                                displayNonOverlap = readV.substring(overlapPrefixLen, readV.length - overlapSuffixLen);
+                            }
+                        } else {
+                            displayPrefix = readV.substring(0, overlapPrefixLen);
+                            displayNonOverlap = readV.substring(overlapPrefixLen);
+                        }
+                    } else {
+                        displayPrefix = readV.substring(0, overlapPrefixLen);
+                        displayNonOverlap = readV.substring(overlapPrefixLen);
+                    }
+
+                    const indent = "&nbsp;".repeat(currentIndent - overlapPrefixLen);
+                    
+                    sequenceHtml += `<pre>${indent}<span class="overlap-prefix">${displayPrefix}</span><span class="non-overlap">${displayNonOverlap}</span><span class="overlap-suffix">${displaySuffix}</span></pre>`;
+
+                    finalAssembledSequence += nonOverlapPart;
+                    currentIndent += nonOverlapPart.length;
+                }
+
+                sequenceDetails.innerHTML = sequenceHtml;
+                
+                finalSequence.innerHTML = `
+                    <h3>Фінальна зібрана послідовність:</h3>
+                    <pre>${finalAssembledSequence}</pre>`;
+
+                if (sharedGenome.length > 0) {
+                    const maxMatch = shared_longestMatch(finalAssembledSequence, sharedGenome);
+                    matchOutput.innerHTML = `<p style="font-weight: bold; color: #005a9c; font-size: 1.1em;"><b>Найдовший збіг з геномом:</b> ${maxMatch}</p>`;
+                } else {
+                    matchOutput.innerHTML = `<p><i>Геном не згенеровано, порівняння неможливе.</i></p>`;
+                }
+
+                let table = '<table><thead><tr><th>(з) / (в)</th>';
+                for (let i = 0; i < reads.length; i++) {
+                    table += `<th>R${i}</th>`;
+                }
+                table += '</tr></thead><tbody>';
+                
+                for (let i = 0; i < reads.length; i++) {
+                    table += `<tr><td class="header"><b>R${i}</b> (${reads[i]})</td>`;
+                    for (let j = 0; j < reads.length; j++) {
+                        const overlap = graph.matrix[i][j];
+                        table += `<td style="background-color: ${overlap > 0 ? '#e6f7ff' : '#fff'}">
+                                    ${overlap}
+                                  </td>`;
+                    }
+                    table += '</tr>';
+                }
+                table += '</tbody></table>';
+                matrixOutput.innerHTML = `<h3>Матриця перекриттів (з R_i в R_j)</h3><div id="hk_matrix-container">${table}</div>`;
+            }
+
+            function drawGraphWithCytoscape(reads, graph, path) {
+                const n = reads.length;
+                const elements = [];
+                
+                for (let i = 0; i < n; i++) {
+                    elements.push({ data: { id: `R${i}`, label: `R${i}\n(${reads[i]})` } });
+                }
+                
+                const solutionEdges = new Set();
+                for (let i = 0; i < path.length - 1; i++) {
+                    solutionEdges.add(`R${path[i]}-R${path[i+1]}`);
+                }
+                
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        const overlap = graph.matrix[i][j];
+                        if (overlap > 0) {
+                            const edgeId = `R${i}-R${j}`;
+                            const isSolution = solutionEdges.has(edgeId);
+                            elements.push({
+                                data: { id: edgeId, source: `R${i}`, target: `R${j}`, label: overlap },
+                                classes: isSolution ? 'solution' : ''
+                            });
+                        }
+                    }
+                }
+
+                if (cy) { cy.destroy(); }
+                
+                if (graphContainer.offsetParent !== null) {
+                    cy = cytoscape({
+                        container: graphContainer,
+                        elements: elements,
+                        layout: { name: 'circle', fit: true, padding: 30, counterClockwise: true },
+                        style: [
+                            {
+                                selector: 'node',
+                                style: {
+                                    'background-color': '#ffc107', 'border-color': '#e6a100', 'border-width': 2,
+                                    'label': 'data(label)', 'text-valign': 'center', 'text-halign': 'center',
+                                    'font-size': '10px', 'font-family': '"Courier New", Courier, monospace',
+                                    'text-wrap': 'wrap', 'width': '60px', 'height': '60px'
+                                }
+                            },
+                            {
+                                selector: 'edge',
+                                style: {
+                                    'width': 2, 'line-color': '#aaa', 'target-arrow-shape': 'triangle', 
+                                    'target-arrow-color': '#aaa', 'label': 'data(label)', 'font-size': '12px',
+                                    'color': '#555', 'text-background-opacity': 1, 'text-background-color': '#fff',
+                                    'text-background-padding': '2px', 'curve-style': 'unbundled-bezier',
+                                    'control-point-distances': '20', 'control-point-weights': '0.5'
+                                }
+                            },
+                            {
+                                selector: 'edge.solution',
+                                style: {
+                                    'line-color': '#d9006c', 'target-arrow-color': '#d9006c',
+                                    'width': 4, 'color': '#d9006c', 'font-weight': 'bold'
+                                }
+                            }
+                        ]
+                    });
+                }
+            }
+        }); // Кінець 'DOMContentLoaded' для Held-Karp
+
+        
+        // --- Скрипти для Симулятора 2 (De Bruijn) ---
+        
+        function db_buildAndAssemble() {
+            const k = parseInt(document.getElementById('db_k').value);
+            const readsText = document.getElementById('db_reads').value;
+            const reads = readsText.split('\n').filter(r => r.trim());
+            const genome = document.getElementById('shared_genome').innerText; 
+            
+            let nodesSet = new Set();
+            let adj = new Map();
+            let revAdj = new Map();
+            let edges = [];
+            let edgeId = 0;
+            for (let read of reads) {
+                if (read.length < k) continue;
+                for (let i = 0; i < read.length - k + 1; i++) {
+                    const kmer = read.substr(i, k);
+                    const prefix = kmer.substr(0, k - 1);
+                    const suffix = kmer.substr(1);
+                    nodesSet.add(prefix);
+                    nodesSet.add(suffix);
+                    if (!adj.has(prefix)) adj.set(prefix, []);
+                    let existing = adj.get(prefix).find(e => e.to === suffix);
+                    let eid;
+                    if (existing) {
+                        existing.count = (existing.count || 1) + 1;
+                        eid = existing.edgeId;
+                        let revExisting = revAdj.get(suffix).find(e => e.from === prefix);
+                        if (revExisting) revExisting.count = existing.count;
+                        let visEdge = edges.find(e => e.id === eid);
+                        visEdge.label = kmer.slice(-1) + (existing.count > 1 ? ` x${existing.count}` : '');
+                    } else {
+                        eid = `e${edgeId++}`;
+                        adj.get(prefix).push({to: suffix, edgeId: eid, count: 1});
+                        if (!revAdj.has(suffix)) revAdj.set(suffix, []);
+                        revAdj.get(suffix).push({from: prefix, edgeId: eid, count: 1});
+                        edges.push({id: eid, from: prefix, to: suffix, arrows: 'to', label: kmer.slice(-1)});
+                    }
+                }
+            }
+            let isBranched = false;
+            for (let node of nodesSet) {
+                const uniqueOut = adj.get(node) ? adj.get(node).length : 0;
+                const uniqueIn = revAdj.get(node) ? revAdj.get(node).length : 0;
+                if (uniqueOut > 1 || uniqueIn > 1) {
+                    isBranched = true;
+                    break;
+                }
+            }
+            document.getElementById('db_message').innerText = isBranched ? 'Граф розгалуджений. Знайдено кілька контігів.' : 'Граф не розгалуджений.';
+            const allContigs = db_findContigs(adj, nodesSet, revAdj);
+            let contigObjs = [];
+            for (let cont of allContigs) {
+                if (cont.nodePath.length < 2) continue;
+                let seq = cont.nodePath[0];
+                for (let i = 1; i < cont.nodePath.length; i++) {
+                    seq += cont.nodePath[i].slice(-1);
+                }
+                if (cont.isCycle) {
+                    seq += cont.nodePath[0].slice(-1);
+                }
+                cont.seq = seq;
+                contigObjs.push(cont);
+            }
+
+            // *** НОВИЙ КОД (ЗА ВАШИМ ЗАПИТОМ) ДЛЯ "РОЗГОРТАННЯ" ЦИКЛІВ ***
+            const paths = contigObjs.filter(c => !c.isCycle);
+            const cycles = contigObjs.filter(c => c.isCycle);
+            const chimericContigs = [];
+
+            for (let path of paths) {
+                if (path.nodePath.length < 1) continue;
+                // Остання вершина шляху
+                const endNode = path.nodePath[path.nodePath.length - 1]; 
+
+                for (let cycle of cycles) {
+                    if (cycle.nodePath.length < 1) continue;
+                    // Початкова вершина циклу
+                    const cycleStartNode = cycle.nodePath[0]; 
+
+                    // Якщо шлях закінчується там, де починається цикл
+                    if (endNode === cycleStartNode) {
+                        // Створюємо новий контіг: [Послідовність Шляху] + [Послідовність Циклу, крім першого (k-1)-mer]
+                        // (k-1) - це довжина вузла (напр, "TAGT")
+                        const cycleSeqToAdd = cycle.seq.substring(cycleStartNode.length);
+                        const newSeq = path.seq + cycleSeqToAdd;
+                        
+                        const newNodePath = path.nodePath.concat(cycle.nodePath.slice(1));
+                        const newEdgeIds = path.edgeIds.concat(cycle.edgeIds);
+                        
+                        chimericContigs.push({
+                            nodePath: newNodePath,
+                            edgeIds: newEdgeIds,
+                            isCycle: false, // Це вже не простий цикл
+                            seq: newSeq
+                        });
+                    }
+                }
+            }
+            // Додаємо нові "розгорнуті" контіги до загального списку
+            contigObjs.push(...chimericContigs);
+            // *** КІНЕЦЬ НОВОГО КОДУ ***
+
+            contigObjs.sort((a, b) => b.seq.length - a.seq.length);
+            
+            let filteredContigs = [];
+            for (let cont of contigObjs) {
+                const seq = cont.seq;
+                let isSub = false;
+                for (let f of filteredContigs) {
+                    if (f.seq.includes(seq)) {
+                        isSub = true;
+                        break;
+                    }
+                }
+                if (!isSub) filteredContigs.push(cont);
+            }
+            let output = '';
+            const colors = ['red', 'blue', 'green', 'purple', 'orange', 'pink', 'brown', 'cyan'];
+            let edgeToColors = new Map();
+            let contigIndex = 0;
+            for (let cont of filteredContigs) {
+                const seq = cont.seq;
+                const maxMatch = shared_longestMatch(seq, genome); 
+                output += `<p>Контіг: ${seq} (довжина: ${seq.length}, послідовний збіг: ${maxMatch})</p>`;
+                const color = colors[contigIndex % colors.length];
+                for (let eid of cont.edgeIds) {
+                    if (!edgeToColors.has(eid)) edgeToColors.set(eid, []);
+                    edgeToColors.get(eid).push(color);
+                }
+                contigIndex++;
+            }
+            document.getElementById('db_contigs').innerHTML = output;
+            let visEdges = [];
+            let edgeMap = new Map(edges.map(e => [e.id, e]));
+            for (let [eid, colorList] of edgeToColors) {
+                const baseEdge = edgeMap.get(eid);
+                const num = colorList.length;
+                for (let i = 0; i < num; i++) {
+                    const roundness = 0.2 * (i - (num - 1) / 2);
+                    let visEdge = {
+                        id: eid + '-' + i,
+                        from: baseEdge.from,
+                        to: baseEdge.to,
+                        arrows: 'to',
+                        color: {color: colorList[i]},
+                        smooth: {type: 'curvedCW', roundness: roundness}
+                    };
+                    if (i === Math.floor(num / 2)) visEdge.label = baseEdge.label;
+                    visEdges.push(visEdge);
+                }
+            }
+            let nodes = [];
+            for (let n of nodesSet) {
+                nodes.push({id: n, label: n});
+            }
+            const container = document.getElementById('db_network');
+            const data = {nodes: new vis.DataSet(nodes), edges: new vis.DataSet(visEdges)};
+            const options = {
+                layout: {hierarchical: false},
+            };
+            new vis.Network(container, data, options);
+        }
+
+        function db_findContigs(adj, nodesSet, revAdj) {
+            let allContigs = [];
+            let visitedNodes = new Set();
+            for (let node of nodesSet) {
+                const uniqueIn = revAdj.get(node) ? revAdj.get(node).length : 0;
+                const uniqueOut = adj.get(node) ? adj.get(node).length : 0;
+                if (uniqueIn === 0 || uniqueIn > 1 || uniqueOut > 1) {
+                    if (uniqueOut === 0) continue;
+                    let tempContigs = [];
+                    db_findAllPaths(node, [node], [], adj, tempContigs);
+                    for (let cont of tempContigs) {
+                        allContigs.push(cont);
+                        cont.nodePath.forEach(n => visitedNodes.add(n));
+                    }
+                }
+            }
+            // Handle remaining components
+            while (true) {
+                let remainingNode = null;
+                for (let n of nodesSet) {
+                    if ((adj.get(n) || []).length > 0 && !visitedNodes.has(n)) {
+                        remainingNode = n;
+                        break;
+                    }
+                }
+                if (!remainingNode) break;
+                let nodePath = [remainingNode];
+                let edgeIds = [];
+                let current = remainingNode;
+                // Backward extend
+                while (true) {
+                    const uniqueFrom = revAdj.get(current) ? revAdj.get(current).length : 0;
+                    if (uniqueFrom !== 1) break;
+                    const prev = revAdj.get(current)[0].from;
+                    if (nodePath.includes(prev)) break;
+                    const prevEids = revAdj.get(current).map(ee => ee.edgeId);
+                    edgeIds = [...prevEids, ...edgeIds];
+                    nodePath.unshift(prev);
+                    current = prev;
+                }
+                // Forward extend
+                current = nodePath[nodePath.length - 1];
+                while (true) {
+                    const uniqueTo = adj.get(current) ? adj.get(current).length : 0;
+                    if (uniqueTo !== 1) break;
+                    const next = adj.get(current)[0].to;
+                    if (nodePath.includes(next)) break;
+                    const nextEids = adj.get(current).map(ee => ee.edgeId);
+                    edgeIds = [...edgeIds, ...nextEids];
+                    nodePath.push(next);
+                    current = next;
+                }
+                let componentNodes = new Set(nodePath);
+                const uniqueTo = adj.get(current) ? adj.get(current).length : 0;
+                if (uniqueTo > 1) {
+                    let branchPaths = [];
+                    db_findAllPaths(current, [current], [], adj, branchPaths);
+                    for (let bp of branchPaths) {
+                        if (bp.nodePath.length > 1) {
+                            let fullNP = nodePath.slice(0, -1).concat(bp.nodePath);
+                            let fullEI = edgeIds.concat(bp.edgeIds);
+                            allContigs.push({nodePath: fullNP, edgeIds: fullEI, isCycle: bp.isCycle || false});
+                            bp.nodePath.forEach(n => componentNodes.add(n));
+                        }
+                    }
+                } else {
+                    // Check for cycle closure
+                    let isCycle = false;
+                    if (uniqueTo === 1 && adj.get(current)[0].to === nodePath[0]) {
+                        isCycle = true;
+                        edgeIds.push(adj.get(current)[0].edgeId);
+                    }
+                    if (nodePath.length >= 2) {
+                        allContigs.push({nodePath, edgeIds, isCycle});
+                    }
+                }
+                for (let n of componentNodes) {
+                    visitedNodes.add(n);
+                }
+            }
+            return allContigs;
+        }
+
+        function db_findAllPaths(current, nodePath, edgeIds, adj, allContigs) {
+            if (nodePath.length > 100) return;
+            let outs = adj.get(current) || [];
+            outs = [...outs].sort((a, b) => (b.count || 1) - (a.count || 1));
+            let extended = false;
+            if (outs.length === 0) {
+                allContigs.push({nodePath: [...nodePath], edgeIds: [...edgeIds], isCycle: false});
+                return;
+            }
+            if (outs.length === 1) {
+                const e = outs[0];
+                const next = e.to;
+                if (nodePath.includes(next)) {
+                    if (next === nodePath[0] && nodePath.length > 1) {
+                        allContigs.push({nodePath: [...nodePath], edgeIds: [...edgeIds, e.edgeId], isCycle: true});
+                    }
+                    return;
+                }
+                nodePath.push(next);
+                edgeIds.push(e.edgeId);
+                extended = true;
+                db_findAllPaths(next, nodePath, edgeIds, adj, allContigs);
+                nodePath.pop();
+                edgeIds.pop();
+            } else {
+                for (let e of outs) {
+                    const next = e.to;
+                    if (nodePath.includes(next)) continue;
+                    nodePath.push(next);
+                    edgeIds.push(e.edgeId);
+                    db_findAllPaths(next, nodePath, edgeIds, adj, allContigs);
+                    nodePath.pop();
+                    edgeIds.pop();
+                }
+            }
+            if (!extended && outs.length > 0) {
+                allContigs.push({nodePath: [...nodePath], edgeIds: [...edgeIds], isCycle: false});
+            }
+        }
+
+    </script>
+</body>
+</html>

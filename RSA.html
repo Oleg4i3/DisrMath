@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Алгоритм RSA</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .step {
+            display: none;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+        }
+        .step.active {
+            display: block;
+        }
+        .step-number {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .visualization {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+        }
+        .person {
+            text-align: center;
+            font-size: 40px;
+        }
+        .person-name {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .person-keys {
+            margin-top: 10px;
+            font-size: 14px;
+            background-color: #fff;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .message-box {
+            background-color: #fff;
+            border: 2px dashed #3498db;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 200px;
+            text-align: center;
+        }
+        .formula {
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 3px solid #3498db;
+            font-style: italic;
+        }
+        .key-display {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+        }
+        .key {
+            background-color: #e8f4fc;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #3498db;
+            text-align: center;
+            min-width: 150px;
+        }
+        .calculation {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #ecf0f1;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .emoji {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        .info-box {
+            background-color: #e8f4fc;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .spoiler {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .spoiler summary {
+            padding: 10px 15px;
+            background-color: #e9ecef;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .spoiler-content {
+            padding: 15px;
+            border-top: 1px solid #ccc;
+        }
+        .hash-box {
+            background-color: #fff;
+            border: 2px solid #e74c3c;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .analogy {
+            background-color: #fff;
+            border: 2px solid #9b59b6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .analogy-title {
+            color: #9b59b6;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .lock-visual {
+            font-size: 30px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100px;
+        }
+        .interactive-task {
+            background-color: #e8f6ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+        .task-button {
+            background-color: #2ecc71;
+            margin-top: 10px;
+        }
+        .task-button:hover {
+            background-color: #27ae60;
+        }
+        .result {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 10px;
+        }
+        .answer-spoiler {
+            margin-top: 10px;
+        }
+        .correct-answer {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .euclid-explanation {
+            background-color: #fff;
+            border: 2px solid #e67e22;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .euclid-title {
+            color: #e67e22;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Алгоритм RSA</h1>
+    <p>Цей симулятор демонструє принцип роботи алгоритму RSA для шифрування та цифрового підпису.</p>
+
+    <div class="analogy">
+        <div class="analogy-title">🔐 Аналогія асиметричного шифрування</div>
+        
+        <h4>Шифрування (Боб отримує повідомлення):</h4>
+        <div class="lock-visual">👦 →  🔓(публічний) → 👧</div> 
+		<div class="lock-visual"> 👧 → 📧🔒 → 👦 🔑(приватний) →📧 👦🗁</div>
+        <ul>
+            <li><strong>Боб роздає всім ЗАМКИ</strong> (public key) - кожен може закрити, просто заклацнути щось на замок </li>
+            <li><strong>Тільки Боб має КЛЮЧ</strong> (private key) - тільки він може відкрити</li>
+            <li>Аліса замикає повідомлення замком Боба і відправляє йому</li>
+            <li>Тільки Боб може відкрити це повідомлення своїм ключем</li>
+			<li>Маючи замок, неможливо виготовити ключ</li>
+        </ul>
+        
+        <h4>Цифровий підпис (Аліса підписує повідомлення):</h4>
+        <div class="lock-visual">👧 🔏(приватний) → 🔑(публічний)👦</div>
+		<div class="lock-visual">👧✍ → 📧🔀🔏 → 👦🔑 → 🔀🔓👌 </div>
+        <ul>
+            <li><strong>Аліса роздає всім КЛЮЧІ</strong> (public key) - кожен може відкрити</li>
+            <li><strong>Тільки Аліса має ЗАМОК</strong> (private key) - тільки вона може закрити</li>
+            <li>Аліса замикає ХЕШ повідомлення (наприклад, суму кодів букв) своїм замком і відправляє</li>
+            <li>Боб відкриває ХЕШ повідомлення публічним ключем Аліси і переконується, що воно від неї (і не було модифіковане), бо тільки в неї є такий замок</li>
+			<li>Маючи ключ, неможливо виготовити замок</li>
+        </ul>
+    </div>
+
+    <div class="tab-container">
+        <div class="tab active" onclick="switchTab('encryption')">🔐 Шифрування</div>
+        <div class="tab" onclick="switchTab('signature')">📝 Цифровий підпис</div>
+    </div>
+
+    <!-- Шифрування -->
+    <div id="encryption" class="tab-content active">
+        <div class="container">
+            <h2>🔐 Шифрування повідомлення</h2>
+            <p>Аліса хоче надіслати Бобу секретне повідомлення. Вона використовує публічний ключ Боба для шифрування.</p>
+            
+            <div class="visualization">
+                <div class="person">
+                    <div>👧</div>
+                    <div class="person-name">Аліса</div>
+                    <div class="person-keys">
+                        <div>🔓 публічний ключ Боба:</div>
+                        <div>(e, n) = (<span id="alice-public-e">3</span>, <span id="alice-public-n">33</span>)</div>
+                    </div>
+                </div>
+                <div class="message-box" id="encryption-message">
+                    <div>✉️</div>
+                    <div id="original-message">Привіт, Бобе!</div>
+                </div>
+                <div class="person">
+                    <div>👦</div>
+                    <div class="person-name">Боб</div>
+                    <div class="person-keys">
+                        <div>🔒 публічний ключ:</div>
+                        <div>(e, n) = (<span id="bob-public-e">3</span>, <span id="bob-public-n">33</span>)</div>
+                        <div>🔑 Приватний ключ:</div>
+                        <div>(d, n) = (<span id="bob-private-d">7</span>, <span id="bob-private-n">33</span>)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step active" id="step1-enc">
+                <h3><span class="step-number">1</span> Генерація ключів</h3>
+                <p>Боб генерує пару ключів: публічний (public) та приватний (private).</p>
+                
+                <div class="input-group">
+                    <label>Введіть прості числа p та q (малі, наприклад 3 і 11):</label>
+                    <input type="number" id="input-p" placeholder="p" value="3" min="2" max="97">
+                    <input type="number" id="input-q" placeholder="q" value="11" min="2" max="97">
+                    <button onclick="calculateKeys()" class="task-button">Обчислити ключі</button>
+                </div>
+                
+                <div class="info-box">
+                    <p><strong>Кроки генерації ключів:</strong></p>
+                    <ol>
+                        <li>Вибираємо два простих числа: p = <span id="p-value">3</span>, q = <span id="q-value">11</span></li>
+                        <li>Обчислюємо <span class="formula">n = p × q = <span id="n-value">33</span></span></li>
+                        <li>Обчислюємо <span class="formula">φ(n) = (p-1) × (q-1) = <span id="phi-value">20</span></span></li>
+                        <li>Вибираємо e таке, що 1 < e < φ(n) і НСД(e, φ(n)) = 1: e = <span id="e-value">3</span></li>
+                        <li>Обчислюємо d таке, що <span class="formula">d × e ≡ 1 mod φ(n)</span>: d = <span id="d-value">7</span></li>
+                    </ol>
+                </div>
+                
+                <div class="interactive-task">
+                    <p><strong>Спробуйте самостійно:</strong> Знайдіть d для e=<span id="task-e">3</span>, φ(n)=<span id="task-phi">20</span></p>
+                    <p><em>Підказка: d × <span id="hint-e">3</span> повинно давати остачу 1 при діленні на <span id="hint-phi">20</span></em></p>
+                    <div class="input-group">
+                        <input type="number" id="input-d" placeholder="d">
+                        <button onclick="checkD()" class="task-button">Перевірити d</button>
+                    </div>
+                    <div id="d-result" class="result"></div>
+                    <div class="answer-spoiler" id="d-answer" style="display: none;">
+                        <details>
+                            <summary>Показати правильну відповідь</summary>
+                            <p class="correct-answer">d = <span id="correct-d">7</span></p>
+                            <p>Перевірка: <span class="formula"><span id="check-e">3</span> × <span id="check-d">7</span> = <span id="check-product">21</span> ≡ 1 mod <span id="check-phi">20</span></span></p>
+                            <p><em>Примітка: Також підходять d=27, d=47, d=67 тощо</em></p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="key-display">
+                    <div class="key">
+                        <h4>  🔓  Публічний ключ Боба</h4>
+                        <p>(e, n) = (<span id="public-e">3</span>, <span id="public-n">33</span>)</p>
+                    </div>
+                    <div class="key">
+                        <h4>🔑 Приватний ключ Боба</h4>
+                        <p>(d, n) = (<span id="private-d">7</span>, <span id="private-n">33</span>)</p>
+                    </div>
+                </div>
+                
+                <p>Боб публікує свій публічний ключ, щоб Аліса могла зашифрувати повідомлення.</p>
+            </div>
+
+            <div class="step" id="step2-enc">
+                <h3><span class="step-number">2</span> Перетворення повідомлення в числа</h3>
+                <p>Аліса перетворює своє текстове повідомлення в числове представлення.</p>
+                
+                <div class="calculation">
+                    <p><strong>Повідомлення:</strong> "Привіт, Бобе!"</p>
+                    <p>Кожна літера замінюється на її позицію в алфавіті:</p>
+                    <p>П(17) р(18) и(10) в(3) і(9) т(20) ,(0) Б(2) о(16) б(2) е(6) !(0)</p>
+                    <p>Числове представлення: <strong id="numeric-message">17 18 10 3 9 20 0 2 16 2 6 0</strong></p>
+                </div>
+            </div>
+
+            <div class="step" id="step3-enc">
+                <h3><span class="step-number">3</span> Шифрування</h3>
+                <p>Аліса шифрує кожне число m за формулою: <span class="formula">c = m<sup>e</sup> mod n</span></p>
+                
+                <div class="interactive-task">
+                    <p><strong>Спробуйте самостійно:</strong> Зашифруйте число 17 з e=<span id="encrypt-e">3</span>, n=<span id="encrypt-n">33</span></p>
+                    <div class="input-group">
+                        <input type="number" id="input-encrypt" placeholder="Результат">
+                        <button onclick="checkEncryption()" class="task-button">Перевірити</button>
+                    </div>
+                    <div id="encrypt-result" class="result"></div>
+                    <div class="answer-spoiler" id="encrypt-answer" style="display: none;">
+                        <details>
+                            <summary>Показати правильну відповідь</summary>
+                            <p class="correct-answer">17<sup><span id="correct-encrypt-e">3</span></sup> mod <span id="correct-encrypt-n">33</span> = <span id="correct-encrypt">29</span></p>
+                            <p>Обчислення: 17<sup><span id="calc-encrypt-e">3</span></sup> = <span id="calc-encrypt-power">4913</span>, <span id="calc-encrypt-power">4913</span> ÷ <span id="calc-encrypt-n">33</span> = <span id="calc-encrypt-div">148</span> залишок <span id="calc-encrypt-mod">29</span></p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="calculation">
+                    <p>Використовуючи публічний ключ Боба (e=<span id="calc-e">3</span>, n=<span id="calc-n">33</span>):</p>
+                    <p><span class="formula" id="encryption-example1">17<sup>3</sup> mod 33 = 4913 mod 33 = 29</span></p>
+                    <p><span class="formula" id="encryption-example2">18<sup>3</sup> mod 33 = 5832 mod 33 = 24</span></p>
+                    <p><span class="formula" id="encryption-example3">10<sup>3</sup> mod 33 = 1000 mod 33 = 10</span></p>
+                    <p>...</p>
+                    <p>Зашифроване повідомлення: <strong id="encrypted-message">29 24 10 27 3 14 0 8 4 8 18 0</strong></p>
+                </div>
+                
+                <div class="visualization">
+                    <div class="person">
+                        <div>👧</div>
+                        <div class="person-name">Аліса</div>
+                        <div class="person-keys">
+                            <div> 🔒 публічний ключ Боба:</div>
+                            <div>(e, n) = (<span id="alice-public-e2">3</span>, <span id="alice-public-n2">33</span>)</div>
+                        </div>
+                    </div>
+                    <div class="message-box">
+                        <div>🔒</div>
+                        <div id="encrypted-visual">29 24 10 27 3 14 0 8 4 8 18 0</div>
+                    </div>
+                    <div class="person">
+                        <div>👦</div>
+                        <div class="person-name">Боб</div>
+                        <div class="person-keys">
+                            <div>🔒 публічний ключ:</div>
+                            <div>(e, n) = (<span id="bob-public-e2">3</span>, <span id="bob-public-n2">33</span>)</div>
+                            <div> 🔑 Приватний ключ:</div>
+                            <div>(d, n) = (<span id="bob-private-d2">7</span>, <span id="bob-private-n2">33</span>)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step" id="step4-enc">
+                <h3><span class="step-number">4</span> Дешифрування</h3>
+                <p>Боб отримує зашифроване повідомлення і дешифрує його за формулою: <span class="formula">m = c<sup>d</sup> mod n</span></p>
+                
+                <div class="interactive-task">
+                    <p><strong>Спробуйте самостійно:</strong> Розшифруйте число 29 з d=<span id="decrypt-d">7</span>, n=<span id="decrypt-n">33</span></p>
+                    <div class="input-group">
+                        <input type="number" id="input-decrypt" placeholder="Результат">
+                        <button onclick="checkDecryption()" class="task-button">Перевірити</button>
+                    </div>
+                    <div id="decrypt-result" class="result"></div>
+                    <div class="answer-spoiler" id="decrypt-answer" style="display: none;">
+                        <details>
+                            <summary>Показати правильну відповідь</summary>
+                            <p class="correct-answer">29<sup><span id="correct-decrypt-d">7</span></sup> mod <span id="correct-decrypt-n">33</span> = <span id="correct-decrypt">17</span></p>
+                            <p>Обчислення: 29<sup><span id="calc-decrypt-d">7</span></sup> = <span id="calc-decrypt-power">17249876309</span>, <span id="calc-decrypt-power">17249876309</span> ÷ <span id="calc-decrypt-n">33</span> = <span id="calc-decrypt-div">522723524</span> залишок <span id="calc-decrypt-mod">17</span></p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="calculation">
+                    <p>Використовуючи свій приватний  ключ (d=<span id="calc-d">7</span>, n=<span id="calc-n2">33</span>):</p>
+                    <p><span class="formula" id="decryption-example1">29<sup>7</sup> mod 33 = 17249876309 mod 33 = 17</span></p>
+                    <p><span class="formula" id="decryption-example2">24<sup>7</sup> mod 33 = 4586471424 mod 33 = 18</span></p>
+                    <p><span class="formula" id="decryption-example3">10<sup>7</sup> mod 33 = 10000000 mod 33 = 10</span></p>
+                    <p>...</p>
+                    <p>Розшифроване повідомлення: <strong id="decrypted-numeric">17 18 10 3 9 20 0 2 16 2 6 0</strong></p>
+                    <p>Перетворюємо назад у текст: <strong id="decrypted-text">Привіт, Бобе!</strong></p>
+                </div>
+                
+                <div class="visualization">
+                    <div class="person">
+                        <div>👧</div>
+                        <div class="person-name">Аліса</div>
+                        <div class="person-keys">
+                            <div>🔒 публічний ключ Боба:</div>
+                            <div>(e, n) = (<span id="alice-public-e3">3</span>, <span id="alice-public-n3">33</span>)</div>
+                        </div>
+                    </div>
+                    <div class="message-box">
+                        <div>✉️</div>
+                        <div id="decrypted-visual">Привіт, Бобе!</div>
+                    </div>
+                    <div class="person">
+                        <div>👦</div>
+                        <div class="person-name">Боб</div>
+                        <div class="person-keys">
+                            <div>🔒 публічний ключ:</div>
+                            <div>(e, n) = (<span id="bob-public-e3">3</span>, <span id="bob-public-n3">33</span>)</div>
+                            <div>🔑 Приватний ключ:</div>
+                            <div>(d, n) = (<span id="bob-private-d3">7</span>, <span id="bob-private-n3">33</span>)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="prev-btn-enc" onclick="prevStep('enc')" disabled>← Попередній крок</button>
+                <button id="next-btn-enc" onclick="nextStep('enc')">Наступний крок →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Цифровий підпис -->
+    <div id="signature" class="tab-content">
+        <div class="container">
+            <h2>📝 Цифровий підпис</h2>
+            <p>Аліса хоче підписати повідомлення, щоб Боб міг перевірити, що воно дійсно від неї.</p>
+            
+            <div class="visualization">
+                <div class="person">
+                    <div>👧</div>
+                    <div class="person-name">Аліса</div>
+                    <div class="person-keys">
+                        <div>🔑 публічний ключ:</div>
+                        <div>(e, n) = (<span id="alice-sig-public-e">3</span>, <span id="alice-sig-public-n">55</span>)</div>
+                        <div>🔏 Приватний ключ:</div>
+                        <div>(d, n) = (<span id="alice-sig-private-d">27</span>, <span id="alice-sig-private-n">55</span>)</div>
+                    </div>
+                </div>
+                <div class="message-box" id="signature-message">
+                    <div>✉️</div>
+                    <div id="signed-original">Важливі дані</div>
+                </div>
+                <div class="person">
+                    <div>👦</div>
+                    <div class="person-name">Боб</div>
+                    <div class="person-keys">
+                        <div>🔑 публічний ключ Аліси:</div>
+                        <div>(e, n) = (<span id="bob-sig-public-e">3</span>, <span id="bob-sig-public-n">55</span>)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step active" id="step1-sig">
+                <h3><span class="step-number">1</span> Генерація ключів</h3>
+                <p>Аліса генерує пару ключів: публічний (public) та приватний  (private).</p>
+                
+                <div class="input-group">
+                    <label>Введіть прості числа p та q (малі, наприклад 5 і 11):</label>
+                    <input type="number" id="input-p-sig" placeholder="p" value="5" min="2" max="97">
+                    <input type="number" id="input-q-sig" placeholder="q" value="11" min="2" max="97">
+                    <button onclick="calculateKeysSig()" class="task-button">Обчислити ключі</button>
+                </div>
+                
+                <div class="info-box">
+                    <p><strong>Кроки генерації ключів:</strong></p>
+                    <ol>
+                        <li>Вибираємо два простих числа: p = <span id="p-sig">5</span>, q = <span id="q-sig">11</span></li>
+                        <li>Обчислюємо <span class="formula">n = p × q = <span id="n-sig">55</span></span></li>
+                        <li>Обчислюємо <span class="formula">φ(n) = (p-1) × (q-1) = <span id="phi-sig">40</span></span></li>
+                        <li>Вибираємо e таке, що 1 < e < φ(n) і НСД(e, φ(n)) = 1: e = <span id="e-sig">3</span></li>
+                        <li>Обчислюємо d таке, що <span class="formula">d × e ≡ 1 mod φ(n)</span>: d = <span id="d-sig">27</span></li>
+                    </ol>
+                </div>
+                
+                <div class="interactive-task">
+                    <p><strong>Спробуйте самостійно:</strong> Знайдіть d для e=<span id="task-e-sig">3</span>, φ(n)=<span id="task-phi-sig">40</span></p>
+                    <p><em>Підказка: d × <span id="hint-e-sig">3</span> повинно давати остачу 1 при діленні на <span id="hint-phi-sig">40</span></em></p>
+                    <div class="input-group">
+                        <input type="number" id="input-d-sig" placeholder="d">
+                        <button onclick="checkDSig()" class="task-button">Перевірити d</button>
+                    </div>
+                    <div id="d-result-sig" class="result"></div>
+                    <div class="answer-spoiler" id="d-answer-sig" style="display: none;">
+                        <details>
+                            <summary>Показати правильну відповідь</summary>
+                            <p class="correct-answer">d = <span id="correct-d-sig">27</span></p>
+                            <p>Перевірка: <span class="formula"><span id="check-e-sig">3</span> × <span id="check-d-sig">27</span> = <span id="check-product-sig">81</span> ≡ 1 mod <span id="check-phi-sig">40</span></span></p>
+                            <p><em>Примітка: Також підходять d=67, d=107, d=147 тощо</em></p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="key-display">
+                    <div class="key">
+                        <h4>🔑 публічний ключ Аліси</h4>
+                        <p>(e, n) = (<span id="public-e-sig">3</span>, <span id="public-n-sig">55</span>)</p>
+                    </div>
+                    <div class="key">
+                        <h4>🔒 приватний  ключ Аліси</h4>
+                        <p>(d, n) = (<span id="private-d-sig">27</span>, <span id="private-n-sig">55</span>)</p>
+                    </div>
+                </div>
+                
+                <p>Аліса публікує свій публічний ключ, щоб Боб міг перевірити її підпис.</p>
+            </div>
+
+            <div class="step" id="step2-sig">
+                <h3><span class="step-number">2</span> Обчислення хешу повідомлення</h3>
+                <p>Аліса обчислює хеш-значення свого повідomлення. Хеш-функція перетворює повідомлення будь-якої довжини у фіксовану послідовність бітів.</p>
+                
+                <div class="warning-box">
+                    <p><strong>Увага!</strong> У реальних системах використовуються складні криптографічні хеш-функції (SHA-256, SHA-3 тощо). Для спрощення в цьому симуляторі ми використовуємо просту функцію.</p>
+                </div>
+                
+                <div class="calculation">
+                    <p><strong>Повідомлення:</strong> "Важливі дані"</p>
+                    <p>Кожна літера замінюється на її позицію в алфавіті:</p>
+                    <p>В(3) а(1) ж(8) л(13) и(10) в(3) і(9) д(5) а(1) н(15) і(9)</p>
+                    <p>Числове представлення: <strong>3 1 8 13 10 3 9 5 1 15 9</strong></p>
+                    <p>Застосовуємо просту хеш-функцію: сума всіх чисел mod 20</p>
+                    <p>3+1+8+13+10+3+9+5+1+15+9 = 77</p>
+                    <p><span class="formula">77 mod 20 = 17</span></p>
+                </div>
+                
+                <div class="hash-box">
+                    <strong>Хеш повідомлення: 17</strong>
+                </div>
+                
+                <p>Хеш-функція забезпечує, що навіть незначна зміна повідомлення призведе до зміни хешу, що дозволяє виявити модифікації.</p>
+            </div>
+
+            <div class="step" id="step3-sig">
+                <h3><span class="step-number">3</span> Створення підпису</h3>
+                <p>Аліса створює цифровий підпис для хешу повідомлення h за формулою: <span class="formula">s = h<sup>d</sup> mod n</span></p>
+                
+                <div class="interactive-task">
+                    <p><strong>Спробуйте самостійно:</strong> Підпишіть хеш 17 з d=<span id="sign-d">27</span>, n=<span id="sign-n">55</span></p>
+                    <div class="input-group">
+                        <input type="number" id="input-sign" placeholder="Підпис">
+                        <button onclick="checkSignature()" class="task-button">Перевірити</button>
+                    </div>
+                    <div id="sign-result" class="result"></div>
+                    <div class="answer-spoiler" id="sign-answer" style="display: none;">
+                        <details>
+                            <summary>Показати правильну відповідь</summary>
+                            <p class="correct-answer">17<sup><span id="correct-sign-d">27</span></sup> mod <span id="correct-sign-n">55</span> = <span id="correct-sign">8</span></p>
+                            <p>Обчислення: 17<sup><span id="calc-sign-d">27</span></sup> mod 55 можна обчислити за допомогою модульної експоненти</p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="calculation">
+                    <p>Використовуючи свій приватний  ключ (d=<span id="calc-d-sig">27</span>, n=<span id="calc-n-sig">55</span>):</p>
+                    <p><span class="formula" id="signature-example">17<sup>27</sup> mod 55 = 8</span></p>
+                    <p>Цифровий підпис: <strong id="signature-value">8</strong></p>
+                </div>
+                
+                <div class="visualization">
+                    <div class="person">
+                        <div>👧</div>
+                        <div class="person-name">Аліса</div>
+                        <div class="person-keys">
+                            <div>🔑 публічний ключ:</div>
+                            <div>(e, n) = (<span id="alice-sig-public-e2">3</span>, <span id="alice-sig-public-n2">55</span>)</div>
+                            <div>🔒 Приватний ключ:</div>
+                            <div>(d, n) = (<span id="alice-sig-private-d2">27</span>, <span id="alice-sig-private-n2">55</span>)</div>
+                        </div>
+                    </div>
+                    <div class="message-box">
+                        <div>📝 🔀🔏</div>
+                        <div>Повідомлення + Підписаний Хеш</div>
+                        <div id="signed-message">Важливі дані</div>
+                        <div id="signature-visual">Підпис: 8</div>
+                    </div>
+                    <div class="person">
+                        <div>👦</div>
+                        <div class="person-name">Боб</div>
+                        <div class="person-keys">
+                            <div>🔑 публічний ключ Аліси:</div>
+                            <div>(e, n) = (<span id="bob-sig-public-e2">3</span>, <span id="bob-sig-public-n2">55</span>)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step" id="step4-sig">
+                <h3><span class="step-number">4</span> Перевірка підпису</h3>
+                <p>Боб отримує повідомлення з підписом і перевіряє його:</p>
+                <ol>
+                    <li>Обчислює хеш отриманого повідомлення</li>
+                    <li>Розшифровує підпис за допомогою відкритого ключа Аліси</li>
+                    <li>Порівнює отримане значення з обчисленим хешем</li>
+                </ol>
+                
+                <div class="interactive-task">
+                    <p><strong>Спробуйте самостійно:</strong> Перевірте підпис 8 з e=<span id="verify-e">3</span>, n=<span id="verify-n">55</span></p>
+                    <div class="input-group">
+                        <input type="number" id="input-verify" placeholder="Хеш">
+                        <button onclick="checkVerification()" class="task-button">Перевірити</button>
+                    </div>
+                    <div id="verify-result" class="result"></div>
+                    <div class="answer-spoiler" id="verify-answer" style="display: none;">
+                        <details>
+                            <summary>Показати правильну відповідь</summary>
+                            <p class="correct-answer">8<sup><span id="correct-verify-e">3</span></sup> mod <span id="correct-verify-n">55</span> = <span id="correct-verify">17</span></p>
+                            <p>Обчислення: 8<sup><span id="calc-verify-e">3</span></sup> = <span id="calc-verify-power">512</span>, <span id="calc-verify-power">512</span> ÷ <span id="calc-verify-n">55</span> = <span id="calc-verify-div">9</span> залишок <span id="calc-verify-mod">17</span></p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="calculation">
+                    <p><strong>1. Обчислення хешу отриманого повідомлення:</strong></p>
+                    <p>"Важливі дані" → хеш = <strong>17</strong></p>
+                    
+                    <p><strong>2. Розшифрування підпису за формулою: <span class="formula">h = s<sup>e</sup> mod n</span></strong></p>
+                    <p>Використовуючи публічний ключ Аліси (e=<span id="calc-e-sig">3</span>, n=<span id="calc-n-sig2">55</span>):</p>
+                    <p><span class="formula" id="verification-example">8<sup>3</sup> mod 55 = 512 mod 55 = 17</span></p>
+                    
+                    <p><strong>3. Порівняння:</strong></p>
+                    <p>Обчислений хеш: 17</p>
+                    <p>Розшифрований підпис: <span id="decrypted-signature">17</span></p>
+                </div>
+                
+                <div class="visualization">
+                    <div class="person">
+                        <div>👧</div>
+                        <div class="person-name">Аліса</div>
+                        <div class="person-keys">
+                            <div>🔑 публічний ключ:</div>
+                            <div>(e, n) = (<span id="alice-sig-public-e3">3</span>, <span id="alice-sig-public-n3">55</span>)</div>
+                            <div>🔒 Приватний ключ:</div>
+                            <div>(d, n) = (<span id="alice-sig-private-d3">27</span>, <span id="alice-sig-private-n3">55</span>)</div>
+                        </div>
+                    </div>
+                    <div class="message-box">
+                        <div>✅ 🔑🔓 🔀</div>
+                        <div>Ключ підійшов - Підпис перевірено!  </div>
+                        <div id="verified-message">Хеш співпадає - повідомлення не було змінено</div>
+                    </div>
+                    <div class="person">
+                        <div>👦</div>
+                        <div class="person-name">Боб</div>
+                        <div class="person-keys">
+                            <div>🔑 публічний ключ Аліси:</div>
+                            <div>(e, n) = (<span id="bob-sig-public-e3">3</span>, <span id="bob-sig-public-n3">55</span>)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="info-box">✅ Підпис вірний! Боб може бути впевнений, що повідомлення дійсно надіслала Аліса та не було модифіковано.</p>
+            </div>
+
+            <div class="controls">
+                <button id="prev-btn-sig" onclick="prevStep('sig')" disabled>← Попередній крок</button>
+                <button id="next-btn-sig" onclick="nextStep('sig')">Наступний крок →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Детальна теоретична довідка -->
+    <div class="container">
+        <div class="spoiler">
+            <summary>📚 Детальна теоретична довідка</summary>
+            <div class="spoiler-content">
+                <h3>Математичні основи RSA</h3>
+                
+                <h4>1. Що таке НСД(e, φ(n)) = 1?</h4>
+                <p>НСД - Найбільший Спільний Дільник. Умова <span class="formula">НСД(e, φ(n)) = 1</span> означає, що числа e та φ(n) є взаємно простими, тобто не мають спільних дільників, крім 1.</p>
+                <p>Ця умова важлива, оскільки гарантує існування оберненого елемента e modulo φ(n), який ми позначаємо як d.</p>
+                
+                <div class="euclid-explanation">
+                    <div class="euclid-title">2. Алгоритм Евкліда для знаходження НСД</div>
+                    <p><strong>Алгоритм Евкліда працює так:</strong></p>
+                    <ol>
+                        <li>Беремо два числа, для яких хочемо знайти НСД</li>
+                        <li>Ділимо більше число на менше і запам'ятовуємо остачу</li>
+                        <li>Якщо остача дорівнює 0, то НСД - це менше число</li>
+                        <li>Якщо остача не дорівнює 0, то повторюємо процес, беручи менше число і остачу</li>
+                        <li>Продовжуємо, поки не отримаємо остачу 0</li>
+                    </ol>
+                    
+                    <p><strong>Приклад для чисел 48 і 18:</strong></p>
+                    <ol>
+                        <li>48 ÷ 18 = 2 (остача 12)</li>
+                        <li>18 ÷ 12 = 1 (остача 6)</li>
+                        <li>18 ÷ 6 =  (остача 0)</li>
+                        <li>Остача 0, тому НСД = 6</li>
+                    </ol>
+                </div>
+
+                <div class="euclid-explanation">
+    <div class="euclid-title">3. Розширений алгоритм Евкліда для знаходження d</div>
+	<p><em>Алгоритм знаходить такі коефіцієнти, що e × d + φ(n) × k = 1, де k - деяке ціле число.</em></p>
+    <p><strong>Розширений алгоритм Евкліда працює так:</strong></p>
+    <ol>
+        <li>Беремо два числа: e та φ(n), для яких хочемо знайти d</li>
+        <li>Ділимо більше число на менше і запам'ятовуємо частку та остачу</li>
+        <li>Запам'ятовуємо, як остача виражається через початкові числа e та φ(n)</li>
+        <li>Повторюємо процес, беручи менше число і остачу</li>
+        <li>Продовжуємо, поки не отримаємо остачу 1.</li>
+        <li>Виражаємо цю одиницю через всі попередні остачі, групуємо всі доданки з множником е </li>
+        <li>Коефіцієнт перед e з останнього кроку дає нам шукане d (якщо вийшло від'ємне, додаємо φ)</li>
+    </ol>
+    
+    <p><strong>Приклад для e=5, φ(n)=108 (p=19, q=7):</strong></p>
+    <ol>
+        <li>108 ділимо на 5: 
+            <ul>
+			    <li>    108 : 5 = 21 (остача 3)</li>
+                <li>Або 108 = 21 × 5 + 3 (остача 3)</li>
+                <li>Виражаємо остачу 3 = 108 - 5 × 21</li>
+            </ul>
+        </li>
+        <li>Беремо менше число з пари e=5, φ(n)=108, у нас це завжди е, ділимо на остачу 3:
+            <ul>
+                <li>    5 : 3 = 1 (остача 2)</li>
+                <li>Або 5 = 3 × 1 + 2 (остача 2)</li>
+                <li>Виражаємо остачу 2 = 5 - 3 × 1</li>
+            </ul>
+        </li>
+		  <li>Беремо е, ділимо на остачу попереднього кроку 2:
+            <ul>
+                <li>    5 : 2 = 2 (остача 1)</li>
+                <li>Або 5 = 2 × 2 + 1(остача 1!!!)</li>
+                <li>Виражаємо остачу 1 = 5 - 2 × 2</li>
+            </ul>
+        </li>
+        <li>Підставляємо вирази для остач з усіх попередніх кроків:
+            <ul>
+                <li>1 = 5 - 2 × (5 - 3×1) = 5 - 2(5 - (108 - 5 × 21)×1)</li>
+                <li>Групуємо усі доданки з множником е=5:</li>
+				<li>1 = <strong>5</strong> - 2 × <strong>5</strong> - 2 × <strong>5</strong> × 21   + 2 × 108 = <strong>5</strong>(1 - 2 - 42) + 2 × 108 </li>
+            </ul>
+        </li>
+        <li> коефіцієнт біля е=5 в дужках 1-2-42=-43 і є шукане число d, але воно від'ємне, тоді додаємо φ=108:  d=-43+108=65 </li>
+        <li> e=5 i d=65 "мультиплікативно обернені" за модулем φ=108, тобто e×d ≡ 1 mod φ  або e×d = 1 + k×φ, де k  ціле</li>
+    </ol>
+    <p>Перевірка: 65 × 5 = 325, 325=1+3×108,  65 × 5 ≡ 1 mod 108 ✓</p>
+    
+    
+</div>
+				
+				
+                
+                <h4>4. Як знаходиться мультиплікативно обернене число d?</h4>
+                <p>Для знаходження d такого, що <span class="formula">d × e ≡ 1 mod φ(n)</span>, використовується розширений алгоритм Евкліда.</p>
+                <p><strong>Приклад для e=3, φ(n)=20:</strong></p>
+                <ol>
+                    <li>Шукаємо таке d, що <span class="formula">3 × d ≡ 1 mod 20</span></li>
+                    <li>Перебираємо числа: 3×1=3, 3×2=6, 3×3=9, ..., 3×7=21</li>
+                    <li><span class="formula">21 mod 20 = 1</span> - знайшли!</li>
+                    <li>Отже, d = 7</li>
+                </ol>
+                <p>У реальних системах для великих чисел використовується розширений алгоритм Евкліда, який знаходить d ефективно.</p>
+                
+                <h4>5. Чому RSA працює?</h4>
+                <p>Алгоритм RSA базується на теоремі Ейлера, яка стверджує, що для будь-яких взаємно простих чисел m та n:</p>
+                <p class="formula">m<sup>φ(n)</sup> ≡ 1 (mod n)</p>
+                <p>Для RSA, де n = p×q (добуток двох простих чисел), φ(n) = (p-1)(q-1).</p>
+                <p>Шифрування: <span class="formula">c = m<sup>e</sup> mod n</span></p>
+                <p>Дешифрування: <span class="formula">m = c<sup>d</sup> mod n = (m<sup>e</sup>)<sup>d</sup> mod n = m<sup>e×d</sup> mod n</span></p>
+                <p>Оскільки <span class="formula">e×d ≡ 1 mod φ(n)</span>, то <span class="formula">e×d = 1 + k×φ(n)</span> для деякого k, тому:</p>
+                <p class="formula">m<sup>e×d</sup> = m<sup>1 + k×φ(n)</sup> = m × (m<sup>φ(n)</sup>)<sup>k</sup> ≡ m × 1<sup>k</sup> ≡ m (mod n)</p>
+                <p>Це доводить коректність алгоритму RSA.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Поточний крок для кожної вкладки
+        let currentStepEnc = 1;
+        let currentStepSig = 1;
+        const maxStepsEnc = 4;
+        const maxStepsSig = 4;
+
+        // Поточні значення для шифрування
+        let currentP = 3;
+        let currentQ = 11;
+        let currentN = 33;
+        let currentPhi = 20;
+        let currentE = 3;
+        let currentD = 7;
+
+        // Поточні значення для підпису
+        let currentPSig = 5;
+        let currentQSig = 11;
+        let currentNSig = 55;
+        let currentPhiSig = 40;
+        let currentESig = 3;
+        let currentDSig = 27;
+
+        // Функції для навігації по кроках
+        function nextStep(type) {
+            if (type === 'enc') {
+                if (currentStepEnc < maxStepsEnc) {
+                    document.getElementById(`step${currentStepEnc}-enc`).classList.remove('active');
+                    currentStepEnc++;
+                    document.getElementById(`step${currentStepEnc}-enc`).classList.add('active');
+                    updateButtons('enc');
+                }
+            } else {
+                if (currentStepSig < maxStepsSig) {
+                    document.getElementById(`step${currentStepSig}-sig`).classList.remove('active');
+                    currentStepSig++;
+                    document.getElementById(`step${currentStepSig}-sig`).classList.add('active');
+                    updateButtons('sig');
+                }
+            }
+        }
+
+        function prevStep(type) {
+            if (type === 'enc') {
+                if (currentStepEnc > 1) {
+                    document.getElementById(`step${currentStepEnc}-enc`).classList.remove('active');
+                    currentStepEnc--;
+                    document.getElementById(`step${currentStepEnc}-enc`).classList.add('active');
+                    updateButtons('enc');
+                }
+            } else {
+                if (currentStepSig > 1) {
+                    document.getElementById(`step${currentStepSig}-sig`).classList.remove('active');
+                    currentStepSig--;
+                    document.getElementById(`step${currentStepSig}-sig`).classList.add('active');
+                    updateButtons('sig');
+                }
+            }
+        }
+
+        function updateButtons(type) {
+            if (type === 'enc') {
+                document.getElementById('prev-btn-enc').disabled = currentStepEnc === 1;
+                document.getElementById('next-btn-enc').textContent = 
+                    currentStepEnc === maxStepsEnc ? 'Завершити' : 'Наступний крок →';
+            } else {
+                document.getElementById('prev-btn-sig').disabled = currentStepSig === 1;
+                document.getElementById('next-btn-sig').textContent = 
+                    currentStepSig === maxStepsSig ? 'Завершити' : 'Наступний крок →';
+            }
+        }
+
+        // Функція для перемикання вкладок
+        function switchTab(tabName) {
+            // Приховуємо всі вкладки
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Показуємо обрану вкладку
+            document.getElementById(tabName).classList.add('active');
+            
+            // Оновлюємо активну вкладку в навігації
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Скидаємо кроки при перемиканні вкладок
+            if (tabName === 'encryption') {
+                resetSteps('enc');
+            } else {
+                resetSteps('sig');
+            }
+        }
+
+        function resetSteps(type) {
+            if (type === 'enc') {
+                // Приховуємо всі кроки шифрування
+                for (let i = 1; i <= maxStepsEnc; i++) {
+                    document.getElementById(`step${i}-enc`).classList.remove('active');
+                }
+                // Показуємо перший крок
+                document.getElementById('step1-enc').classList.add('active');
+                currentStepEnc = 1;
+                updateButtons('enc');
+            } else {
+                // Приховуємо всі кроки підпису
+                for (let i = 1; i <= maxStepsSig; i++) {
+                    document.getElementById(`step${i}-sig`).classList.remove('active');
+                }
+                // Показуємо перший крок
+                document.getElementById('step1-sig').classList.add('active');
+                currentStepSig = 1;
+                updateButtons('sig');
+            }
+        }
+
+        // Функції для інтерактивних завдань
+        function calculateKeys() {
+            const p = parseInt(document.getElementById('input-p').value);
+            const q = parseInt(document.getElementById('input-q').value);
+            
+            if (isPrime(p) && isPrime(q)) {
+                currentP = p;
+                currentQ = q;
+                currentN = p * q;
+                currentPhi = (p-1) * (q-1);
+                currentE = findE(currentPhi);
+                currentD = findD(currentE, currentPhi);
+                
+                updateKeyDisplay();
+                updateEncryptionExample();
+                document.getElementById('d-result').innerHTML = '✅ Ключі успішно обчислені!';
+                document.getElementById('d-answer').style.display = 'none';
+            } else {
+                document.getElementById('d-result').innerHTML = '❌ p та q повинні бути простими числами!';
+            }
+        }
+
+        function calculateKeysSig() {
+            const p = parseInt(document.getElementById('input-p-sig').value);
+            const q = parseInt(document.getElementById('input-q-sig').value);
+            
+            if (isPrime(p) && isPrime(q)) {
+                currentPSig = p;
+                currentQSig = q;
+                currentNSig = p * q;
+                currentPhiSig = (p-1) * (q-1);
+                currentESig = findE(currentPhiSig);
+                currentDSig = findD(currentESig, currentPhiSig);
+                
+                updateKeyDisplaySig();
+                updateSignatureExample();
+                document.getElementById('d-result-sig').innerHTML = '✅ Ключі успішно обчислені!';
+                document.getElementById('d-answer-sig').style.display = 'none';
+            } else {
+                document.getElementById('d-result-sig').innerHTML = '❌ p та q повинні бути простими числами!';
+            }
+        }
+
+        function checkD() {
+            const userD = parseInt(document.getElementById('input-d').value);
+            const isValid = (userD * currentE) % currentPhi === 1;
+            
+            if (isValid) {
+                document.getElementById('d-result').innerHTML = '✅ Правильно! d = ' + userD;
+                document.getElementById('d-answer').style.display = 'none';
+            } else {
+                document.getElementById('d-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('d-answer').style.display = 'block';
+                document.getElementById('correct-d').textContent = currentD;
+                document.getElementById('check-e').textContent = currentE;
+                document.getElementById('check-d').textContent = currentD;
+                document.getElementById('check-product').textContent = currentE * currentD;
+                document.getElementById('check-phi').textContent = currentPhi;
+            }
+        }
+
+        function checkDSig() {
+            const userD = parseInt(document.getElementById('input-d-sig').value);
+            const isValid = (userD * currentESig) % currentPhiSig === 1;
+            
+            if (isValid) {
+                document.getElementById('d-result-sig').innerHTML = '✅ Правильно! d = ' + userD;
+                document.getElementById('d-answer-sig').style.display = 'none';
+            } else {
+                document.getElementById('d-result-sig').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('d-answer-sig').style.display = 'block';
+                document.getElementById('correct-d-sig').textContent = currentDSig;
+                document.getElementById('check-e-sig').textContent = currentESig;
+                document.getElementById('check-d-sig').textContent = currentDSig;
+                document.getElementById('check-product-sig').textContent = currentESig * currentDSig;
+                document.getElementById('check-phi-sig').textContent = currentPhiSig;
+            }
+        }
+
+        function checkEncryption() {
+            const userResult = parseInt(document.getElementById('input-encrypt').value);
+            const correctResult = modExp(17, currentE, currentN);
+            if (userResult === correctResult) {
+                document.getElementById('encrypt-result').innerHTML = '✅ Правильно! 17<sup>' + currentE + '</sup> mod ' + currentN + ' = ' + correctResult;
+                document.getElementById('encrypt-answer').style.display = 'none';
+            } else {
+                document.getElementById('encrypt-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('encrypt-answer').style.display = 'block';
+                document.getElementById('correct-encrypt').textContent = correctResult;
+                document.getElementById('correct-encrypt-e').textContent = currentE;
+                document.getElementById('correct-encrypt-n').textContent = currentN;
+                document.getElementById('calc-encrypt-e').textContent = currentE;
+                document.getElementById('calc-encrypt-power').textContent = Math.pow(17, currentE);
+                document.getElementById('calc-encrypt-n').textContent = currentN;
+                document.getElementById('calc-encrypt-div').textContent = Math.floor(Math.pow(17, currentE) / currentN);
+                document.getElementById('calc-encrypt-mod').textContent = correctResult;
+            }
+        }
+
+        function checkDecryption() {
+            const userResult = parseInt(document.getElementById('input-decrypt').value);
+            const correctResult = modExp(29, currentD, currentN);
+            if (userResult === correctResult) {
+                document.getElementById('decrypt-result').innerHTML = '✅ Правильно! 29<sup>' + currentD + '</sup> mod ' + currentN + ' = ' + correctResult;
+                document.getElementById('decrypt-answer').style.display = 'none';
+            } else {
+                document.getElementById('decrypt-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('decrypt-answer').style.display = 'block';
+                document.getElementById('correct-decrypt').textContent = correctResult;
+                document.getElementById('correct-decrypt-d').textContent = currentD;
+                document.getElementById('correct-decrypt-n').textContent = currentN;
+                document.getElementById('calc-decrypt-d').textContent = currentD;
+                document.getElementById('calc-decrypt-power').textContent = Math.pow(29, currentD);
+                document.getElementById('calc-decrypt-n').textContent = currentN;
+                document.getElementById('calc-decrypt-div').textContent = Math.floor(Math.pow(29, currentD) / currentN);
+                document.getElementById('calc-decrypt-mod').textContent = correctResult;
+            }
+        }
+
+        function checkSignature() {
+            const userResult = parseInt(document.getElementById('input-sign').value);
+            const correctResult = modExp(17, currentDSig, currentNSig);
+            if (userResult === correctResult) {
+                document.getElementById('sign-result').innerHTML = '✅ Правильно! 17<sup>' + currentDSig + '</sup> mod ' + currentNSig + ' = ' + correctResult;
+                document.getElementById('sign-answer').style.display = 'none';
+            } else {
+                document.getElementById('sign-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('sign-answer').style.display = 'block';
+                document.getElementById('correct-sign').textContent = correctResult;
+                document.getElementById('correct-sign-d').textContent = currentDSig;
+                document.getElementById('correct-sign-n').textContent = currentNSig;
+                document.getElementById('calc-sign-d').textContent = currentDSig;
+            }
+        }
+
+        function checkVerification() {
+            const userResult = parseInt(document.getElementById('input-verify').value);
+            const correctResult = modExp(8, currentESig, currentNSig);
+            if (userResult === correctResult) {
+                document.getElementById('verify-result').innerHTML = '✅ Правильно! 8<sup>' + currentESig + '</sup> mod ' + currentNSig + ' = ' + correctResult;
+                document.getElementById('verify-answer').style.display = 'none';
+            } else {
+                document.getElementById('verify-result').innerHTML = '❌ Неправильно. Спробуйте ще раз!';
+                document.getElementById('verify-answer').style.display = 'block';
+                document.getElementById('correct-verify').textContent = correctResult;
+                document.getElementById('correct-verify-e').textContent = currentESig;
+                document.getElementById('correct-verify-n').textContent = currentNSig;
+                document.getElementById('calc-verify-e').textContent = currentESig;
+                document.getElementById('calc-verify-power').textContent = Math.pow(8, currentESig);
+                document.getElementById('calc-verify-n').textContent = currentNSig;
+                document.getElementById('calc-verify-div').textContent = Math.floor(Math.pow(8, currentESig) / currentNSig);
+                document.getElementById('calc-verify-mod').textContent = correctResult;
+            }
+        }
+
+        // Допоміжні функції
+        function isPrime(num) {
+            if (num <= 1) return false;
+            if (num <= 3) return true;
+            if (num % 2 === 0 || num % 3 === 0) return false;
+            for (let i = 5; i * i <= num; i += 6) {
+                if (num % i === 0 || num % (i + 2) === 0) return false;
+            }
+            return true;
+        }
+
+        function gcd(a, b) {
+            while (b !== 0) {
+                const temp = b;
+                b = a % b;
+                a = temp;
+            }
+            return a;
+        }
+
+        function findE(phi) {
+            // Шукаємо e взаємно просте з phi
+            for (let e = 2; e < phi; e++) {
+                if (gcd(e, phi) === 1) {
+                    return e;
+                }
+            }
+            return 3; // fallback
+        }
+
+        function findD(e, phi) {
+            // Знаходимо d як обернене до e mod phi
+            for (let d = 1; d < phi; d++) {
+                if ((e * d) % phi === 1) {
+                    return d;
+                }
+            }
+            return 1; // fallback
+        }
+
+        function modExp(base, exponent, modulus) {
+            if (modulus === 1) return 0;
+            let result = 1;
+            base = base % modulus;
+            while (exponent > 0) {
+                if (exponent % 2 === 1) {
+                    result = (result * base) % modulus;
+                }
+                exponent = Math.floor(exponent / 2);
+                base = (base * base) % modulus;
+            }
+            return result;
+        }
+
+        function updateKeyDisplay() {
+            document.getElementById('p-value').textContent = currentP;
+            document.getElementById('q-value').textContent = currentQ;
+            document.getElementById('n-value').textContent = currentN;
+            document.getElementById('phi-value').textContent = currentPhi;
+            document.getElementById('e-value').textContent = currentE;
+            document.getElementById('d-value').textContent = currentD;
+            document.getElementById('public-e').textContent = currentE;
+            document.getElementById('public-n').textContent = currentN;
+            document.getElementById('private-d').textContent = currentD;
+            document.getElementById('private-n').textContent = currentN;
+            
+            // Оновлюємо інтерактивні завдання
+            document.getElementById('task-e').textContent = currentE;
+            document.getElementById('task-phi').textContent = currentPhi;
+            document.getElementById('hint-e').textContent = currentE;
+            document.getElementById('hint-phi').textContent = currentPhi;
+            document.getElementById('encrypt-e').textContent = currentE;
+            document.getElementById('encrypt-n').textContent = currentN;
+            document.getElementById('decrypt-d').textContent = currentD;
+            document.getElementById('decrypt-n').textContent = currentN;
+            document.getElementById('calc-e').textContent = currentE;
+            document.getElementById('calc-n').textContent = currentN;
+            document.getElementById('calc-d').textContent = currentD;
+            document.getElementById('calc-n2').textContent = currentN;
+            
+            // Оновлюємо ключі на візуалізації
+            document.getElementById('alice-public-e').textContent = currentE;
+            document.getElementById('alice-public-n').textContent = currentN;
+            document.getElementById('alice-public-e2').textContent = currentE;
+            document.getElementById('alice-public-n2').textContent = currentN;
+            document.getElementById('alice-public-e3').textContent = currentE;
+            document.getElementById('alice-public-n3').textContent = currentN;
+            
+            document.getElementById('bob-public-e').textContent = currentE;
+            document.getElementById('bob-public-n').textContent = currentN;
+            document.getElementById('bob-private-d').textContent = currentD;
+            document.getElementById('bob-private-n').textContent = currentN;
+            document.getElementById('bob-public-e2').textContent = currentE;
+            document.getElementById('bob-public-n2').textContent = currentN;
+            document.getElementById('bob-private-d2').textContent = currentD;
+            document.getElementById('bob-private-n2').textContent = currentN;
+            document.getElementById('bob-public-e3').textContent = currentE;
+            document.getElementById('bob-public-n3').textContent = currentN;
+            document.getElementById('bob-private-d3').textContent = currentD;
+            document.getElementById('bob-private-n3').textContent = currentN;
+        }
+
+        function updateKeyDisplaySig() {
+            document.getElementById('p-sig').textContent = currentPSig;
+            document.getElementById('q-sig').textContent = currentQSig;
+            document.getElementById('n-sig').textContent = currentNSig;
+            document.getElementById('phi-sig').textContent = currentPhiSig;
+            document.getElementById('e-sig').textContent = currentESig;
+            document.getElementById('d-sig').textContent = currentDSig;
+            document.getElementById('public-e-sig').textContent = currentESig;
+            document.getElementById('public-n-sig').textContent = currentNSig;
+            document.getElementById('private-d-sig').textContent = currentDSig;
+            document.getElementById('private-n-sig').textContent = currentNSig;
+            
+            // Оновлюємо інтерактивні завдання
+            document.getElementById('task-e-sig').textContent = currentESig;
+            document.getElementById('task-phi-sig').textContent = currentPhiSig;
+            document.getElementById('hint-e-sig').textContent = currentESig;
+            document.getElementById('hint-phi-sig').textContent = currentPhiSig;
+            document.getElementById('sign-d').textContent = currentDSig;
+            document.getElementById('sign-n').textContent = currentNSig;
+            document.getElementById('verify-e').textContent = currentESig;
+            document.getElementById('verify-n').textContent = currentNSig;
+            document.getElementById('calc-d-sig').textContent = currentDSig;
+            document.getElementById('calc-n-sig').textContent = currentNSig;
+            document.getElementById('calc-e-sig').textContent = currentESig;
+            document.getElementById('calc-n-sig2').textContent = currentNSig;
+            
+            // Оновлюємо ключі на візуалізації
+            document.getElementById('alice-sig-public-e').textContent = currentESig;
+            document.getElementById('alice-sig-public-n').textContent = currentNSig;
+            document.getElementById('alice-sig-private-d').textContent = currentDSig;
+            document.getElementById('alice-sig-private-n').textContent = currentNSig;
+            document.getElementById('alice-sig-public-e2').textContent = currentESig;
+            document.getElementById('alice-sig-public-n2').textContent = currentNSig;
+            document.getElementById('alice-sig-private-d2').textContent = currentDSig;
+            document.getElementById('alice-sig-private-n2').textContent = currentNSig;
+            document.getElementById('alice-sig-public-e3').textContent = currentESig;
+            document.getElementById('alice-sig-public-n3').textContent = currentNSig;
+            document.getElementById('alice-sig-private-d3').textContent = currentDSig;
+            document.getElementById('alice-sig-private-n3').textContent = currentNSig;
+            
+            document.getElementById('bob-sig-public-e').textContent = currentESig;
+            document.getElementById('bob-sig-public-n').textContent = currentNSig;
+            document.getElementById('bob-sig-public-e2').textContent = currentESig;
+            document.getElementById('bob-sig-public-n2').textContent = currentNSig;
+            document.getElementById('bob-sig-public-e3').textContent = currentESig;
+            document.getElementById('bob-sig-public-n3').textContent = currentNSig;
+        }
+
+        // Функції для оновлення прикладів
+        function updateEncryptionExample() {
+            // Оновлюємо приклад шифрування на основі поточних ключів
+            const originalNumbers = [17, 18, 10, 3, 9, 20, 0, 2, 16, 2, 6, 0];
+            let encryptedNumbers = [];
+            let decryptedNumbers = [];
+            
+            // Шифруємо кожне число
+            for (let i = 0; i < originalNumbers.length; i++) {
+                const encrypted = modExp(originalNumbers[i], currentE, currentN);
+                encryptedNumbers.push(encrypted);
+            }
+            
+            // Дешифруємо кожне число
+            for (let i = 0; i < encryptedNumbers.length; i++) {
+                const decrypted = modExp(encryptedNumbers[i], currentD, currentN);
+                decryptedNumbers.push(decrypted);
+            }
+            
+            // Оновлюємо відображення
+            document.getElementById('encrypted-message').textContent = encryptedNumbers.join(' ');
+            document.getElementById('encrypted-visual').textContent = encryptedNumbers.join(' ');
+            document.getElementById('decrypted-numeric').textContent = decryptedNumbers.join(' ');
+            
+            // Оновлюємо приклади шифрування для перших трьох чисел
+            const example1 = originalNumbers[0];
+            const example2 = originalNumbers[1];
+            const example3 = originalNumbers[2];
+            
+            const encrypted1 = encryptedNumbers[0];
+            const encrypted2 = encryptedNumbers[1];
+            const encrypted3 = encryptedNumbers[2];
+            
+            // Обчислюємо проміжні значення для показу
+            const power1 = Math.pow(example1, currentE);
+            const power2 = Math.pow(example2, currentE);
+            const power3 = Math.pow(example3, currentE);
+            
+            // Оновлюємо HTML для прикладів шифрування
+            document.getElementById('encryption-example1').innerHTML = 
+                `${example1}<sup>${currentE}</sup> mod ${currentN} = ${power1} mod ${currentN} = ${encrypted1}`;
+            document.getElementById('encryption-example2').innerHTML = 
+                `${example2}<sup>${currentE}</sup> mod ${currentN} = ${power2} mod ${currentN} = ${encrypted2}`;
+            document.getElementById('encryption-example3').innerHTML = 
+                `${example3}<sup>${currentE}</sup> mod ${currentN} = ${power3} mod ${currentN} = ${encrypted3}`;
+            
+            // Оновлюємо приклади дешифрування для перших трьох зашифрованих чисел
+            const decrypted1 = decryptedNumbers[0];
+            const decrypted2 = decryptedNumbers[1];
+            const decrypted3 = decryptedNumbers[2];
+            
+            const powerD1 = Math.pow(encrypted1, currentD);
+            const powerD2 = Math.pow(encrypted2, currentD);
+            const powerD3 = Math.pow(encrypted3, currentD);
+            
+            document.getElementById('decryption-example1').innerHTML = 
+                `${encrypted1}<sup>${currentD}</sup> mod ${currentN} = ${powerD1} mod ${currentN} = ${decrypted1}`;
+            document.getElementById('decryption-example2').innerHTML = 
+                `${encrypted2}<sup>${currentD}</sup> mod ${currentN} = ${powerD2} mod ${currentN} = ${decrypted2}`;
+            document.getElementById('decryption-example3').innerHTML = 
+                `${encrypted3}<sup>${currentD}</sup> mod ${currentN} = ${powerD3} mod ${currentN} = ${decrypted3}`;
+            
+            // Перевіряємо, чи дешифрування пройшло успішно
+            const isSuccess = JSON.stringify(originalNumbers) === JSON.stringify(decryptedNumbers);
+            if (isSuccess) {
+                document.getElementById('decrypted-text').textContent = "Привіт, Бобе!";
+                document.getElementById('decrypted-visual').textContent = "Привіт, Бобе!";
+            } else {
+                document.getElementById('decrypted-text').textContent = "Помилка дешифрування!";
+                document.getElementById('decrypted-visual').textContent = "Помилка дешифрування!";
+            }
+        }
+
+        function updateSignatureExample() {
+            // Оновлюємо приклад цифрового підпису на основі поточних ключів
+            const messageNumbers = [3, 1, 8, 13, 10, 3, 9, 5, 1, 15, 9];
+            const hash = messageNumbers.reduce((sum, num) => sum + num, 0) % 20;
+            
+            // Обчислюємо підпис
+            const signature = modExp(hash, currentDSig, currentNSig);
+            
+            // Перевіряємо підпис
+            const verifiedHash = modExp(signature, currentESig, currentNSig);
+            
+            // Оновлюємо відображення
+            document.getElementById('signature-value').textContent = signature;
+            document.getElementById('signature-visual').textContent = 'Підпис: ' + signature;
+            document.getElementById('decrypted-signature').textContent = verifiedHash;
+            
+            // Оновлюємо приклад підпису
+            document.getElementById('signature-example').innerHTML = 
+                `${hash}<sup>${currentDSig}</sup> mod ${currentNSig} = ${signature}`;
+            
+            // Оновлюємо приклад перевірки
+            const verificationPower = Math.pow(signature, currentESig);
+            document.getElementById('verification-example').innerHTML = 
+                `${signature}<sup>${currentESig}</sup> mod ${currentNSig} = ${verificationPower} mod ${currentNSig} = ${verifiedHash}`;
+            
+            // Оновлюємо інформаційне повідомлення
+            const infoBox = document.querySelector('#step4-sig .info-box');
+            if (hash === verifiedHash) {
+                infoBox.innerHTML = '✅ Підпис вірний! Боб може бути впевнений, що повідомлення дійсно надіслала Аліса та не було модифіковано.';
+            } else {
+                infoBox.innerHTML = '❌ Підпис не вірний! Повідомлення було модифіковано або ключі не правильні.';
+            }
+        }
+
+        // Ініціалізація при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            updateButtons('enc');
+            updateButtons('sig');
+            updateKeyDisplay();
+            updateKeyDisplaySig();
+            updateEncryptionExample();
+            updateSignatureExample();
+        });
+    </script>
+</body>
+</html>

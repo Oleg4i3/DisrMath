@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дискретна Математика</title>
+    <style>
+        /* --- Загальні налаштування --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        /* --- БОКОВЕ МЕНЮ (SIDEBAR) --- */
+        #sidebar {
+            min-width: 280px;
+            max-width: 280px;
+            background: #2c3e50;
+            color: #fff;
+            transition: all 0.3s;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar.active {
+            margin-left: -280px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #1a252f;
+            text-align: center;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .category {
+            padding: 15px 20px 5px 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: bold;
+            letter-spacing: 1px;
+            background: #22303d;
+        }
+        
+        .subcategory {
+            padding: 5px 20px 5px 30px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #3498db;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .menu-btn {
+            padding: 12px 20px;
+            font-size: 0.95rem;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            color: #bdc3c7;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: 0.2s;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .menu-btn:hover {
+            background: #34495e;
+            color: #fff;
+        }
+
+        .menu-btn.selected {
+            background: #34495e;
+            color: #fff;
+            border-left: 4px solid #3498db;
+        }
+
+        /* --- ОСНОВНИЙ КОНТЕНТ --- */
+        #content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .top-navbar {
+            background: #fff;
+            padding: 10px 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            z-index: 10;
+            height: 50px;
+        }
+
+        #sidebarCollapse {
+            background: #3498db;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        #sidebarCollapse:hover {
+            background: #2980b9;
+        }
+
+        .current-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .iframe-container {
+            flex-grow: 1;
+            background: #ecf0f1;
+            position: relative;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .placeholder {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #95a5a6;
+            text-align: center;
+            padding: 20px;
+        }
+        .placeholder h2 { margin-bottom: 10px; color: #2c3e50; }
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h3>ДИСКРЕТНА МАТЕМАТИКА. Інтерактивний посібник</h3>
+        </div>
+
+        <div class="category">1. Комбінаторика і теорія множин</div>
+        
+        <button class="menu-btn" onclick="openSim('SetOperations.html', 'Операції над множинами', this)">Операції над множинами (кола Ейлера)</button>
+        <button class="menu-btn" onclick="openSim('Cardinality_and_power-set.html', 'Потужність множин і булеан', this)">Потужність множин і булеан</button>
+        <button class="menu-btn" onclick="openSim('binari_relations.html', 'Бінарні відношення', this)">Бінарні відношення</button>
+        <button class="menu-btn" onclick="openSim('Combinatorics.html', 'Комбінаторика (частина 1)', this)">Основні формули комбінаторики</button>
+        <button class="menu-btn" onclick="openSim('Combinatorics2.html', 'Комбінаторика (частина 2)', this)">Комбінаторика (розширені задачі)</button>
+
+        <div class="category">2. Математична логіка</div>
+        
+        <button class="menu-btn" onclick="openSim('MathLogic.html', 'Основи мат. логіки', this)">Таблиці істинності та логічні операції</button>
+        <button class="menu-btn" onclick="openSim('karno.html', 'Карти Карно', this)">Мінімізація функцій (Карти Карно)</button>
+
+        <div class="category">3. Теорія графів</div>
+        
+        <div class="subcategory">Властивості графів</div>
+        <button class="menu-btn" onclick="openSim('isomorphism.html', 'Ізоморфізм графів', this)">Ізоморфізм графів</button>
+        <button class="menu-btn" onclick="openSim('GraphPlanarity_and_Embedding.html', 'Планарність графів', this)">Планарність та укладка графів</button>
+        <button class="menu-btn" onclick="openSim('Prufer.html', 'Код Прюфера', this)">Дерева та код Прюфера</button>
+        <button class="menu-btn" onclick="openSim('K_33onThorus.html', 'K3,3 на торі', this)">Граф K3,3 на торі</button>
+        <button class="menu-btn" onclick="openSim('Graph_stereographic_projection.html', 'Стереографічна проекція', this)">Стереографічна проекція графа</button>
+
+        <div class="subcategory">Алгоритми на графах</div>
+        <button class="menu-btn" onclick="openSim('bfs-dfs.html', 'BFS та DFS', this)">Пошук в ширину (BFS) та глибину (DFS)</button>
+        <button class="menu-btn" onclick="openSim('Dijkstra.html', 'Алгоритм Дейкстри', this)">Найкоротший шлях (Дейкстра)</button>
+        <button class="menu-btn" onclick="openSim('FordBellman.html', 'Алгоритм Форда-Беллмана', this)">Алгоритм Форда-Беллмана</button>
+        <button class="menu-btn" onclick="openSim('A-star.html', 'Алгоритм A*', this)">Пошук шляху A* (A-star)</button>
+        <button class="menu-btn" onclick="openSim('Kruskal.html', 'Алгоритм Краскала', this)">Каркас мінімальної ваги (Краскал)</button>
+        <button class="menu-btn" onclick="openSim('HeldKarp.html', 'Задача комівояжера (Held-Karp)', this)">Задача комівояжера (Held-Karp)</button>
+        <button class="menu-btn" onclick="openSim('HierholzerAlgorythm.html', 'Алгоритм Гіргольцера', this)">Ейлерові цикли (Алгоритм Гіргольцера)</button>
+        <button class="menu-btn" onclick="openSim('SteinerNetwork.html', 'Мережа Штейнера', this)">Мережа Штейнера</button>
+        <button class="menu-btn" onclick="openSim('GraphClastering.html', 'Кластеризація графів', this)">Кластеризація графів</button>
+        <button class="menu-btn" onclick="openSim('label_propagation_simulator.html', 'Label Propagation', this)">Поширення міток (Label Propagation)</button>
+        <button class="menu-btn" onclick="openSim('DNA-assemblingWithGraphs.html', 'Збірка ДНК графами', this)">Прикладне застосування: Збірка ДНК</button>
+        <button class="menu-btn" onclick="openSim('graphNeuralNetwork.html', 'Графові нейромережі', this)">Вступ до Graph Neural Networks</button>
+
+        <div class="category">4. Кодування та кібербезпека</div>
+        
+        <div class="subcategory">Кодування інформації</div>
+        <button class="menu-btn" onclick="openSim('Huffman_and_Shannon-Fano.html', 'Хаффман і Шеннон-Фано', this)">Коди Хаффмана і Шеннона-Фано</button>
+        <button class="menu-btn" onclick="openSim('ArithmCode.html', 'Арифметичне кодування', this)">Арифметичне кодування</button>
+        <button class="menu-btn" onclick="openSim('LZ77-78.html', 'Алгоритми LZ77 / LZ78', this)">Стиснення даних (LZ77 / LZ78)</button>
+        <button class="menu-btn" onclick="openSim('rANS.html', 'rANS кодування', this)">rANS кодування</button>
+        <button class="menu-btn" onclick="openSim('convolution-codes.html', 'Згорткові коди', this)">Згорткові коди</button>
+
+        <div class="subcategory">Криптографія та безпека</div>
+        <button class="menu-btn" onclick="openSim('RSA.html', 'Шифрування RSA', this)">Алгоритм RSA</button>
+        <button class="menu-btn" onclick="openSim('DH.html', 'Протокол Діффі-Хеллмана', this)">Обмін ключами (Діффі-Хеллман)</button>
+        <button class="menu-btn" onclick="openSim('chacha20.html', 'Шифр ChaCha20', this)">Потоковий шифр ChaCha20</button>
+        <button class="menu-btn" onclick="openSim('HashingARX.html', 'Хешування ARX', this)">Хешування (ARX конструкції)</button>
+
+        <div style="height: 50px;"></div>
+    </nav>
+
+    <div id="content">
+        <div class="top-navbar">
+            <button type="button" id="sidebarCollapse">
+                <span>☰</span>
+            </button>
+            <span class="current-title" id="pageTitle">Оберіть тему</span>
+        </div>
+
+        <div class="iframe-container">
+            <div class="placeholder" id="startMessage">
+                <h2>Вітаємо у курсі "Дискретна математика"!</h2>
+                <p>Натисніть кнопку ☰ зліва зверху, щоб відкрити меню тем.</p>
+                <p>Уважно читайте теоретичну довідку, яка доступна внизу кожної симуляції.</p>
+                <p style="font-size: 0.9em; color: #bdc3c7;">© КАІ Кафедра комп'ютерних інформаційних технологій</p>
+			</div>
+            <iframe id="simFrame" name="simFrame" src=""></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    const sidebar = document.getElementById('sidebar');
+    const collapseBtn = document.getElementById('sidebarCollapse');
+
+    collapseBtn.addEventListener('click', function () {
+        sidebar.classList.toggle('active');
+    });
+
+    function openSim(file, title, btn) {
+        const iframe = document.getElementById('simFrame');
+        const pageTitle = document.getElementById('pageTitle');
+        const startMsg = document.getElementById('startMessage');
+        
+        // Встановлюємо адресу посилання
+        iframe.src = file;
+        pageTitle.innerText = title;
+        
+        if(startMsg) startMsg.style.display = 'none';
+
+        // Скидаємо виділення з усіх кнопок
+        document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
+        // Виділяємо натиснуту
+        btn.classList.add('selected');
+
+        // Автоматичне згортання меню на мобільних пристроях (і планшетах)
+        if (window.innerWidth < 2400) {
+            sidebar.classList.add('active');
+        }
+    }
+</script>
+
+</body>
+</html>

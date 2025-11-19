@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>Симулятор rANS (v4: Коректний аналіз)</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: #333;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #c0c0c0; cursor: not-allowed; }
+        #btnBack, #btnForward { background-color: #007bff; }
+        #btnBack:hover, #btnForward:hover { background-color: #0056b3; }
+        #btnRunToMid, #btnRunToFinal { background-color: #6c757d; }
+        #btnRunToMid:hover, #btnRunToFinal:hover { background-color: #5a6268; }
+        #stepControls { margin-top: 10px; }
+        .step-display {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 150px;
+        }
+        .step-display h3 { margin-top: 0; }
+        #stepDescription {
+            background-color: #e6f7ff;
+            border: 1px solid #b3e0ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        #currentState {
+            background-color: #fff8e1;
+            border: 1px solid #ffecb3;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 5px;
+            word-wrap: break-word;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 1.1em;
+        }
+        #stepCalculation {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 1.1em;
+            line-height: 1.8;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .analysis, .theory-box {
+            background-color: #f9f9f9;
+            border: 1px solid #e5e5e5;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        .analysis {
+            background-color: #fff8e1;
+            border-color: #ffecb3;
+        }
+        .analysis ul { margin-top: 0; padding-left: 20px; }
+        .analysis li { margin-bottom: 5px; }
+        .analysis-calc {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9em;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+
+        /* Стилі для MathJax */
+        .theory-box {
+            font-family: Georgia, "Times New Roman", Times, serif; 
+            font-size: 1.1em;
+            line-height: 1.7;
+        }
+        .theory-box h3, .theory-box h2 {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+		th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+th.sortable:hover {
+    background-color: #e8e8e8;
+}
+.sort-indicator {
+    float: right;
+    color: #999;
+    font-size: 0.8em;
+}
+    </style>
+</head>
+<body>
+
+   
+    <h3>Кодування rANS</h3>
+
+    <label for="inputText">Введіть фразу:</label>
+    <textarea id="inputText" rows="2">to be or not to be</textarea>
+    
+    <button onclick="runSimulation()">Побудувати таблицю частот і слотів</button>
+
+    <div id="stepControls" style="display: none;">
+        <button id="btnBack" onclick="stepBackward()" disabled>⬅️ Назад</button>
+        <button id="btnForward" onclick="stepForward()">Вперед ➡️</button>
+        <button id="btnRunToMid" onclick="">До кінця кодування ⏭️</button>
+        <button id="btnRunToFinal" onclick="">До фіналу 🏁</button>
+    </div>
+	
+    <div id="results">
+        <div id="freqTable"></div>
+        <div id="stepDescription">Натисніть "Побудувати Симуляцію".</div>
+        <div class="step-display" style="display: none;">
+            <h3 id="stepHeader"></h3>
+            <div id="currentState"></div>
+            <h3 style="margin-top: 15px;">Розрахунок:</h3>
+            <div id="stepCalculation"></div>
+        </div>
+        
+        <div id="analysisContainer" class="analysis" style="display: none;">
+            </div>
+    </div>
+    
+    <div id="verification" style="font-weight: bold; font-size: 1.2em; margin-top: 15px;"></div>
+
+    <div class="theory-box" style="display: none;">
+        <h2>📖 Теоретична довідка: Asymmetric Numeral Systems (ANS)</h2>
+
+        <h3>Принцип кодування rANS</h3>
+        <p>
+            Asymmetric Numeral Systems (ANS) — це сімейство ентропійних методів кодування, що, подібно до арифметичного кодування, досягають ентропійної межі стиснення.
+            Симулятор демонструє варіант <b>rANS (range ANS)</b>.
+        </p>
+        <p>
+            В основі rANS лежить операція над єдиним <b>цілим числом-станом \(x\)</b>. Кожен крок кодування або декодування оновлює цей стан.
+        </p>
+        <p>
+            <b>Позначення:</b> У формулах нижче та в розрахунках симулятора, <code>//</code> означає цілочисельне ділення (англ. <i>floor division</i>), а <code>%</code> — операцію взяття остачі (<i>modulo</i>).
+        </p>
+
+        <ul>
+            <li>
+                <strong>Кодування \(C(x, s)\) (виконується у зворотньому порядку):</strong>
+                <p>
+                    Щоб додати символ \(s\) до поточного стану \(x\), використовується формула:
+                </p>
+                $$x_{\text{new}} = (x \mathbin{//} L_s) \cdot M + \text{bias}_s + (x \mathbin{\%} L_s)$$
+            </li>
+            <li>
+                <strong>Декодування \(D(x)\) (виконується у прямому порядку):</strong>
+                <ol>
+                    <li>
+                        Визначення "слота" за станом: 
+                        \(\text{slot} = x \mathbin{\%} M\)
+                    </li>
+                    <li>
+                        Пошук символу \(s\), що відповідає слоту (тобто \(\text{bias}_s \le \text{slot} < \text{bias}_s + L_s\)).
+                    </li>
+                    <li>
+                        Відновлення попереднього стану:
+                        $$x_{\text{prev}} = (x \mathbin{//} M) \cdot L_s + \text{slot} - \text{bias}_s$$
+                    </li>
+                </ol>
+            </li>
+        </ul>
+
+   <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em; color: #0056b3;">
+       Чому це працює?
+    </summary>
+
+<p>
+     <b>Це працює, тому що формули ANS — це просто дуже хитрий спосіб
+    виконати множення \(x_{\text{new}} \approx x \cdot (1/P(s))\),
+    використовуючи лише цілочисельні операції.</b>
+</p>
+<p>
+    А "магія" полягає в тому, що "вартість" (у бітах) множення на \(1/P(s)\) —
+    це <i>точно</i> \(\log_2(1/P(s))\), що є <b>визначенням ентропії (інформації)</b>,
+    яку несе символ \(s\).
+</p>
+
+<h3 style="font-size: 1.2em; border-bottom: 1px solid #ccc;">
+    1. Головна Ідея: Множення та Ентропія
+</h3>
+<p>
+    Уявіть, що ваш стан \(x\) — це число, яке зберігає всю інформацію. Щоб
+    додати інформацію про символ \(s\) (який має ймовірність \(P(s)\)),
+    вам потрібно <i>збільшити</i> \(x\) пропорційно до кількості інформації,
+    яку несе \(s\).
+</p>
+<p>
+    Кількість інформації, яку несе \(s\), дорівнює:
+    \(I(s) = \log_2(1/P(s))\) біт.
+</p>
+<p>
+    Щоб додати \(I(s)\) біт, нам потрібно виконати:
+    \(x_{\text{new}} = x \cdot 2^{I(s)} = x \cdot 2^{\log_2(1/P(s))} = x \cdot (1/P(s))\)
+</p>
+<p>
+    <b>Це і є теоретичний ідеал:</b>
+</p>
+$$x_{\text{new}} \approx x \cdot \frac{1}{P(s)}$$
+<p>
+    Якщо \(P(s) = 0.5\) (50%), то \(x_{\text{new}} \approx x \cdot 2\). Ми додали 1 біт.<br>
+    Якщо \(P(s) = 0.125\) (12.5%), то \(x_{\text{new}} \approx x \cdot 8\). Ми додали 3 біти.
+</p>
+
+<h3 style="font-size: 1.2em; border-bottom: 1px solid #ccc;">
+    2. Апроксимація: Як ANS це робить
+</h3>
+<p>
+    Проблема в тому, що \(P(s)\) — це дріб. Ми не можемо множити на
+    \(1/P(s)\) у цілих числах. rANS вирішує це, апроксимуючи ймовірності:
+</p>
+$$P(s) \approx \frac{L_s}{M}$$
+<p>
+    (де \(L_s\) — кількість слотів, \(M\) — основа, наприклад 1024)
+</p>
+<p>
+    Тепер наша ідеальна формула \(x_{\text{new}} \approx x \cdot (1/P(s))\)
+    перетворюється на:
+</p>
+$$x_{\text{new}} \approx x \cdot \frac{1}{(L_s / M)} \implies x_{\text{new}} \approx x \cdot \frac{M}{L_s}$$
+<p>
+    Отже, <b>все, що роблять формули ANS, — це намагаються якомога точніше
+    обчислити \(x \cdot (M / L_s)\), використовуючи лише цілочисельні
+    операції <code>//</code>, <code>%</code> та <code>+</code>.</b>
+</p>
+
+<h3 style="font-size: 1.2em; border-bottom: 1px solid #ccc;">
+    3. Як саме формули виконують це множення?
+</h3>
+<p>
+    Подивимося на формулу кодування:
+</p>
+$$x_{\text{new}} = (x \mathbin{//} L_s) \cdot M + \text{bias}_s + (x \mathbin{\%} L_s)$$
+<p>
+    Вона розбиває \(x\) на дві частини, використовуючи "систему числення"
+    з основою \(L_s\):
+</p>
+<ul>
+    <li><code>x // L_s</code> — "старші розряди" (кількість повних блоків по \(L_s\))</li>
+    <li><code>x % L_s</code> — "молодші розряди" (залишок, від 0 до \(L_s-1\))</li>
+</ul>
+<p>
+    По суті, \(x = (x \mathbin{//} L_s) \cdot L_s + (x \mathbin{\%} L_s)\).
+    Підставимо це в нашу "ідеальну" формулу \(x \cdot (M / L_s)\):
+</p>
+$$x_{\text{new}} \approx \left( (x \mathbin{//} L_s) \cdot L_s + (x \mathbin{\%} L_s) \right) \cdot \frac{M}{L_s}$$
+<p>Розкриємо дужки:</p>
+$$x_{\text{new}} \approx (x \mathbin{//} L_s) \cdot L_s \cdot \frac{M}{L_s} + (x \mathbin{\%} L_s) \cdot \frac{M}{L_s}$$
+<p>\(L_s\) скорочується:</p>
+$$x_{\text{new}} \approx \underbrace{(x \mathbin{//} L_s) \cdot M}_{\text{Частина 1}} + \underbrace{(x \mathbin{\%} L_s) \cdot \frac{M}{L_s}}_{\text{Частина 2}}$$
+<p>Порівняйте це з реальною формулою ANS:</p>
+$$x_{\text{new}} = \underbrace{(x \mathbin{//} L_s) \cdot M}_{\text{Частина 1}} + \underbrace{\text{bias}_s + (x \mathbin{\%} L_s)}_{\text{Апроксимація Частини 2}}$$
+<blockquote style="background: #fff8e1; border-left: 5px solid #ffecb3; padding: 10px;">
+    <ul>
+        <li><b>Частина 1</b> збігається ідеально.</li>
+        <li>Реальна формула ANS замінює "незручну" дробову <b>Частину 2</b> на
+            \(\text{bias}_s + (x \mathbin{\%} L_s)\).</li>
+    </ul>
+    Це і є вся суть: \(\text{bias}_s + (x \mathbin{\%} L_s)\) — це
+    цілочисельна апроксимація для \((x \mathbin{\%} L_s) \cdot (M / L_s)\).
+</blockquote>
+
+
+
+        <h3>Аналогія з Арифметичним Кодуванням (AC)</h3>
+        <p>
+            ANS та AC є спорідненими, оскільки обидва методи досягають оптимального стиснення, наближаючись до ентропійної межі.
+        </p>
+        <ul>
+            <li>
+                <b>Арифметичне кодування (AC)</b> оперує інтервалом <code>[low, high)</code>,
+                який представляє поточне повідомлення.
+            </li>
+            <li>
+                <b>ANS</b> оперує <b>одним цілим числом-станом \(x\)</b>, яке акумулює в
+                собі всю інформацію про повідомлення.
+            </li>
+        </ul>
+        <p>
+            Процес ре-нормалізації в AC (зсув бітів, коли межі інтервалу збігаються)
+            має прямий аналог у потоковій реалізації ANS.
+        </p>
+        
+        <h3>Практична реалізація (Ре-нормалізація)</h3>
+        <p>
+            Цей симулятор використовує <code>BigInt</code> (довгу арифметику), щоб дозволити
+            стану \(x\) рости довільно. Це робиться виключно з дидактичною метою для демонстрації
+            "чистої" математики.
+        </p>
+        <p>
+            <b>У реальних кодеках (практична реалізація) довга арифметика не використовується.</b>
+            Замість цього застосовується <b>потоковий (streaming) режим</b>:
+        </p>
+        <p>
+            Стан \(x\) обмежений розрядністю машини (наприклад, 32 або 64 біти).
+            Коли в процесі кодування \(x\) стає занадто великим і виходить за межі
+            цього діапазону, його "надлишкові" біти "виштовхуються" у вихідний бітовий потік. Під час декодування
+            ці біти зчитуються назад у стан \(x\), коли він стає занадто малим.
+            Цей процес називається <b>ре-нормалізацією</b> і дозволяє ANS працювати
+            надзвичайно швидко.
+        </p>
+
+        <h3>Сфери застосування</h3>
+        <p>
+            Завдяки поєднанню ефективності (на рівні AC) та швидкості (наближеній до
+            кодування Хаффмана), ANS став стандартом де-факто у багатьох сучасних
+            алгоритмах стиснення.
+        </p>
+        <ul>
+            <li><b>Zstandard (zstd)</b> — універсальний алгоритм стиснення від Facebook, використовує ANS.</li>
+            <li><b>LZFSE</b> — алгоритм стиснення від Apple, використовується в macOS та iOS.</li>
+            <li><b>CRAM</b> — формат стиснення геномних даних (частина SAMtools).</li>
+        </ul>
+        
+        <h3>Аналіз ефективності (Ентропія)</h3>
+        <p>
+            Ентропія \(H\) джерела інформації визначає теоретичний мінімум
+            кількості біт, необхідних для кодування одного символу в середньому:
+        </p>
+        $$H = -\sum_{i} p_i \log_2(p_i)$$
+        <p>
+            Середня довжина коду \(L\), яку досягає ANS, розраховується як загальна
+            кількість біт, доданих до стану, поділена на кількість символів:
+            \(\text{bits} = \log_2(x_{\text{final}}) - \log_2(x_{\text{initial}})\).
+            Середня довжина \(L = \text{bits} / N\).
+        </p>
+        <p>
+            ANS наближається до \(H\) значно краще за Хаффмана, оскільки \(L\) не
+            обмежена цілим числом біт. Єдиним джерелом неефективності є похибка
+            апроксимації ймовірностей \(P(s)\) через дискретні слоти \(L_s / M\).
+        </p>
+        
+        <h3>Вибір параметра \(M\)</h3>
+        <p>
+            Параметр \(M\) (у симуляторі \(M=1024 = 2^{10}\)) — це "основа системи числення",
+            або загальна кількість "слотів", на які діляться всі ймовірності.
+            Його вибір є компромісом:
+        </p>
+        <ul>
+            <li>
+                <b>Більше \(M\)</b>: Точніша апроксимація ймовірностей (висока
+                ефективність стиснення, близька до \(H\)).
+            </li>
+            <li>
+                <b>Менше \(M\)</b>: Швидші обчислення, менші таблиці стану.
+            </li>
+        </ul>
+        <p>
+            У практичних реалізаціях \(M\) <b>завжди є ступенем двійки</b>
+            (напр., \(2^{10}\), \(2^{12}\)). Це дозволяє замінити відносно повільні
+            операції <code>// M</code> та <code>% M</code> на надзвичайно швидкі
+            бітові операції зсуву (<code>&gt;&gt;</code>) та маскування (<code>&amp;</code>).
+        </p>
+		<details>
+    <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em; color: #0056b3;">
+        📖 Сучасні напрямки: Нейронне стиснення (Розгорнути)
+    </summary>
+
+    <div style="padding-top: 15px;">
+        <p>
+            Сучасні дослідження у стисненні без втрат зосереджені на використанні
+            нейронних мереж для покращення <b>моделі передбачення</b>. Будь-який
+            компресор складається з двох частин: моделі, що передбачає
+            ймовірність наступного символу, та ентропійного кодера, що
+            кодує цей символ на основі його ймовірності.
+        </p>
+        <p>
+            Класичні методи (LZ, PPM) використовують прості статистичні моделі.
+            Новітні підходи використовують глибокі нейронні мережі (RNN,
+            Трансформери) для значно точнішого аналізу контексту та
+            передбачення ймовірностей. Чим точніше передбачення, тим менше
+            "інформації" (ентропії) несе в собі реальний символ, і тим менше
+            біт потрібно для його кодування.
+        </S>
+
+        <blockquote style="background: #f4f4f4; border-left: 5px solid #ccc; padding: 10px; margin-left: 20px;">
+            Наприклад, для контексту "...впав білий, пухнастий сн_":
+            <pre style="font-family: 'Courier New', monospace; margin-top: 5px; margin-bottom: 0;">
+ймовірності наступного символу
+і — 99.9%
+а — 0.01%
+к — 0.005%
+...і т.д.</pre>
+        </blockquote>
+        <p style="margin-top: 15px;">
+            Цікаво, що в якості ентропійного кодера в таких системах
+            майже завжди використовується <b>ANS (Asymmetric Numeral Systems)</b> —
+            саме той алгоритм, що демонструється у цьому симуляторі.
+            Його здатність кодувати символи дробовою кількістю біт, що
+            ідеально відповідає передбаченій нейромережею ймовірності,
+            робить його незамінним для цієї задачі.
+        </p>
+        <p>
+            Головним недоліком нейронного стиснення, який поки що
+            заважає його масовому впровадженню, є надзвичайно високі
+            обчислювальні витрати (повільна швидкість) порівняно з
+            традиційними методами.
+        </p>
+
+        <table style="width:100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Метод</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Ступінь стиснення</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Швидкість</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">LZ4</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Низький</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">⚡⚡⚡⚡⚡ (Надшвидкий)</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Zstandard (zstd)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Високий</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">⚡⚡⚡ (Дуже швидкий)</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">7z (LZMA)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Дуже високий</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">⚡ (Повільний)</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><b>Нейронний (NN + ANS)</b></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><b>Найкращий</b></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">🐢 (Надзвичайно повільний)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</details>
+    </div>
+
+
+
+
+    <script>
+        // --- Глобальні параметри ---
+        const M_NORM_BITS = 10;
+        const M_NORM = 1 << M_NORM_BITS; // 1024
+        const M_NORM_N = BigInt(M_NORM);
+
+        // --- Глобальний стан симуляції ---
+        let symbols = {};
+        let allSteps = [];
+        let currentStep = -1;
+        let originalText = "";
+        let midStepIndex = -1;
+        let finalStepIndex = -1;
+		let sortConfig = {
+		key: 'freq', // Колонка за замовчуванням
+		dir: 'desc'   // Напрямок за замовчуванням
+		};
+		
+		/**
+ * Оновлює стан сортування і перемальовує таблицю.
+ * Викликається з onclick на <th>.
+ */
+function sortTable(key) {
+    if (sortConfig.key === key) {
+        // Та сама колонка, змінюємо напрямок
+        sortConfig.dir = (sortConfig.dir === 'asc') ? 'desc' : 'asc';
+    } else {
+        // Нова колонка, сортуємо за зростанням
+        sortConfig.key = key;
+        sortConfig.dir = 'asc';
+    }
+    
+    // Перемальовуємо таблицю з поточними даними 'symbols'
+    // (це не запускає повну симуляцію)
+    renderFreqTable();
+}
+
+/**
+ * Допоміжна функція для відображення індикатора сортування (▲/▼).
+ */
+function getSortIndicator(key) {
+    if (sortConfig.key !== key) {
+        return '<span class="sort-indicator">↕</span>'; // Неактивна
+    }
+    return (sortConfig.dir === 'asc')
+        ? '<span class="sort-indicator">▲</span>' // За зростанням
+        : '<span class="sort-indicator">▼</span>'; // За спаданням
+}
+		
+        function runSimulation() {
+            originalText = document.getElementById('inputText').value;
+            if (originalText.length === 0) {
+                alert("Введіть текст.");
+                return;
+            }
+            
+            // 0. Скидання стану
+            allSteps = [];
+            currentStep = -1;
+            midStepIndex = -1;
+            finalStepIndex = -1;
+            document.getElementById('freqTable').innerHTML = '';
+            document.getElementById('verification').innerHTML = '';
+            document.querySelector('.theory-box').style.display = 'block';
+            document.querySelector('.step-display').style.display = 'none';
+            document.getElementById('analysisContainer').style.display = 'none';
+			sortConfig = { key: 'freq', dir: 'desc' }; // Скидання сортування
+            // 1. Частоти
+            const freqMap = {};
+            for (const char of originalText) {
+                freqMap[char] = (freqMap[char] || 0) + 1;
+            }
+
+            // 2. Нормалізація
+            symbols = normalizeFrequencies(freqMap, originalText.length);
+            
+            // 3. Побудова таблиці
+            buildTables();
+            
+            // 4. Візуалізація таблиці
+            renderFreqTable();
+            
+            // 5. Побудова кроків симуляції
+            buildSimulationSteps(originalText);
+
+            // 6. Активація управління
+            document.getElementById('stepControls').style.display = 'block';
+            document.getElementById('btnRunToMid').onclick = () => jumpToStep(midStepIndex);
+            document.getElementById('btnRunToFinal').onclick = () => jumpToStep(finalStepIndex);
+            
+            renderStep(0); // Відобразити перший крок
+        }
+
+        // --- Функції побудови симуляції ---
+        
+        function normalizeFrequencies(freqMap, totalChars) {
+            let syms = {};
+            let currentSum = 0;
+            const keys = Object.keys(freqMap);
+            
+            for (let i = 0; i < keys.length; i++) {
+                const char = keys[i];
+                const prob = freqMap[char] / totalChars;
+                const L = (i === keys.length - 1)
+                    ? M_NORM - currentSum
+                    : Math.max(1, Math.floor(prob * M_NORM));
+
+                syms[char] = { L: L, L_n: BigInt(L), prob: prob, freq: freqMap[char] };
+                currentSum += L;
+            }
+            
+            if (currentSum > M_NORM) {
+                let maxL = -1, maxChar = null;
+                for(const char in syms) {
+                    if (syms[char].L > maxL) (maxL = syms[char].L, maxChar = char);
+                }
+                const diff = currentSum - M_NORM;
+                syms[maxChar].L -= diff;
+                syms[maxChar].L_n = BigInt(syms[maxChar].L);
+            }
+            return syms;
+        }
+
+        function buildTables() {
+            let currentBias = 0;
+            const sortedChars = Object.keys(symbols).sort();
+            for (const char of sortedChars) {
+                symbols[char].bias = currentBias;
+                symbols[char].bias_n = BigInt(currentBias);
+                currentBias += symbols[char].L;
+            }
+        }
+
+        function buildSimulationSteps(text) {
+            let x_n = M_NORM_N;
+            
+            allSteps.push({
+                type: 'init',
+                x_before: x_n, x_after: x_n,
+                desc: `Початковий стан. Починаємо кодування (у зворотньому порядку).`,
+                calc_html: `x = ${x_n}`
+            });
+
+            // --- Етап кодування ---
+            for (let i = text.length - 1; i >= 0; i--) {
+                const char = text[i];
+                const s = symbols[char];
+                const x_old_n = x_n;
+
+                const x_div_L = x_old_n / s.L_n;
+                const x_mod_L = x_old_n % s.L_n;
+                x_n = (x_div_L * M_NORM_N) + s.bias_n + x_mod_L;
+
+                let calc_html = `<b>x_new = (x // L) * M + bias + (x % L)</b><br>`;
+                calc_html += `x_new = (${x_old_n} // ${s.L_n}) * ${M_NORM_N} + ${s.bias_n} + (${x_old_n} % ${s.L_n})<br>`;
+                calc_html += `<b>x_new = ${x_n}</b>`;
+
+                allSteps.push({
+                    type: 'encoding', char: char, x_before: x_old_n, x_after: x_n,
+                    desc: `Кодуємо символ '<b>${char}</b>' (з позиції ${i}).`,
+                    calc_html: calc_html
+                });
+            }
+            
+            const finalState = x_n;
+            
+            // --- Перехід ---
+            allSteps.push({
+                type: 'mid', x_before: finalState, x_after: finalState,
+                desc: `Кодування завершено. Починаємо декодування (у прямому порядку).`,
+                calc_html: `Фінальний стан: x = ${finalState}`
+            });
+            midStepIndex = allSteps.length - 1;
+
+            // --- Етап декодування ---
+            let decoded_text = '';
+            for (let i = 0; i < text.length; i++) {
+                const x_old_n = x_n;
+                const slot_n = x_n % M_NORM_N;
+                const slot = Number(slot_n);
+                const { char, s } = findSymbolBySlot(slot);
+                const x_div_M = x_old_n / M_NORM_N;
+                x_n = (x_div_M * s.L_n) + slot_n - s.bias_n;
+                decoded_text += char;
+
+                let calc_html = `<b>slot = x % M</b> = ${x_old_n} % ${M_NORM_N} = <b>${slot_n}</b><br>`;
+                calc_html += `➔ шукаємо символ для slot ${slot}... ➔ це '<b>${char}</b>'<br><br>`;
+                calc_html += `<b>x_prev = (x // M) * L + slot - bias</b><br>`;
+                calc_html += `x_prev = (${x_old_n} // ${M_NORM_N}) * ${s.L_n} + ${slot_n} - ${s.bias_n}<br>`;
+                calc_html += `<b>x_prev = ${x_n}</b>`;
+                
+                allSteps.push({
+                    type: 'decoding', char: char, x_before: x_old_n, x_after: x_n,
+                    desc: `Декодуємо символ ${i+1}/${text.length}. Декодовано: "${decoded_text}"`,
+                    calc_html: calc_html
+                });
+            }
+
+            // --- Фінал ---
+            allSteps.push({
+                type: 'final', x_before: x_n, x_after: x_n,
+                desc: `Декодування завершено.`,
+                calc_html: `Остаточний стан x = ${x_n} (має дорівнювати початковому стану).`
+            });
+            finalStepIndex = allSteps.length - 1;
+        }
+        
+        function findSymbolBySlot(slot) {
+            for (const char in symbols) {
+                const s = symbols[char];
+                if (slot >= s.bias && slot < s.bias + s.L) {
+                    return { char, s };
+                }
+            }
+            return null;
+        }
+
+        // --- Управління станом та рендеринг ---
+        
+        function jumpToStep(index) { renderStep(index); }
+        function stepForward() { if (currentStep < allSteps.length - 1) renderStep(currentStep + 1); }
+        function stepBackward() { if (currentStep > 0) renderStep(currentStep - 1); }
+
+        function renderStep(index) {
+            currentStep = index;
+            const step = allSteps[currentStep];
+            
+            document.querySelector('.step-display').style.display = 'block';
+            document.getElementById('stepDescription').innerHTML = `<b>Крок ${currentStep + 1}/${allSteps.length}:</b> ${step.desc}`;
+            
+            const header = document.getElementById('stepHeader');
+            if (step.type === 'encoding') header.innerHTML = `1. Кодування (Символ '<b>${step.char}</b>')`;
+            else if (step.type === 'decoding') header.innerHTML = `2. Декодування (Символ '<b>${step.char}</b>')`;
+            else header.innerHTML = `Системний крок`;
+
+            document.getElementById('currentState').innerHTML = `<b>Поточний стан x:</b> ${step.x_before}`;
+            document.getElementById('stepCalculation').innerHTML = step.calc_html;
+
+            document.getElementById('btnBack').disabled = (currentStep === 0);
+            document.getElementById('btnForward').disabled = (currentStep === allSteps.length - 1);
+
+            const verificationDiv = document.getElementById('verification');
+            const analysisDiv = document.getElementById('analysisContainer');
+
+            if (step.type === 'final') {
+                 const success = step.x_after === allSteps[0].x_before;
+                verificationDiv.innerHTML = success 
+                    ? `✅ Верифікація успішна! Початковий стан (${allSteps[0].x_before}) = фінальний стан (${step.x_after}).`
+                    : `❌ Помилка верифікації! Початковий стан (${allSteps[0].x_before}) != фінальний стан (${step.x_after}).`;
+                verificationDiv.style.color = success ? "green" : "red";
+                
+                // Запуск аналізу
+                analysisDiv.innerHTML = renderAnalysis();
+                analysisDiv.style.display = 'block';
+
+            } else {
+                verificationDiv.innerHTML = '';
+                analysisDiv.style.display = 'none';
+            }
+        }
+
+      
+	  /**
+ * Оновлено: Відображає таблицю символів,
+ * відсортовану відповідно до global sortConfig.
+ */
+function renderFreqTable() {
+    let html = `<h3>Таблиця символів (Нормалізована на M = ${M_NORM})</h3>`;
+    
+    // Додаємо .sortable, onclick та індикатори до заголовків
+    html += `<table><thead><tr>
+        <th class="sortable" onclick="sortTable('char')">
+            Символ ${getSortIndicator('char')}
+        </th>
+        <th class="sortable" onclick="sortTable('freq')">
+            Частота (Freq) ${getSortIndicator('freq')}
+        </th>
+        <th class="sortable" onclick="sortTable('prob')">
+            Ймовірність (P) ${getSortIndicator('prob')}
+        </th>
+        <th class="sortable" onclick="sortTable('L')">
+            L (слоти) ${getSortIndicator('L')}
+        </th>
+        <th class="sortable" onclick="sortTable('bias')">
+            Bias (зсув) ${getSortIndicator('bias')}
+        </th>
+    </tr></thead><tbody>`;
+
+    // 1. Перетворюємо об'єкт 'symbols' на масив для сортування
+    let dataArray = Object.entries(symbols).map(([char, data]) => ({
+        char: char,
+        ...data
+    }));
+
+    // 2. Сортуємо масив на основі 'sortConfig'
+    dataArray.sort((a, b) => {
+        let valA = a[sortConfig.key];
+        let valB = b[sortConfig.key];
+
+        let comparison = 0;
+        if (valA > valB) {
+            comparison = 1;
+        } else if (valA < valB) {
+            comparison = -1;
+        }
+        
+        return (sortConfig.dir === 'asc') ? comparison : -comparison;
+    });
+
+    // 3. Відображаємо відсортований масив
+    if (dataArray.length === 0) {
+        html += '<tr><td colspan="5">Дані ще не згенеровані.</td></tr>';
+    } else {
+        for (const s of dataArray) {
+            html += `<tr>
+                <td>'${s.char === ' ' ? ' ' : s.char}'</td>
+                <td>${s.freq}</td>
+                <td>${(s.prob * 100).toFixed(2)}%</td>
+                <td><b>${s.L}</b> (≈ ${(s.prob * M_NORM).toFixed(2)})</td>
+                <td>${s.bias}</td>
+            </tr>`;
+        }
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('freqTable').innerHTML = html;
+}
+
+        // --- ****** ОСНОВНА ЗМІНА ТУТ ****** ---
+        // --- Нова, коректна функція аналізу ---
+        function renderAnalysis() {
+            const totalChars = originalText.length;
+            const uniqueChars = Object.keys(symbols).length;
+            
+            // 1. Рівномірний код
+            const fixedBitsPerChar = (uniqueChars > 1) ? Math.ceil(Math.log2(uniqueChars)) : 1;
+            const originalBits = totalChars * fixedBitsPerChar;
+
+            // 2. Ентропія (H)
+            let entropy = 0;
+            for (const char in symbols) {
+                const prob = symbols[char].prob;
+                if (prob > 0) {
+                    entropy -= prob * Math.log2(prob);
+                }
+            }
+            const theoreticalTotalBits = entropy * totalChars;
+
+            // 3. ANS (L_actual) - Математично коректний розрахунок
+            // Ми сумуємо *справжню* вартість кодування (log2(M/L))
+            // для кожного символу у вхідному рядку.
+            
+            let totalCompressedBits = 0;
+            let calculationExplanation = '<ul>';
+            
+            // (A) Розраховуємо вартість для кожного *типу* символів (для пояснення)
+            let symbolCosts = {};
+            for (const char in symbols) {
+                 const s = symbols[char];
+                 const L = s.L;
+                 const bits_for_char = Math.log2(M_NORM) - Math.log2(L);
+                 symbolCosts[char] = bits_for_char;
+                 
+                 calculationExplanation += `
+                    <li><b>'${char}' (L=${L})</b>: 
+                        log₂(${M_NORM}) - log₂(${L}) = 
+                        10.00 - ${Math.log2(L).toFixed(3)} = 
+                        <b>${bits_for_char.toFixed(4)} біт</b>
+                    </li>`;
+            }
+            calculationExplanation += '</ul>';
+
+            // (B) Розраховуємо *загальну* вартість, просумувавши по всьому тексту
+            for (const char of originalText) {
+                if (symbolCosts[char]) {
+                    totalCompressedBits += symbolCosts[char];
+                }
+            }
+            
+            const avgLength = totalCompressedBits / totalChars;
+            const efficiency = (entropy > 0 && avgLength > 0) ? (entropy / avgLength) : 1;
+
+            // 4. Рендеринг
+            let html = '<h3>📊 Аналіз ефективності</h3>';
+            
+         
+            html += `<p>Результат ANS — це <b>сума теоретичних "вартостей"</b> для кожного символу 
+                     в повідомленні. Вартість (у бітах) для символу <code>s</code>
+                     обчислюється на основі його квантованої ймовірності (<code>L/M</code>) за формулою:</p>`;
+            html += `<div class="analysis-calc"><b>Вартість(s) = log₂(M) - log₂(L[s])</b>`;
+            html += calculationExplanation;
+            html += `<p style="margin-top:10px; border-top: 1px solid #ccc; padding-top: 10px;">
+                        <b>Загальний розмір (L * N)</b> = Сума вартостей для кожного з ${totalChars} символів в рядку.
+                     </p></div>`;
+            
+            html += `<h4 style="margin-top: 20px;">Загальні результати (для ${totalChars} символів):</h4>`;
+            html += `<ul>
+                <li><b>Ентропія джерела (H):</b> ${entropy.toFixed(4)} біт/символ</li>
+                <li><b>Середня довжина (ANS):</b> ${avgLength.toFixed(4)} біт/символ</li>
+                <li><b>Середня довжина (Рівномірний код):</b> ${fixedBitsPerChar} біт/символ</li>
+            </ul>
+            <h4>Загальний розмір:</h4>
+            <ul>
+                <li><b>Теоретичний мінімум (H * N):</b> ${theoreticalTotalBits.toFixed(4)} біт</li>
+                <li><b>Результат ANS (L * N):</b> ${totalCompressedBits.toFixed(4)} біт</li>
+                <li><b>Рівномірний код (Fixed * N):</b> ${originalBits} біт</li>
+            </ul>
+            <p>
+                <b>Ефективність (H / L_ans):</b> ${efficiency.toFixed(4)} (<b>${(efficiency * 100).toFixed(2)}%</b>)
+                <br>
+                <b>Висновок:</b> Результат ANS (${totalCompressedBits.toFixed(4)} біт) 
+                <b>трохи вищий</b> за ентропійний ліміт (${theoreticalTotalBits.toFixed(4)} біт). 
+                Ця різниця виникає через неточність квантизації <code>P(s)</code> у <code>L/M</code>.
+            </p>`;
+            
+            return html;
+        }
+
+    </script>
+</body>
+</html>

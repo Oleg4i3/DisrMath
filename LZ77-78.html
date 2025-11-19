@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор LZ77 та LZ78</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .algorithm-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .algorithm-btn {
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        
+        .algorithm-btn.active {
+            background-color: #2980b9;
+        }
+        
+        .algorithm-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .input-section {
+            margin-bottom: 20px;
+        }
+        
+        .input-section textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            font-size: 16px;
+        }
+        
+        .presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .preset-btn {
+            padding: 8px 15px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .preset-btn:hover {
+            background-color: #27ae60;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .control-btn {
+            padding: 10px 20px;
+            background-color: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        
+        .control-btn:hover {
+            background-color: #8e44ad;
+        }
+        
+        .control-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .buffer-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+        }
+        
+        .buffer-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .buffer-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+            position: relative;
+            min-height: 50px;
+        }
+        
+        .buffer-char {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #bdc3c7;
+            border-radius: 3px;
+            background-color: white;
+            font-weight: bold;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .buffer-char.current {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .buffer-char.in-window {
+            background-color: #f1c40f;
+        }
+        
+        .buffer-char.matched {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .buffer-char.reference {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .buffer-char.match-highlight {
+            border: 2px solid #e74c3c;
+            box-shadow: 0 0 5px rgba(231, 76, 60, 0.5);
+        }
+        
+        .match-line {
+            position: absolute;
+            height: 2px;
+            background-color: #e74c3c;
+            z-index: 1;
+            transform-origin: left center;
+        }
+        
+        .explanation {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e8f4fc;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .output-section {
+            margin: 20px 0;
+        }
+        
+        .output-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .output-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .output-table th, .output-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .output-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .compression-stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-radius: 5px;
+            border-left: 4px solid #16a085;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .lz78-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .lz78-table th, .lz78-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .lz78-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .window-size-control {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .window-size-control label {
+            font-weight: bold;
+        }
+        
+        .window-size-control input {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        
+        .decoder-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #bdc3c7;
+        }
+        
+        .decoder-output {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #fff9e6;
+            border-radius: 5px;
+            min-height: 50px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .theory-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #bdc3c7;
+        }
+        
+        .theory-content {
+            margin-top: 15px;
+            line-height: 1.8;
+        }
+        
+        .theory-content h3 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #2980b9;
+        }
+        
+        .theory-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .theory-content li {
+            margin-bottom: 8px;
+        }
+        
+        .code {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .calculation-details {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Алгоритми стиснення LZ77 та LZ78</h1>
+        
+        <div class="algorithm-selector">
+            <button class="algorithm-btn active" id="lz77-btn">LZ77</button>
+            <button class="algorithm-btn" id="lz78-btn">LZ78</button>
+        </div>
+        
+        <div class="input-section">
+            <textarea id="input-text" placeholder="Введіть текст для стиснення..."></textarea>
+            <div class="presets">
+                <button class="preset-btn" data-text="banana and bandana">Короткий пресет: "banana and bandana"</button>
+                <button class="preset-btn" data-text="Це комар.
+Комар дзижчить.
+
+Це жаба,
+Що з’їла комара,
+Що дзижчить.
+
+Це чапля,
+Що з’їла жабу,
+Що з’їла комара,
+Що дзижчить.
+
+Це яструб,
+Що з’їв чаплю,
+Що з’їла жабу,
+Що з’їла комара,
+Що дзижчить.
+
+Це мисливець,
+Що вполював яструба,
+Що з’їв чаплю,
+Що з’їла жабу,
+Що з’їла комара,
+Що дзижчить.
+
+Це комар,
+Що вкусив мисливця,
+Що вполював яструба,
+Що з’їв чаплю,
+Що з’їла жабу,
+Що з’їла комара,
+Що дзижчить.">Довгий: "Комар"</button>
+                <button class="preset-btn" data-text="Ось дім,
+Що збудував собі Джек.
+Ось жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+Ось той пацючок,
+Що з'їв жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+
+А ось котик,
+Якому попавсь пацючок,
+Що з'їв жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+Ось пес, що ляка 
+Котка,
+Якому попавсь пацючок,
+Що з'їв жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+
+Ось корівонька круторога,
+Що пса вбрикнула старого —
+Того, що ляка
+Котка,
+Якому попавсь пацючок,
+Що з'їв жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+
+Ось дівчина, Джека небога,
+Що доїть корівоньку круторогу,
+Що пса вбрикнула старого —
+Того, що ляка
+Котка,
+Якому попавсь пацючок,
+Що з'їв жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+
+Ось пастушок, що спрожогу
+Поцілував небогу,
+Що доїть корівоньку круторогу,
+Що пса вбрикнула старого —
+Того, що ляка
+Котка,
+Якому попавсь пацючок,
+Що з'їв жита мішок,
+Що стояв у тім домі,
+Що збудував собі Джек.
+
+Ось півень, що рано співав,
+Пастушкові спать не давав
+Веселенькому, що спрожогу
+Поцілував небогу,
+Що доїть корівоньку круторогу,
+Що пса вбрикнула старого —
+Того, що ляка
+Котка,
+Якому попавсь пацючок,
+Що з'їв жита мішок.
+Що стояв у тім домі,
+Що збудував собі Джек.">Ще довший: "Хатинка Джека"</button>
+            </div>
+            
+            <div class="window-size-control" id="window-control">
+                <label for="window-size">Розмір вікна:</label>
+                <input type="number" id="window-size" min="5" max="50" value="10">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" id="prev-step">Крок назад</button>
+            <button class="control-btn" id="next-step">Крок вперед</button>
+            <button class="control-btn" id="execute-all">Виконати до кінця</button>
+            <button class="control-btn" id="reset">Скинути</button>
+        </div>
+        
+        <div class="buffer-section">
+            <div class="buffer-title">Буфер та вікно:</div>
+            <div class="buffer-display" id="buffer-display"></div>
+            <div id="buffer-explanation" class="explanation"></div>
+        </div>
+        
+        <div class="output-section">
+            <div class="output-title">Результат стиснення:</div>
+            <table class="output-table" id="lz77-output">
+                <thead>
+                    <tr>
+                        <th>Позиція</th>
+                        <th>Довжина</th>
+                        <th>Наступний символ</th>
+                        <th>Код</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            
+            <table class="output-table lz78-table hidden" id="lz78-output">
+                <thead>
+                    <tr>
+                        <th>Індекс</th>
+                        <th>Код</th>
+                        <th>Символ</th>
+                        <th>Рядок</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <div class="compression-stats" id="compression-stats"></div>
+        
+        <div class="decoder-section">
+            <h2>Декодування</h2>
+            <div class="controls">
+                <button class="control-btn" id="decode-prev-step">Крок назад</button>
+                <button class="control-btn" id="decode-next-step">Крок вперед</button>
+                <button class="control-btn" id="decode-execute-all">Виконати до кінця</button>
+                <button class="control-btn" id="decode-reset">Скинути</button>
+            </div>
+            <div class="decoder-output" id="decoder-output"></div>
+            <div id="decode-explanation" class="explanation"></div>
+        </div>
+        
+        <div class="theory-section">
+            <h2>Теоретична довідка</h2>
+            <div class="theory-content">
+                <h3>Алгоритм LZ77</h3>
+                <p>LZ77 — це алгоритм стиснення без втрат, розроблений Абрахамом Лемпелем та Якобом Зівом у 1977 році. Він працює на основі пошуку повторюваних послідовностей у вхідних даних.</p>
+                
+                <p><strong>Основний принцип:</strong></p>
+                <ul>
+                    <li>Алгоритм використовує "ковзне вікно", що складається з:
+                        <ul>
+                            <li><strong>Пошукового буфера</strong> (вже оброблені дані)</li>
+                            <li><strong>Буфера попереднього перегляду</strong> (дані, які потрібно закодувати)</li>
+                        </ul>
+                    </li>
+                    <li>Для кожного символу в буфері попереднього перегляду алгоритм шукає найдовший збіг у пошуковому буфері</li>
+                    <li>Кодування відбувається трійками <span class="code">(offset, length, next_char)</span>, де:
+                        <ul>
+                            <li><strong>offset</strong> — зсув назад до початку збігу</li>
+                            <li><strong>length</strong> — довжина збігу</li>
+                            <li><strong>next_char</strong> — наступний символ після збігу</li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <p><strong>Приклад:</strong> Для рядка "abracadabra" з вікном розміром 5:</p>
+                <ul>
+                    <li>Перші символи кодуються як (0,0,'a'), (0,0,'b'), (0,0,'r'), (0,0,'a'), (0,0,'c')</li>
+                    <li>При обробці "adabra": знаходимо збіг "abra" з offset=7, length=4, next_char=''</li>
+                </ul>
+                
+                <h3>Алгоритм LZ78</h3>
+                <p>LZ78 — це покращена версія LZ77, розроблена тими ж авторами у 1978 році. На відміну від LZ77, він не використовує ковзне вікно, а будує словник фраз.</p>
+                
+                <p><strong>Основний принцип:</strong></p>
+                <ul>
+                    <li>Алгоритм поступово будує словник рядків, що зустрічаються у вхідних даних</li>
+                    <li>Кожен код складається з пари <span class="code">(index, char)</span>, де:
+                        <ul>
+                            <li><strong>index</strong> — індекс у словнику (0 для нового символу)</li>
+                            <li><strong>char</strong> — наступний символ</li>
+                        </ul>
+                    </li>
+                    <li>Нові рядки додаються до словника як конкатенація рядка за індексом та символу</li>
+                </ul>
+                
+                <p><strong>Приклад:</strong> Для рядка "abracadabra":</p>
+                <ul>
+                    <li>1: (0,'a') → додає "a" до словника</li>
+                    <li>2: (0,'b') → додає "b" до словника</li>
+                    <li>3: (0,'r') → додає "r" до словника</li>
+                    <li>4: (1,'c') → додає "ac" до словника</li>
+                    <li>5: (1,'d') → додає "ad" до словника</li>
+                    <li>6: (3,'a') → додає "ra" до словника</li>
+                    <li>7: (4,'') → використовує "ac" зі словника</li>
+                </ul>
+                
+                <h3>Порівняння алгоритмів</h3>
+                <ul>
+                    <li><strong>LZ77</strong> краще працює з локальними повтореннями, але може бути повільнішим через пошук у вікні</li>
+                    <li><strong>LZ78</strong> краще адаптується до глобальних повторень і має більш передбачуваний час виконання</li>
+                    <li>LZ78 є основою для популярних форматів стиснення як ZIP, GIF та інших</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Глобальні змінні
+        let currentAlgorithm = 'lz77';
+        let inputText = '';
+        let currentStep = 0;
+        let lz77Steps = [];
+        let lz78Steps = [];
+        let windowSize = 10;
+        let isExecutingAll = false;
+        let executionTimer = null;
+        
+        // Змінні для декодера
+        let decodeCurrentStep = 0;
+        let decodedText = '';
+        let decodeSteps = [];
+        let isDecodeExecutingAll = false;
+        let decodeExecutionTimer = null;
+        
+        // Елементи DOM
+        const lz77Btn = document.getElementById('lz77-btn');
+        const lz78Btn = document.getElementById('lz78-btn');
+        const inputTextArea = document.getElementById('input-text');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        const prevStepBtn = document.getElementById('prev-step');
+        const nextStepBtn = document.getElementById('next-step');
+        const executeAllBtn = document.getElementById('execute-all');
+        const resetBtn = document.getElementById('reset');
+        const bufferDisplay = document.getElementById('buffer-display');
+        const bufferExplanation = document.getElementById('buffer-explanation');
+        const lz77Output = document.getElementById('lz77-output');
+        const lz78Output = document.getElementById('lz78-output');
+        const compressionStats = document.getElementById('compression-stats');
+        const windowSizeInput = document.getElementById('window-size');
+        const windowControl = document.getElementById('window-control');
+        
+        // Елементи декодера
+        const decodePrevStepBtn = document.getElementById('decode-prev-step');
+        const decodeNextStepBtn = document.getElementById('decode-next-step');
+        const decodeExecuteAllBtn = document.getElementById('decode-execute-all');
+        const decodeResetBtn = document.getElementById('decode-reset');
+        const decoderOutput = document.getElementById('decoder-output');
+        const decodeExplanation = document.getElementById('decode-explanation');
+        
+        // Обробники подій
+        lz77Btn.addEventListener('click', () => switchAlgorithm('lz77'));
+        lz78Btn.addEventListener('click', () => switchAlgorithm('lz78'));
+        
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const text = btn.getAttribute('data-text');
+                inputTextArea.value = text;
+                
+                // Автоматично встановлюємо розмір вікна залежно від довжини тексту
+                if (text.length > 1000) {
+                    windowSizeInput.value = 1024;
+                } else if (text.length > 100) {
+                    windowSizeInput.value = 128;
+                } else {
+                    windowSizeInput.value = 10;
+                }
+                
+                windowSize = parseInt(windowSizeInput.value);
+                resetSimulation();
+            });
+        });
+        
+        prevStepBtn.addEventListener('click', prevStep);
+        nextStepBtn.addEventListener('click', nextStep);
+        executeAllBtn.addEventListener('click', executeAll);
+        resetBtn.addEventListener('click', resetSimulation);
+        
+        windowSizeInput.addEventListener('change', () => {
+            windowSize = parseInt(windowSizeInput.value);
+            if (inputText) {
+                resetSimulation();
+            }
+        });
+        
+        // Обробники подій для декодера
+        decodePrevStepBtn.addEventListener('click', decodePrevStep);
+        decodeNextStepBtn.addEventListener('click', decodeNextStep);
+        decodeExecuteAllBtn.addEventListener('click', decodeExecuteAll);
+        decodeResetBtn.addEventListener('click', decodeReset);
+        
+        // Функції
+        function switchAlgorithm(algorithm) {
+            currentAlgorithm = algorithm;
+            
+            // Оновити активну кнопку
+            lz77Btn.classList.toggle('active', algorithm === 'lz77');
+            lz78Btn.classList.toggle('active', algorithm === 'lz78');
+            
+            // Показати/приховати елементи специфічні для алгоритму
+            windowControl.classList.toggle('hidden', algorithm === 'lz78');
+            lz77Output.classList.toggle('hidden', algorithm === 'lz78');
+            lz78Output.classList.toggle('hidden', algorithm === 'lz77');
+            
+            // Перезапустити симуляцію
+            if (inputText) {
+                resetSimulation();
+            }
+        }
+        
+        function resetSimulation() {
+		 // Зупинити автоматичне виконання
+    stopExecution(); // Використовуємо нову функцію замість прямого коду
+    
+    inputText = inputTextArea.value;
+    currentStep = 0;
+    lz77Steps = [];
+    lz78Steps = [];
+		
+            // Зупинити автоматичне виконання
+            if (executionTimer) {
+                clearTimeout(executionTimer);
+                executionTimer = null;
+            }
+            isExecutingAll = false;
+            
+            inputText = inputTextArea.value;
+            currentStep = 0;
+            lz77Steps = [];
+            lz78Steps = [];
+            
+            // Очистити вивід
+            lz77Output.querySelector('tbody').innerHTML = '';
+            lz78Output.querySelector('tbody').innerHTML = '';
+            bufferDisplay.innerHTML = '';
+            bufferExplanation.textContent = '';
+            compressionStats.textContent = '';
+            
+            // Активувати/деактивувати кнопки
+            updateButtons();
+            
+            if (inputText) {
+                if (currentAlgorithm === 'lz77') {
+                    generateLZ77Steps();
+                } else {
+                    generateLZ78Steps();
+                }
+                renderStep();
+                
+                // Оновити декодер
+                decodeReset();
+            }
+        }
+        
+        function generateLZ77Steps() {
+            const text = inputText;
+            let i = 0;
+            lz77Steps = [];
+            
+            while (i < text.length) {
+                let bestMatch = { offset: 0, length: 0, matchStart: 0 };
+                
+                // Пошук найкращого збігу у вікні
+                const windowStart = Math.max(0, i - windowSize);
+                const searchBuffer = text.substring(windowStart, i);
+                
+                for (let offset = 1; offset <= Math.min(windowSize, i); offset++) {
+                    const matchStart = i - offset;
+                    let length = 0;
+                    
+                    while (length < text.length - i && 
+                           text[matchStart + length] === text[i + length]) {
+                        length++;
+                    }
+                    
+                    if (length > bestMatch.length) {
+                        bestMatch = { offset, length, matchStart };
+                    }
+                }
+                
+                // Додавання кроку
+                const nextChar = i + bestMatch.length < text.length ? text[i + bestMatch.length] : '';
+                lz77Steps.push({
+                    position: i,
+                    offset: bestMatch.offset,
+                    length: bestMatch.length,
+                    nextChar: nextChar,
+                    matchStart: bestMatch.matchStart,
+                    code: `(${bestMatch.offset},${bestMatch.length},${nextChar})`
+                });
+                
+                i += bestMatch.length + 1;
+            }
+        }
+        
+        function generateLZ78Steps() {
+            const text = inputText;
+            let i = 0;
+            lz78Steps = [];
+            const dictionary = [''];
+            let currentIndex = 1;
+            
+            while (i < text.length) {
+                let longestMatch = '';
+                let dictIndex = 0;
+                
+                // Пошук найдовшого збігу в словнику
+                for (let j = 0; j < dictionary.length; j++) {
+                    const entry = dictionary[j];
+                    if (text.startsWith(entry, i) && entry.length > longestMatch.length) {
+                        longestMatch = entry;
+                        dictIndex = j;
+                    }
+                }
+                
+                // Додавання нового запису до словника
+                const nextChar = text[i + longestMatch.length] || '';
+                if (longestMatch.length < text.length - i) {
+                    dictionary.push(longestMatch + nextChar);
+                }
+                
+                // Додавання кроку
+                lz78Steps.push({
+                    index: currentIndex,
+                    dictIndex: dictIndex,
+                    nextChar: nextChar,
+                    string: dictionary[currentIndex] || '',
+                    code: `(${dictIndex},${nextChar})`
+                });
+                
+                i += longestMatch.length + 1;
+                currentIndex++;
+            }
+        }
+        
+        function renderStep() {
+            if (currentAlgorithm === 'lz77') {
+                renderLZ77Step();
+            } else {
+                renderLZ78Step();
+            }
+            updateButtons();
+        }
+        
+        function renderLZ77Step() {
+            if (currentStep >= lz77Steps.length) return;
+            
+            const step = lz77Steps[currentStep];
+            const text = inputText;
+            
+            // Очистити буфер
+            bufferDisplay.innerHTML = '';
+            
+            // Відобразити буфер та вікно
+            const windowStart = Math.max(0, step.position - windowSize);
+            const searchBuffer = text.substring(windowStart, step.position);
+            const lookAhead = text.substring(step.position, Math.min(step.position + step.length + 1, text.length));
+            
+            // Відобразити пошуковий буфер
+            for (let i = 0; i < searchBuffer.length; i++) {
+                const charElem = document.createElement('div');
+                charElem.className = 'buffer-char in-window';
+                
+                // Виділити символ, який є початком збігу
+                if (step.length > 0 && i >= (step.matchStart - windowStart) && 
+                    i < (step.matchStart - windowStart + step.length)) {
+                    charElem.classList.add('match-highlight');
+                }
+                
+                charElem.textContent = searchBuffer[i];
+                bufferDisplay.appendChild(charElem);
+            }
+            
+            // Відобразити поточну позицію та збіг
+            for (let i = 0; i < lookAhead.length; i++) {
+                const charElem = document.createElement('div');
+                charElem.className = 'buffer-char';
+                
+                if (i === 0) {
+                    charElem.classList.add('current');
+                }
+                
+                if (i < step.length) {
+                    charElem.classList.add('matched');
+                    charElem.classList.add('match-highlight');
+                }
+                
+                charElem.textContent = lookAhead[i];
+                bufferDisplay.appendChild(charElem);
+            }
+            
+            // Додати лінію для візуалізації зсуву
+            if (step.length > 0) {
+                const referenceIndex = step.matchStart - windowStart;
+                const currentIndex = searchBuffer.length;
+                
+                if (referenceIndex >= 0 && referenceIndex < searchBuffer.length) {
+                    const referenceElem = bufferDisplay.children[referenceIndex];
+                    const currentElem = bufferDisplay.children[currentIndex];
+                    
+                    const refRect = referenceElem.getBoundingClientRect();
+                    const curRect = currentElem.getBoundingClientRect();
+                    const containerRect = bufferDisplay.getBoundingClientRect();
+                    
+                    const line = document.createElement('div');
+                    line.className = 'match-line';
+                    
+                    const startX = refRect.left + refRect.width/2 - containerRect.left;
+                    const startY = refRect.top + refRect.height/2 - containerRect.top;
+                    const endX = curRect.left + curRect.width/2 - containerRect.left;
+                    const endY = curRect.top + curRect.height/2 - containerRect.top;
+                    
+                    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                    const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+                    
+                    line.style.width = length + 'px';
+                    line.style.left = startX + 'px';
+                    line.style.top = startY + 'px';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    
+                    bufferDisplay.appendChild(line);
+                }
+            }
+            
+            // Додати пояснення
+            if (step.length === 0) {
+                bufferExplanation.textContent = `Не знайдено збігу у вікні. Кодуємо як (0,0,"${step.nextChar}")`;
+            } else {
+                const matchText = text.substring(step.matchStart, step.matchStart + step.length);
+                bufferExplanation.textContent = `Знайдено збіг: зсув = ${step.offset}, довжина = ${step.length}. Збіг: "${matchText}". Кодуємо як (${step.offset},${step.length},"${step.nextChar}")`;
+            }
+            
+            // Оновити таблицю виводу
+            const tbody = lz77Output.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            for (let i = 0; i <= currentStep; i++) {
+                const step = lz77Steps[i];
+                const row = document.createElement('tr');
+                
+                if (i === currentStep) {
+                    row.style.backgroundColor = '#e8f4fc';
+                }
+                
+                row.innerHTML = `
+                    <td>${step.position}</td>
+                    <td>${step.length}</td>
+                    <td>${step.nextChar}</td>
+                    <td>${step.code}</td>
+                `;
+                
+                tbody.appendChild(row);
+            }
+            
+            // Оновити статистику стиснення
+            if (currentStep === lz77Steps.length - 1) {
+                updateCompressionStats();
+            }
+        }
+        
+        function renderLZ78Step() {
+            if (currentStep >= lz78Steps.length) return;
+            
+            const step = lz78Steps[currentStep];
+            
+            // Очистити буфер
+            bufferDisplay.innerHTML = '';
+            
+            // Відобразити поточний стан словника
+            const text = inputText;
+            let processedLength = 0;
+            
+            for (let i = 0; i <= currentStep; i++) {
+                const s = lz78Steps[i];
+                processedLength += (s.string.length > 0 ? s.string.length : 1);
+            }
+            
+            const remainingText = text.substring(processedLength);
+            
+            // Відобразити оброблений текст
+            for (let i = 0; i < processedLength && i < text.length; i++) {
+                const charElem = document.createElement('div');
+                charElem.className = 'buffer-char in-window';
+                charElem.textContent = text[i];
+                bufferDisplay.appendChild(charElem);
+            }
+            
+            // Відобразити поточну позицію
+            if (remainingText.length > 0) {
+                const charElem = document.createElement('div');
+                charElem.className = 'buffer-char current';
+                charElem.textContent = remainingText[0];
+                bufferDisplay.appendChild(charElem);
+            }
+            
+            // Додати пояснення
+            if (step.dictIndex === 0) {
+                bufferExplanation.textContent = `Новий символ "${step.nextChar}". Кодуємо як (0,"${step.nextChar}") і додаємо до словника під індексом ${step.index}`;
+            } else {
+                bufferExplanation.textContent = `Знайдено збіг з індексом ${step.dictIndex} у словнику, наступний символ "${step.nextChar}". Кодуємо як (${step.dictIndex},"${step.nextChar}") і додаємо до словника під індексом ${step.index}`;
+            }
+            
+            // Оновити таблицю виводу
+            const tbody = lz78Output.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            for (let i = 0; i <= currentStep; i++) {
+                const step = lz78Steps[i];
+                const row = document.createElement('tr');
+                
+                if (i === currentStep) {
+                    row.style.backgroundColor = '#e8f4fc';
+                }
+                
+                row.innerHTML = `
+                    <td>${step.index}</td>
+                    <td>${step.code}</td>
+                    <td>${step.nextChar}</td>
+                    <td>${step.string}</td>
+                `;
+                
+                tbody.appendChild(row);
+            }
+            
+            // Оновити статистику стиснення
+            if (currentStep === lz78Steps.length - 1) {
+                updateCompressionStats();
+            }
+        }
+        
+        function updateCompressionStats() {
+            if (currentAlgorithm === 'lz77') {
+                const originalSize = inputText.length * 8; // у бітах (припускаючи 8 біт на символ)
+                let compressedSize = 0;
+                
+                // Розраховуємо біти для offset та length
+                const offsetBits = Math.ceil(Math.log2(windowSize));
+                const lengthBits = Math.ceil(Math.log2(windowSize));
+                
+                for (const step of lz77Steps) {
+                    const charBits = step.nextChar ? 8 : 0;
+                    compressedSize += offsetBits + lengthBits + charBits;
+                }
+                
+                const compressionRatio = (originalSize / compressedSize).toFixed(2);
+                const compressionPercentage = ((1 - compressedSize / originalSize) * 100).toFixed(2);
+                
+                compressionStats.innerHTML = `
+                    <strong>Статистика стиснення LZ77:</strong><br>
+                    Розмір оригінального тексту: ${originalSize} біт (${inputText.length} символів × 8 біт)<br>
+                    Розмір стисненого тексту: ${compressedSize} біт (${lz77Steps.length} кодів)<br>
+                    <div class="calculation-details">
+                        <strong>Розрахунок бітів:</strong><br>
+                        - offset: ${offsetBits} біт (log₂(${windowSize}) = ${Math.log2(windowSize).toFixed(2)})<br>
+                        - length: ${lengthBits} біт (log₂(${windowSize}) = ${Math.log2(windowSize).toFixed(2)})<br>
+                        - символ: 8 біт (якщо є)<br>
+                        - загалом на код: ${offsetBits + lengthBits}..${offsetBits + lengthBits + 8} біт<br>
+                        - середньо: ${(compressedSize/lz77Steps.length).toFixed(1)} біт на код
+                    </div>
+                    Коефіцієнт стиснення: ${compressionRatio}:1<br>
+                    Ступінь стиснення: ${compressionPercentage}%
+                `;
+            } else {
+                const originalSize = inputText.length * 8; // у бітах (припускаючи 8 біт на символ)
+                let compressedSize = 0;
+                let maxIndexBits = 0;
+                
+                for (const step of lz78Steps) {
+                    // Припускаємо, що індекс кодується log2(currentIndex) бітами, а символ - 8 бітами
+                    const indexBits = Math.ceil(Math.log2(step.index));
+                    const charBits = step.nextChar ? 8 : 0;
+                    compressedSize += indexBits + charBits;
+                    maxIndexBits = Math.max(maxIndexBits, indexBits);
+                }
+                
+                const compressionRatio = (originalSize / compressedSize).toFixed(2);
+                const compressionPercentage = ((1 - compressedSize / originalSize) * 100).toFixed(2);
+                
+                compressionStats.innerHTML = `
+                    <strong>Статистика стиснення LZ78:</strong><br>
+                    Розмір оригінального тексту: ${originalSize} біт (${inputText.length} символів × 8 біт)<br>
+                    Розмір стисненого тексту: ${compressedSize} біт (${lz78Steps.length} кодів)<br>
+                    <div class="calculation-details">
+                        <strong>Розрахунок бітів:</strong><br>
+                        - індекс: від 1 до ${maxIndexBits} біт (log₂(макс.індекс) = ${Math.log2(lz78Steps.length).toFixed(2)})<br>
+                        - символ: 8 біт (якщо є)<br>
+                        - загалом на код: 1..${maxIndexBits + 8} біт<br>
+                        - середньо: ${(compressedSize/lz78Steps.length).toFixed(1)} біт на код
+                    </div>
+                    Коефіцієнт стиснення: ${compressionRatio}:1<br>
+                    Ступінь стиснення: ${compressionPercentage}%
+                `;
+            }
+        }
+        
+       function prevStep() {
+    stopExecution(); // Зупиняємо автоматичне виконання
+    if (currentStep > 0) {
+        currentStep--;
+        renderStep();
+    }
+}
+
+function nextStep() {
+    stopExecution(); // Зупиняємо автоматичне виконання
+    if (currentAlgorithm === 'lz77' && currentStep < lz77Steps.length - 1) {
+        currentStep++;
+        renderStep();
+    } else if (currentAlgorithm === 'lz78' && currentStep < lz78Steps.length - 1) {
+        currentStep++;
+        renderStep();
+    }
+}
+        
+        function executeAll() {
+            if (isExecutingAll) return;
+            
+            isExecutingAll = true;
+            executeAllBtn.disabled = true;
+            
+            const maxSteps = currentAlgorithm === 'lz77' ? lz77Steps.length : lz78Steps.length;
+            
+            function executeStep() {
+                if (currentStep < maxSteps - 1) {
+                    currentStep++;
+                    renderStep();
+                    executionTimer = setTimeout(executeStep, 200);//800
+                } else {
+                    isExecutingAll = false;
+                    executeAllBtn.disabled = false;
+                    executionTimer = null;
+                }
+            }
+            
+            executionTimer = setTimeout(executeStep, 200);
+        }
+        
+		
+		function stopExecution() {
+    if (executionTimer) {
+        clearTimeout(executionTimer);
+        executionTimer = null;
+    }
+    isExecutingAll = false;
+    executeAllBtn.disabled = false;
+}
+
+function stopDecodeExecution() {
+    if (decodeExecutionTimer) {
+        clearTimeout(decodeExecutionTimer);
+        decodeExecutionTimer = null;
+    }
+    isDecodeExecutingAll = false;
+    decodeExecuteAllBtn.disabled = false;
+}
+		
+		
+		
+        function updateButtons() {
+            prevStepBtn.disabled = currentStep === 0;
+            
+            if (currentAlgorithm === 'lz77') {
+                nextStepBtn.disabled = currentStep >= lz77Steps.length - 1;
+                executeAllBtn.disabled = currentStep >= lz77Steps.length - 1 || isExecutingAll;
+            } else {
+                nextStepBtn.disabled = currentStep >= lz78Steps.length - 1;
+                executeAllBtn.disabled = currentStep >= lz78Steps.length - 1 || isExecutingAll;
+            }
+        }
+        
+        // Функції для декодера
+        function decodeReset() {
+		
+		// Зупинити автоматичне виконання декодера
+    stopDecodeExecution(); // Використовуємо нову функцію замість прямого коду
+    
+    decodeCurrentStep = 0;
+    decodedText = '';
+    decodeSteps = [];
+    decoderOutput.textContent = '';
+    decodeExplanation.textContent = 'Декодування ще не розпочато.';
+            // Зупинити автоматичне виконання декодера
+            if (decodeExecutionTimer) {
+                clearTimeout(decodeExecutionTimer);
+                decodeExecutionTimer = null;
+            }
+            isDecodeExecutingAll = false;
+            
+            decodeCurrentStep = 0;
+            decodedText = '';
+            decodeSteps = [];
+            decoderOutput.textContent = '';
+            decodeExplanation.textContent = 'Декодування ще не розпочато.';
+            
+            // Генеруємо кроки декодування
+            if (currentAlgorithm === 'lz77') {
+                generateDecodeLZ77Steps();
+            } else {
+                generateDecodeLZ78Steps();
+            }
+            
+            updateDecodeButtons();
+        }
+        
+        function generateDecodeLZ77Steps() {
+            decodeSteps = [];
+            let output = '';
+            
+            for (let i = 0; i < lz77Steps.length; i++) {
+                const step = lz77Steps[i];
+                let decodedPart = '';
+                
+                if (step.length === 0) {
+                    decodedPart = step.nextChar;
+                    output += decodedPart;
+                    decodeSteps.push({
+                        code: step.code,
+                        decoded: decodedPart,
+                        output: output,
+                        explanation: `Код (0,0,"${step.nextChar}") означає: немає збігу, додаємо символ "${step.nextChar}"`
+                    });
+                } else {
+                    const start = output.length - step.offset;
+                    decodedPart = output.substring(start, start + step.length) + step.nextChar;
+                    output += decodedPart;
+                    decodeSteps.push({
+                        code: step.code,
+                        decoded: decodedPart,
+                        output: output,
+                        explanation: `Код (${step.offset},${step.length},"${step.nextChar}") означає: повернутись на ${step.offset} символів, взяти ${step.length} символів "${output.substring(start, start + step.length)}" і додати символ "${step.nextChar}"`
+                    });
+                }
+            }
+        }
+        
+        function generateDecodeLZ78Steps() {
+            decodeSteps = [];
+            let output = '';
+            const dictionary = [''];
+            
+            for (let i = 0; i < lz78Steps.length; i++) {
+                const step = lz78Steps[i];
+                const decodedString = dictionary[step.dictIndex] + step.nextChar;
+                output += decodedString;
+                
+                dictionary.push(decodedString);
+                
+                decodeSteps.push({
+                    code: step.code,
+                    decoded: decodedString,
+                    output: output,
+                    explanation: `Код (${step.dictIndex},"${step.nextChar}") означає: взяти рядок з індексом ${step.dictIndex} ("${dictionary[step.dictIndex]}") і додати символ "${step.nextChar}", отримуємо "${decodedString}"`
+                });
+            }
+        }
+        
+       
+function decodePrevStep() {
+    stopDecodeExecution(); // Зупиняємо автоматичне виконання декодера
+    if (decodeCurrentStep > 0) {
+        decodeCurrentStep--;
+        renderDecodeStep();
+    }
+}
+
+function decodeNextStep() {
+    stopDecodeExecution(); // Зупиняємо автоматичне виконання декодера
+    if (decodeCurrentStep < decodeSteps.length - 1) {
+        decodeCurrentStep++;
+        renderDecodeStep();
+    }
+}
+        
+        function decodeExecuteAll() {
+            if (isDecodeExecutingAll) return;
+            
+            isDecodeExecutingAll = true;
+            decodeExecuteAllBtn.disabled = true;
+            
+            function executeDecodeStep() {
+                if (decodeCurrentStep < decodeSteps.length - 1) {
+                    decodeCurrentStep++;
+                    renderDecodeStep();
+                    decodeExecutionTimer = setTimeout(executeDecodeStep, 200);//800
+                } else {
+                    isDecodeExecutingAll = false;
+                    decodeExecuteAllBtn.disabled = false;
+                    decodeExecutionTimer = null;
+                }
+            }
+            
+            decodeExecutionTimer = setTimeout(executeDecodeStep, 200);
+        }
+        
+        function renderDecodeStep() {
+            if (decodeCurrentStep >= decodeSteps.length) return;
+            
+            const step = decodeSteps[decodeCurrentStep];
+            decoderOutput.textContent = step.output;
+            decodeExplanation.textContent = step.explanation;
+            
+            updateDecodeButtons();
+        }
+        
+        function updateDecodeButtons() {
+            decodePrevStepBtn.disabled = decodeCurrentStep === 0;
+            decodeNextStepBtn.disabled = decodeCurrentStep >= decodeSteps.length - 1;
+            decodeExecuteAllBtn.disabled = decodeCurrentStep >= decodeSteps.length - 1 || isDecodeExecutingAll;
+        }
+        
+        // Ініціалізація
+        windowSize = parseInt(windowSizeInput.value);
+        resetSimulation();
+    </script>
+</body>
+</html>

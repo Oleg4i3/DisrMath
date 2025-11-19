@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Алгоритму A*</title>
+    <style>
+        :root {
+            --primary-color: #007bff; /* Blue */
+            --primary-hover: #0056b3;
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #555;
+            --closed-set-color: #6c757d; /* Gray for closed set */
+            --open-set-color: #fd7e14;   /* Orange for open set */
+            --current-color: #ffc107; /* Yellow for current */
+            --path-color: #20c997;   /* Teal for final path */
+            --optimal-path-color: #6c757d; /* Gray for Dijkstra's optimal path */
+            --heuristic-color: #6f42c1; /* Purple for heuristic */
+            --cost-color: #dc3545; /* Red for g-cost */
+            --fcost-color: #000;      /* Black for f-cost */
+            --update-new-color: #28a745;
+            --update-old-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 20px; padding: 20px; background-color: var(--light-bg);
+        }
+        .simulator-container, .theory-container {
+            background-color: var(--white-bg); border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); padding: 25px;
+            width: 100%; max-width: 1200px; box-sizing: border-box;
+        }
+        h2 { text-align: center; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin: 0 0 5px 0; }
+        .step-counter { text-align: center; font-size: 0.9em; color: #6c757d; margin-bottom: 15px; height: 1.2em; }
+        .controls, .input-group { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .input-group label { display: flex; align-items: center; gap: 5px; }
+        button { padding: 10px 18px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; background-color: var(--primary-color); color: white; transition: background-color 0.2s; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        input[type="number"], select { padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; text-align: center; }
+        select { text-align-last: center; }
+        input[type="number"] { width: 60px; }
+        input[type="checkbox"] { transform: scale(1.2); }
+        .visualization { width: 100%; height: 550px; border-radius: 5px; position: relative; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px; }
+        .legend { font-size: 0.9em; color: #555; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background-color: #f8f9fa; margin-bottom: 15px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-color { width: 15px; height: 15px; border-radius: 3px; border: 1px solid #ccc; }
+        .legend-optimal { border: 2px dashed var(--optimal-path-color); background: none !important; } /* Style for optimal path legend */
+        .commentary { background-color: #f8f9fa; border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; min-height: 50px; font-size: 1.1em; text-align: center; word-wrap: break-word; line-height: 1.5; margin-top: 15px; color: var(--comment-color); }
+        .commentary .highlight-calc, .commentary .highlight-new, .commentary .highlight-old, .commentary .highlight-heur { font-weight: bold; padding: 1px 4px; border-radius: 3px; }
+        .commentary .highlight-calc { color: var(--primary-color); background-color: #ebe3f8; }
+        .commentary .highlight-new { color: var(--update-new-color); background-color: #e2f0e6; }
+        .commentary .highlight-old { color: var(--update-old-color); background-color: #f8e3e5; }
+        .commentary .highlight-heur { color: var(--heuristic-color); background-color: #e4dff0; }
+
+        svg { width: 100%; height: 100%; }
+        .node circle { stroke: #555; stroke-width: 1px; fill: var(--white-bg); transition: fill 0.3s, stroke 0.3s; }
+        .node text { pointer-events: none; font-size: 10px; text-anchor: middle; }
+        .node text.f-label { fill: var(--fcost-color); font-weight: bold; font-size: 22px; }
+        .node text.g-label { fill: var(--cost-color); font-size: 18px; }
+        .node text.h-label { fill: var(--heuristic-color); font-size: 18px; }
+        .node text.id-label { fill: #333; font-weight: bold; font-size: 12px; }
+
+        .edge { stroke: #ccc; stroke-width: 1.5px; fill: none; transition: stroke 0.3s, stroke-width 0.3s; }
+        .edge-label-group { cursor: pointer; pointer-events: bounding-box; }
+        .edge-label { font-size: 14px; fill: #555; text-anchor: middle; pointer-events: none; }
+        .edge-label-bg { fill: white; opacity: 0.7; pointer-events: none; }
+
+        .node.open-set circle { fill: var(--open-set-color); }
+        .node.closed-set circle { fill: var(--closed-set-color); }
+        .node.closed-set text { fill: #fff; }
+        .node.current circle { fill: var(--current-color); stroke: #a67c00; stroke-width: 3px; }
+        .node.path circle { fill: var(--path-color); stroke: var(--path-color); stroke-width: 3px; }
+        .node.path text { fill: white; }
+        .node.optimal circle { stroke: var(--optimal-path-color); stroke-dasharray: 4 2; stroke-width: 2.5px; fill: none; /* Only outline */ }
+        .node.optimal text { /* Keep text visible for optimal nodes */ fill: #333; }
+        .node.optimal.path text { fill: white; } /* Ensure path nodes override optimal text color */
+
+
+        .edge.path { stroke: var(--path-color); stroke-width: 3px;}
+        .edge.relaxing { stroke: var(--current-color); stroke-width: 3px; }
+        .edge.optimal { stroke: var(--optimal-path-color); stroke-width: 2.5px; stroke-dasharray: 5 3; }
+
+        .theory-container { max-width: 1200px; }
+        details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
+        summary { font-size: 1.2em; font-weight: bold; cursor: pointer; color: var(--primary-color); }
+        details[open] summary { margin-bottom: 15px; }
+        .theory-content h3, .theory-content h4 { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .theory-content p, .theory-content li { line-height: 1.7; color: var(--text-color); }
+        .theory-content code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+<div class="simulator-container">
+    <div class="input-group">
+        <label>Розмір сітки:</label>
+        <select id="grid-size">
+            <option value="4x3">12 (4x3)</option>
+            <option value="5x4">20 (5x4)</option>
+            <option value="6x5" selected>30 (6x5)</option>
+        </select>
+        <label>Старт:</label>
+        <input type="number" id="start-node" value="1" min="1" max="30">
+        <label>Фініш:</label>
+        <input type="number" id="end-node" value="30" min="1" max="30">
+        <label>Евристика:</label>
+        <select id="heuristic-select">
+            <option value="manhattan" selected>Манхеттенська</option>
+            <option value="euclidean">Евклідова</option>
+        </select>
+         <label>
+            <input type="checkbox" id="directed-graph-checkbox">
+            Орієнтований
+        </label>
+        <button id="generate-graph-btn">Згенерувати</button>
+        <button id="preset-btn" class="secondary">Приклад неоптимальності</button>
+    </div>
+    <h2>Алгоритм A*</h2>
+	<div class="legend">
+        <div class="legend-item"><b>Мітки вершин:</b>&nbsp; <span style="color:var(--fcost-color); font-weight:bold;">f</span>,<span style="color:var(--cost-color);">g</span>,<span style="color:var(--heuristic-color);">h</span>, <b>ID</b></div>
+        <div class="legend-item"><span class="legend-color" style="background-color: var(--open-set-color);"></span> Open Set</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: var(--closed-set-color);"></span> Closed Set</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: var(--current-color);"></span> Поточна</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: var(--path-color);"></span> Шлях A*</div>
+        <div class="legend-item"><span class="legend-color legend-optimal"></span> Опт. шлях</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: var(--white-bg);"></span> Не знайдена</div>
+    </div>
+    <div class="step-counter" id="astar-step-counter"></div>
+    <div class="visualization">
+        <svg id="astar-svg"></svg>
+    </div>
+     
+    <div class="controls">
+        <button id="astar-prev-btn" disabled>Крок назад</button>
+        <button id="astar-next-btn" disabled>Крок вперед</button>
+    </div>
+    <div class="commentary" id="astar-commentary">Налаштуйте параметри та згенеруйте граф.</div>
+</div>
+
+<div class="theory-container">
+    <details> 
+	  <summary>Теоретична довідка по алгоритму A*</summary>
+        <div class="theory-content">
+            <h3>Що таке Алгоритм A*?</h3>
+            <p><b>Алгоритм A* (A-star)</b> — це поширений та ефективний алгоритм пошуку шляху, який знаходить найкоротший шлях між початковою та кінцевою вершинами у зваженому графі. Він поєднує переваги алгоритму Дейкстри (гарантія оптимальності за певних умов) та "жадібного" пошуку за найкращим збігом (швидкість завдяки евристиці).</p>
+            <h4>Ключові поняття:</h4>
+            <ul>
+                <li><b>Вартість шляху (g-score):</b> Реальна вартість (сума ваг ребер) шляху від стартової вершини до поточної.</li>
+                <li><b>Евристична функція (h-score):</b> Оцінка (приблизна вартість) шляху від поточної вершини до цільової. Евристика повинна бути <b>допустимою</b> (ніколи не переоцінювати реальну вартість).</li>
+                <li><b>Загальна оцінка (f-score):</b> Сума реальної вартості та евристичної оцінки: <code>f = g + h</code>. A* завжди обирає для дослідження вершину з найменшим f-score.</li>
+                <li><b>Open Set (Відкрита множина):</b> Множина вершин, які були знайдені, але ще не досліджені (аналог пріоритетної черги у Дейкстри).</li>
+                <li><b>Closed Set (Закрита множина):</b> Множина вершин, які вже були досліджені.</li>
+            </ul>
+            <h4>Допустимість та Узгодженість Евристики:</h4>
+            <ul>
+                <li><b>Допустимість (Admissibility):</b> Евристика <code>h(n)</code> є допустимою, якщо вона ніколи не переоцінює вартість найкоротшого шляху від вершини <code>n</code> до цілі. Якщо евристика допустима, A* гарантовано знайде оптимальний шлях.</li>
+                <li><b>Узгодженість (Consistency / Monotonicity):</b> Евристика є узгодженою, якщо для будь-якого ребра (A, B) вартість <code>h(A)</code> не перевищує вартість ребра (A, B) плюс <code>h(B)</code>. Узгоджена евристика завжди є допустимою. Якщо евристика узгоджена, A* працює ефективніше, оскільки гарантує, що коли вершина вибирається для дослідження, до неї вже знайдено оптимальний шлях.</li>
+            </ul>
+            <h4>Приклади Евристик:</h4>
+            <ul>
+                <li><b>Манхеттенська відстань:</b> <code>h = (|x1 - x2| + |y1 - y2|) * D</code>, де D - мінімальна вартість руху між сусідніми клітинками. Допустима та узгоджена для рухів по сітці (горизонтально/вертикально).</li>
+                <li><b>Евклідова відстань:</b> <code>h = sqrt((x1 - x2)^2 + (y1 - y2)^2) * D</code>. Допустима, але не завжди узгоджена.</li>
+                <li><b>Нульова евристика (h=0):</b> A* перетворюється на алгоритм Дейкстри.</li>
+            </ul>
+             <h4>Агресивні (Неприпустимі) Евристики</h4>
+             <p>Іноді, особливо коли швидкість пошуку важливіша за гарантовану оптимальність шляху, використовують <b>неприпустимі (inadmissible)</b> або <b>агресивні</b> евристики. Це такі евристичні функції <code>h(n)</code>, які можуть <b>переоцінювати</b> реальну вартість шляху від вершини <code>n</code> до цілі.</p>
+             <ul>
+                 <li><b>Переваги:</b> Агресивні евристики можуть значно <b>прискорити</b> пошук A*, оскільки вони сильніше "фокусують" алгоритм на русі до цілі, ігноруючи потенційно кращі, але менш очевидні шляхи.</li>
+                 <li><b>Недоліки:</b> Втрата гарантії оптимальності. Знайдений шлях може бути довшим за справжній найкоротший шлях.</li>
+                 <li><b>Застосування:</b> Виправданий у ситуаціях, де "досить добрий" шлях, знайдений швидко, є кращим за ідеальний, але знайдений повільно (напр., пошук шляху для NPC у відеоіграх).</li>
+                 <li><b>Приклад:</b> Множення допустимої евристики на коефіцієнт > 1 (напр., 1.5 або 2).</li>
+             </ul>
+        </div>
+	
+    </details>
+</div>
+
+<script>
+// --- GLOBAL STATE ---
+let graph = { nodes: [], edges: [], adj: new Map(), obstacles: new Set(), grid: { cols: 0, rows: 0 } };
+let astarState = { steps: [], currentStep: -1, optimalCost: Infinity, optimalPath: null }; // Added optimalPath
+
+// --- DOM ELEMENTS ---
+// ... (keep all DOM elements as before)
+const gridSizeSelect = document.getElementById('grid-size');
+const startNodeInput = document.getElementById('start-node');
+const endNodeInput = document.getElementById('end-node');
+const heuristicSelect = document.getElementById('heuristic-select');
+const generateBtn = document.getElementById('generate-graph-btn');
+const directedCheckbox = document.getElementById('directed-graph-checkbox');
+const presetBtn = document.getElementById('preset-btn');
+
+const astarSVG = document.getElementById('astar-svg');
+const astarPrevBtn = document.getElementById('astar-prev-btn');
+const astarNextBtn = document.getElementById('astar-next-btn');
+const astarCommentary = document.getElementById('astar-commentary');
+const astarStepCounter = document.getElementById('astar-step-counter');
+
+
+// --- CONSTANTS ---
+const NODE_RADIUS = 25; 
+const GRID_STEP = 6;
+
+// ===================================================================
+// MAIN CONTROL FUNCTIONS & PRESET
+// ===================================================================
+function generateAndStart() {
+    let attempts = 0;
+    const maxAttempts = 15; // Increased attempts
+    let startNode, endNode;
+
+    do {
+        generateGraphStructure(gridSizeSelect.value);
+        startNode = parseInt(startNodeInput.value);
+        endNode = parseInt(endNodeInput.value);
+
+        const n = graph.nodes.length;
+        // Ensure start/end are valid *before* connectivity check
+        if (graph.obstacles.has(startNode) || startNode < 1 || startNode > n || isNaN(startNode)) {
+            startNode = graph.nodes.find(n => !graph.obstacles.has(n.id))?.id || 1;
+            startNodeInput.value = startNode;
+        }
+        if (graph.obstacles.has(endNode) || endNode < 1 || endNode > n || endNode === startNode || isNaN(endNode)) {
+            endNode = graph.nodes.filter(n => !graph.obstacles.has(n.id) && n.id !== startNode).pop()?.id || n;
+             if (!endNode && n > 1) endNode = graph.nodes.find(n => !graph.obstacles.has(n.id) && n.id !== startNode)?.id || (startNode === 1 ? 2: 1) ; // Fallback
+             if (endNode) endNodeInput.value = endNode; else endNode = startNode; // Handle case where only start node is valid
+        }
+        
+        attempts++;
+        if(attempts > maxAttempts) {
+             alert("Не вдалося згенерувати зв'язний граф за " + maxAttempts + " спроб. Спробуйте інший розмір сітки або менше перешкод (якщо б вони налаштовувались).");
+             return; 
+        }
+         // Pass potentially corrected start/end to connectivity check
+    } while (!isGraphConnected(startNode, endNode)); 
+
+    restartSearch(); 
+}
+
+function loadPreset() {
+    gridSizeSelect.value = "4x3";
+    const n = 12;
+    startNodeInput.value = 1; endNodeInput.value = 12;
+    startNodeInput.max = n; endNodeInput.max = n;
+    directedCheckbox.checked = false; 
+    heuristicSelect.value = "manhattan"; // Ensure heuristic is set
+
+    graph = { nodes: [], edges: [], adj: new Map(), obstacles: new Set(), grid: { cols: 4, rows: 3 }, isDirected: false };
+    const width = astarSVG.clientWidth, height = astarSVG.clientHeight;
+    const cols = 4, rows = 3;
+    const xSpacing = width / (cols + 1), ySpacing = height / (rows + 1);
+
+    for (let i = 0; i < n; i++) {
+        const r = Math.floor(i / cols), c = i % cols;
+        graph.nodes.push({ id: i + 1, x: xSpacing * (c + 1), y: ySpacing * (r + 1), r, c });
+        graph.adj.set(i + 1, []);
+    }
+    
+    // Preset edges (u, v, weight) - Adjusted weights for clearer non-optimality
+   
+    const presetEdges = [
+        [1, 2, 1], [2, 3, 1], [3, 4, 1], [4, 8, 1], [8, 12, 26], // 
+        [1, 5, 30], [5, 6, 1], [6, 7, 10], [7, 8, 6], //
+        [5, 9, 3], // 
+        [9, 10, 2], //
+        [10, 11, 1], [11, 12, 6], // 
+        [2, 6, 6], [3, 7, 16], [4, 8, 6], 
+        [6, 10, 10], [7, 11, 6]
+    ];
+
+
+    graph.edges = []; 
+    graph.adj.forEach((_, key) => graph.adj.set(key, [])); 
+    
+    presetEdges.forEach(([u, v, w]) => {
+        // Add edge U->V
+        let arcUV = false;
+        const reverseUV = graph.adj.get(v)?.some(e => e.to === u);
+        if (reverseUV) { arcUV = true; const existingReverse = graph.edges.find(e => e.from === v && e.to === u); if(existingReverse) existingReverse.arc = true; }
+        graph.edges.push({from: u, to: v, weight: w, arc: arcUV});
+        graph.adj.get(u).push({to: v, weight: w});
+
+        // Add edge V->U for undirected
+        let arcVU = arcUV; // If U->V caused arcing, V->U should too
+        const reverseVU = graph.adj.get(u)?.some(e => e.to === v); // Check original direction
+        if (reverseVU && !arcVU) { arcVU = true; const existingOriginal = graph.edges.find(e => e.from === u && e.to === v); if(existingOriginal) existingOriginal.arc = true; }
+        graph.edges.push({from: v, to: u, weight: w, arc: arcVU});
+        graph.adj.get(v).push({to: u, weight: w});
+    });
+
+    restartSearch();
+}
+
+
+function isGraphConnected(startId, endId) {
+    if (!graph.adj.has(startId) || graph.obstacles.has(startId) || graph.obstacles.has(endId)) return false;
+    let queue = [startId], visited = new Set([startId]);
+    while (queue.length > 0) {
+        let u = queue.shift();
+        if (u === endId) return true; 
+        for (const edge of (graph.adj.get(u) || [])) {
+            const v = edge.to;
+            if (!visited.has(v) && !graph.obstacles.has(v)) { visited.add(v); queue.push(v); }
+        }
+    }
+    console.warn("Graph not connected between", startId, "and", endId);
+    return false; 
+}
+
+function restartSearch() {
+    if (!graph.nodes || graph.nodes.length === 0) return;
+    const n = graph.nodes.length;
+    let currentStart = parseInt(startNodeInput.value);
+    let currentEnd = parseInt(endNodeInput.value);
+
+    if (graph.obstacles.has(currentStart) || currentStart < 1 || currentStart > n ||
+        graph.obstacles.has(currentEnd) || currentEnd < 1 || currentEnd > n || currentStart === currentEnd)
+    {
+        alert(`Некоректні значення Старт/Фініш (${currentStart}, ${currentEnd}). Перегенеровано.`);
+        generateAndStart(); 
+        return;
+    }
+    
+    const dijkstraResult = runDijkstraInBackground(currentStart, currentEnd); // Get {cost, path}
+    astarState.optimalCost = dijkstraResult.cost;
+    astarState.optimalPath = dijkstraResult.path; // Store optimal path
+    
+    runAStar(currentStart, currentEnd, heuristicSelect.value);
+}
+
+
+function generateGraphStructure(gridSize) {
+    const [cols, rows] = gridSize.split('x').map(Number);
+    const n = cols * rows;
+    graph = { nodes: [], edges: [], adj: new Map(), obstacles: new Set(), grid: { cols, rows }, isDirected: directedCheckbox.checked };
+    const width = astarSVG.clientWidth, height = astarSVG.clientHeight;
+    const xSpacing = width / (cols + 1), ySpacing = height / (rows + 1);
+
+    for (let i = 0; i < n; i++) {
+        const r = Math.floor(i / cols), c = i % cols;
+        graph.nodes.push({ id: i + 1, x: xSpacing * (c + 1), y: ySpacing * (r + 1), r, c });
+        graph.adj.set(i + 1, []);
+    }
+    
+    let startId = parseInt(startNodeInput.value);
+    let endId = parseInt(endNodeInput.value);
+     if(startId > n || startId < 1 || isNaN(startId)) startId = 1;
+     if(endId > n || endId < 1 || isNaN(endId)) endId = n;
+    
+    const numObstacles = Math.floor(n * 0.2);
+    let obstaclesAdded = 0;
+    while(obstaclesAdded < numObstacles) {
+        const nodeId = Math.floor(Math.random() * n) + 1;
+        if (nodeId !== startId && nodeId !== endId && !graph.obstacles.has(nodeId)) {
+            graph.obstacles.add(nodeId);
+            obstaclesAdded++;
+        }
+    }
+
+    const potentialEdges = [];
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            const u = r * cols + c + 1;
+            if (graph.obstacles.has(u)) continue;
+            if(c + 1 < cols) { const v = u + 1; if(!graph.obstacles.has(v)) potentialEdges.push([u,v, GRID_STEP]); }
+            if(r + 1 < rows) { const v = u + cols; if(!graph.obstacles.has(v)) potentialEdges.push([u,v, GRID_STEP]); }
+        }
+    }
+    
+    const edgesToRemove = Math.floor(potentialEdges.length * 0.2);
+    for(let i=0; i<edgesToRemove; i++) {
+        potentialEdges.splice(Math.floor(Math.random() * potentialEdges.length), 1);
+    }
+    potentialEdges.forEach(([u,v, baseW]) => addEdge(u, v, baseW)); 
+
+     const numDiagonals = Math.floor(n * 0.2);
+     let diagonalsAdded = 0;
+     while (diagonalsAdded < numDiagonals) {
+         const u = Math.floor(Math.random() * n) + 1;
+         if (graph.obstacles.has(u)) continue;
+         const uNode = graph.nodes[u-1];
+         const [dr, dc] = [[-1,-1], [-1,1], [1,-1], [1,1]][Math.floor(Math.random()*4)];
+         const nr = uNode.r + dr, nc = uNode.c + dc;
+         if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+             const v = nr * cols + nc + 1;
+             if (!graph.obstacles.has(v) && !graph.adj.get(u)?.some(e => e.to === v)) {
+                  addEdge(u, v, GRID_STEP * 1.414); 
+                  diagonalsAdded++;
+             }
+         }
+    }
+
+    const longEdgeFactor = graph.isDirected ? 0.15 : 0.2; 
+    const numLongEdges = Math.floor(n * longEdgeFactor);
+    let longEdgesAdded = 0;
+    while(longEdgesAdded < numLongEdges) {
+        const u = Math.floor(Math.random() * n) + 1;
+        const v = Math.floor(Math.random() * n) + 1;
+        if (u !== v && !graph.obstacles.has(u) && !graph.obstacles.has(v) && !graph.adj.get(u)?.some(e => e.to === v)) {
+            const uNode = graph.nodes[u-1], vNode = graph.nodes[v-1];
+            const euclidDistPixels = Math.sqrt(Math.pow(uNode.x - vNode.x, 2) + Math.pow(uNode.y - vNode.y, 2));
+            const baseWeight = (euclidDistPixels / xSpacing) * GRID_STEP; 
+            addEdge(u, v, baseWeight);
+            longEdgesAdded++;
+        }
+    }
+}
+
+
+function addEdge(u, v, baseWeight = 1, fixedWeight = null) {
+    const weight = fixedWeight !== null ? fixedWeight : Math.max(1, Math.round(baseWeight * (1 + (Math.random() - 0.5))));
+    
+    let arc = false;
+     if (!graph.isDirected) {
+         const reverseEdge = graph.edges.find(e => e.from === v && e.to === u);
+         if(reverseEdge) { arc = true; reverseEdge.arc = true; }
+    }
+
+    graph.edges.push({from: u, to: v, weight, arc});
+    graph.adj.get(u).push({to: v, weight});
+
+    if (!graph.isDirected) {
+        // Add reverse adjacency list entry if it doesn't exist
+        if (!graph.adj.get(v).some(e => e.to === u)) {
+             graph.adj.get(v).push({to: u, weight});
+        }
+         // Add reverse edge for drawing if it doesn't exist yet
+         if (!graph.edges.some(e => e.from === v && e.to === u)) {
+              graph.edges.push({from: v, to: u, weight, arc});
+         } else { // Ensure arc=true is set on existing reverse edge for drawing consistency
+              const existingReverse = graph.edges.find(e => e.from === v && e.to === u);
+              if (existingReverse && arc) existingReverse.arc = true;
+         }
+    } else { // Directed graph: add reverse edge with probability
+        if(Math.random() < 0.25 && !graph.adj.get(v).some(e => e.to === u)) { 
+             const reverseWeight = fixedWeight !== null ? fixedWeight : Math.max(1, Math.round(baseWeight * (1 + (Math.random() - 0.5))));
+             graph.edges.push({from: v, to: u, weight: reverseWeight, arc: true}); 
+             graph.adj.get(v).push({to: u, weight: reverseWeight});
+              const originalEdge = graph.edges.find(e => e.from === u && e.to === v);
+              if (originalEdge) originalEdge.arc = true;
+        }
+    }
+}
+
+// ===================================================================
+// A* ALGORITHM
+// ===================================================================
+function runAStar(start, end, heuristicType) {
+    astarState = { steps: [], currentStep: -1, optimalCost: astarState.optimalCost, optimalPath: astarState.optimalPath }; // Include optimalPath
+    let openSet = new Map(); 
+    let closedSet = new Set();
+    let cameFrom = new Map();
+    let gScore = new Map();
+    let fScore = new Map();
+
+    graph.nodes.forEach(node => {
+        gScore.set(node.id, Infinity);
+        fScore.set(node.id, Infinity);
+    });
+
+    const h = (nodeId) => calculateHeuristic(nodeId, end, heuristicType);
+
+    gScore.set(start, 0);
+    fScore.set(start, h(start));
+    openSet.set(start, fScore.get(start));
+
+    const saveStep = (data) => {
+        const stepData = { ...data, openSet: new Map(openSet), closedSet: new Set(closedSet), gScore: new Map(gScore), fScore: new Map(fScore), cameFrom: new Map(cameFrom) };
+        astarState.steps.push(stepData);
+    };
+
+    saveStep({ commentary: `<b>Ініціалізація:</b> g(${start})=0, h(${start})=${fScore.get(start).toFixed(1)}, f(${start})=${fScore.get(start).toFixed(1)}. Додаємо <b>${start}</b> у Open Set.` });
+
+    while (openSet.size > 0) {
+        let current = -1, minF = Infinity;
+        for (const [nodeId, score] of openSet) {
+             if (score < minF) { minF = score; current = nodeId; }
+             else if (score === minF && h(nodeId) < h(current)) { current = nodeId; }
+        }
+
+        if (current === -1) { saveStep({ commentary: `Open Set порожній, шлях не знайдено.`}); break; }
+
+        if (current === end) {
+            const path = reconstructPath(cameFrom, current);
+            const pathCost = calculatePathCost(path);
+            let optComment = "";
+             if (astarState.optimalCost !== Infinity && pathCost > astarState.optimalCost + 1e-9) { 
+                 optComment = ` <span class="highlight-old">(Неоптимально! Вартість шляху Дейкстри: ${astarState.optimalCost.toFixed(1)})</span>`;
+             } else if (astarState.optimalCost !== Infinity) {
+                  optComment = ` <span class="highlight-new">(Оптимально)</span>`;
+             }
+            saveStep({ current, path, commentary: `<b>Ціль ${end} знайдена!</b> Вартість шляху: ${pathCost.toFixed(1)}.${optComment}` });
+            break;
+        }
+        
+        const currentFScore = fScore.get(current); 
+        openSet.delete(current);
+        closedSet.add(current);
+        saveStep({ current, commentary: `Вибираємо <b>${current}</b> з Open Set (f=${currentFScore.toFixed(1)}) і переміщуємо в Closed Set.` });
+
+
+        for (const edge of (graph.adj.get(current) || [])) {
+            const neighbor = edge.to;
+            if (closedSet.has(neighbor) || graph.obstacles.has(neighbor)) continue;
+
+            const tentativeGScore = gScore.get(current) + edge.weight;
+            const neighborH = h(neighbor);
+            const neighborF = tentativeGScore + neighborH;
+            
+            let commentary = `Досліджуємо сусіда <b>${neighbor}</b> через ребро (${edge.weight}). `;
+            commentary += `Розрахунок: g = ${gScore.get(current).toFixed(1)} + ${edge.weight} = <span class="highlight-new">${tentativeGScore.toFixed(1)}</span>, h = <span class="highlight-heur">${neighborH.toFixed(1)}</span>, f = <span class="highlight-calc">${neighborF.toFixed(1)}</span>. `;
+
+            if (!openSet.has(neighbor) || tentativeGScore < gScore.get(neighbor)) {
+                 if (!openSet.has(neighbor)) {
+                     commentary += `Вершина <b>${neighbor}</b> нова, додаємо в Open Set.`;
+                     openSet.set(neighbor, neighborF); 
+                 } else {
+                     commentary += `Шлях через <b>${current}</b> кращий за існуючий (g=${gScore.get(neighbor).toFixed(1)}). Оновлюємо Open Set.`;
+                     openSet.set(neighbor, neighborF); 
+                 }
+                 cameFrom.set(neighbor, current);
+                 gScore.set(neighbor, tentativeGScore);
+                 fScore.set(neighbor, neighborF);
+                 saveStep({ current, relaxing: edge, commentary }); 
+            } else {
+                 commentary += `Шлях через <b>${current}</b> не кращий за існуючий (g=${gScore.get(neighbor).toFixed(1)}).`;
+                 saveStep({ current, relaxing: edge, commentary }); 
+            }
+        }
+    }
+    
+    const lastStep = astarState.steps[astarState.steps.length - 1];
+    if (!lastStep.path && lastStep.commentary.indexOf('не знайдено') === -1 && lastStep.commentary.indexOf('не існує') === -1 && lastStep.commentary.indexOf('недосяжні') === -1) {
+         saveStep({ commentary: `Шлях до <b>${end}</b> з вершини <b>${start}</b> не існує.` });
+    }
+
+    astarState.currentStep = 0;
+    updateAStarView();
+}
+
+
+function calculateHeuristic(nodeId, endId, type) {
+    const node = graph.nodes.find(n => n.id === nodeId);
+    const end = graph.nodes.find(n => n.id === endId);
+    if (!node || !end) return Infinity;
+    const dx = Math.abs(node.c - end.c);
+    const dy = Math.abs(node.r - end.r);
+    if (type === 'manhattan') {
+        return (dx + dy) * GRID_STEP; 
+    } else { // euclidean
+        return Math.sqrt(dx*dx + dy*dy) * GRID_STEP; 
+    }
+}
+
+function reconstructPath(cameFrom, current) {
+    const totalPath = [current];
+    while (cameFrom.has(current)) {
+        current = cameFrom.get(current);
+        totalPath.unshift(current);
+    }
+    return totalPath;
+}
+
+function calculatePathCost(path) {
+     let cost = 0;
+     for (let i = 0; i < path.length - 1; i++) {
+         const u = path[i], v = path[i + 1];
+         const edgeData = graph.adj.get(u)?.find(e => e.to === v);
+         if (edgeData) cost += edgeData.weight;
+         else return Infinity; 
+     }
+     return cost;
+}
+
+function runDijkstraInBackground(start, end) {
+    let distances = new Map(), pq = new Set(), prev = new Map();
+    graph.nodes.forEach(node => { distances.set(node.id, Infinity); if (!graph.obstacles.has(node.id)) pq.add(node.id); });
+    distances.set(start, 0);
+    let foundEnd = false;
+
+    while(pq.size > 0) {
+        let u = [...pq].reduce((min, n) => distances.get(n) < distances.get(min) ? n : min);
+        if (distances.get(u) === Infinity) break;
+        pq.delete(u);
+        if (u === end) { foundEnd = true; break; } // Optimization: stop when target found
+
+        for (const edge of (graph.adj.get(u) || [])) {
+            if (graph.obstacles.has(edge.to) || !distances.has(edge.to)) continue; // Check neighbor validity
+            const newDist = distances.get(u) + edge.weight;
+            if (newDist < distances.get(edge.to)) {
+                 distances.set(edge.to, newDist);
+                 prev.set(edge.to, u); 
+            }
+        }
+    }
+    
+    let path = null;
+    if (foundEnd && distances.get(end) !== Infinity) {
+        path = reconstructPath(prev, end);
+    }
+    
+    return { cost: distances.get(end), path: path };
+}
+
+function updateAStarView() {
+    const step = astarState.steps[astarState.currentStep];
+    if (!step) return;
+    updateVisualization(astarSVG, step);
+    astarCommentary.innerHTML = step.commentary;
+    astarStepCounter.textContent = `Крок: ${astarState.currentStep + 1} / ${astarState.steps.length}`;
+    astarPrevBtn.disabled = astarState.currentStep === 0;
+    astarNextBtn.disabled = astarState.currentStep === astarState.steps.length - 1;
+}
+
+// ===================================================================
+// SHARED DRAWING & UTILS
+// ===================================================================
+function updateVisualization(svgElement, step) {
+    svgElement.innerHTML = ''; 
+    const { openSet, closedSet, gScore, fScore, current, relaxing, path } = step;
+    const isFinalStep = astarState.currentStep === astarState.steps.length - 1;
+    const astarPathCost = path ? calculatePathCost(path) : Infinity;
+    const showOptimal = isFinalStep && path && astarState.optimalPath && astarPathCost > astarState.optimalCost + 1e-9;
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <marker id="arrow" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="#999"/></marker>
+        <marker id="arrow-path" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="var(--path-color)"/></marker>
+        <marker id="arrow-relax" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="var(--current-color)"/></marker>
+        <marker id="arrow-optimal" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="var(--optimal-path-color)"/></marker>
+    `;
+    svgElement.appendChild(defs);
+
+    const pathEdges = new Set(path ? Array.from({length: path.length - 1}, (_, i) => `${path[i]}-${path[i+1]}`) : []);
+    const optimalPathEdges = new Set(showOptimal && astarState.optimalPath ? Array.from({length: astarState.optimalPath.length - 1}, (_, i) => `${astarState.optimalPath[i]}-${astarState.optimalPath[i+1]}`) : []);
+
+    
+    // Draw Optimal Path Edges First (if needed)
+     if (showOptimal) {
+        graph.edges.forEach(edge => {
+            if (optimalPathEdges.has(`${edge.from}-${edge.to}`)) {
+                 drawEdge(svgElement, edge, step, true); // Draw as optimal
+            }
+        });
+    }
+
+    // Draw Regular Edges
+    graph.edges.forEach(edge => {
+        const uNode = graph.nodes.find(n => n.id === edge.from);
+        const vNode = graph.nodes.find(n => n.id === edge.to);
+        if (!uNode || !vNode || graph.obstacles.has(uNode.id) || graph.obstacles.has(vNode.id)) return;
+        
+        // Don't redraw if it was already drawn as optimal and is not part of A* path
+        if (showOptimal && optimalPathEdges.has(`${edge.from}-${edge.to}`) && !pathEdges.has(`${edge.from}-${edge.to}`)) {
+             return; 
+        }
+
+        drawEdge(svgElement, edge, step, false); // Draw as normal/A* path/relaxing
+    });
+
+    // Draw Nodes
+    graph.nodes.forEach(node => {
+        if (graph.obstacles.has(node.id)) return; 
+
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.classList.add('node');
+        const isAStarPath = path && path.includes(node.id);
+        const isOptimalPath = showOptimal && astarState.optimalPath && astarState.optimalPath.includes(node.id);
+        
+        if (isAStarPath) group.classList.add('path');
+        else if (node.id === current) group.classList.add('current');
+        else if (closedSet.has(node.id)) group.classList.add('closed-set');
+        else if (openSet.has(node.id)) group.classList.add('open-set');
+
+        // Add optimal class if it's on the optimal path but not the A* path
+        if (isOptimalPath && !isAStarPath) {
+             group.classList.add('optimal');
+        }
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y); circle.setAttribute('r', NODE_RADIUS); group.appendChild(circle);
+        
+        const g = gScore.get(node.id);
+        const hVal = calculateHeuristic(node.id, parseInt(endNodeInput.value), heuristicSelect.value);
+        const f = fScore.get(node.id);
+        
+        const fText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        fText.setAttribute('x', node.x); fText.setAttribute('y', node.y - NODE_RADIUS * 0.4); 
+        fText.classList.add('f-label'); fText.textContent = f === Infinity ? '∞' : f.toFixed(0); 
+        group.appendChild(fText);
+
+        const gText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        gText.setAttribute('x', node.x - NODE_RADIUS * 0.4); gText.setAttribute('y', node.y + 2); 
+        gText.classList.add('g-label'); gText.setAttribute('text-anchor', 'end');
+        gText.textContent = g === Infinity ? '∞' : g.toFixed(0); 
+        group.appendChild(gText);
+
+        const hText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        hText.setAttribute('x', node.x + NODE_RADIUS * 0.4); hText.setAttribute('y', node.y + 2); 
+        hText.classList.add('h-label'); hText.setAttribute('text-anchor', 'start');
+        hText.textContent = hVal.toFixed(0); 
+        group.appendChild(hText);
+        
+        const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idText.setAttribute('x', node.x); idText.setAttribute('y', node.y + NODE_RADIUS * 0.5 + 3); 
+        idText.classList.add('id-label'); idText.setAttribute('dominant-baseline', 'hanging');
+        idText.textContent = node.id;
+        group.appendChild(idText);
+        
+        svgElement.appendChild(group);
+    });
+}
+
+function drawEdge(svgElement, edge, step, isDrawingOptimal) {
+    const { relaxing, path } = step;
+    const uNode = graph.nodes.find(n => n.id === edge.from);
+    const vNode = graph.nodes.find(n => n.id === edge.to);
+    // Skip if nodes not found (e.g., connected to obstacle removed from nodes list)
+    if (!uNode || !vNode) return;
+
+    const midX = (uNode.x + vNode.x) / 2, midY = (uNode.y + vNode.y) / 2;
+    const dx = vNode.x - uNode.x, dy = vNode.y - uNode.y;
+
+    let d = `M ${uNode.x},${uNode.y} L ${vNode.x},${vNode.y}`;
+    let curvature = edge.arc ? 0.4 : 0;
+
+    if(curvature === 0 && (uNode.r === vNode.r && Math.abs(uNode.c - vNode.c) > 1 || uNode.c === vNode.c && Math.abs(uNode.r - vNode.r) > 1)){
+         curvature = 0.3;
+    }
+
+    if (curvature !== 0) {
+        const controlX = midX + dy * curvature, controlY = midY - dx * curvature;
+        d = `M ${uNode.x},${uNode.y} Q ${controlX},${controlY} ${vNode.x},${vNode.y}`;
+    }
+
+    const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    pathEl.setAttribute('d', d); pathEl.classList.add('edge');
+    pathEl.setAttribute('data-from', edge.from); pathEl.setAttribute('data-to', edge.to);
+
+    const isAStarPath = path && path.includes(edge.from) && path.includes(edge.to) && (path.indexOf(edge.to) === path.indexOf(edge.from) + 1);
+    const isRelaxing = relaxing && relaxing.from === edge.from && relaxing.to === edge.to;
+
+    let arrowheadId = 'arrow'; // Default for directed/arc
+    if (isDrawingOptimal) {
+         pathEl.classList.add('optimal');
+         arrowheadId = 'arrow-optimal';
+    } else if(isAStarPath) {
+        pathEl.classList.add('path');
+        arrowheadId = 'arrow-path';
+    } else if(isRelaxing) {
+        pathEl.classList.add('relaxing');
+        arrowheadId = 'arrow-relax';
+    }
+
+    const pathLen = pathEl.getTotalLength();
+    if (graph.isDirected || curvature !== 0) {
+        pathEl.setAttribute('marker-end', `url(#${arrowheadId})`);
+        const markerOffset = NODE_RADIUS + (isDrawingOptimal ? 3 : 5); // Adjust offset based on type
+        if (pathLen > markerOffset) {
+             const point = pathEl.getPointAtLength(pathLen - markerOffset);
+             try {
+                 const dParts = d.match(/([MmLlHhVvCcSsQqTtAaZz])([^MmLlHhVvCcSsQqTtAaZz]*)/g) || [];
+                 if(dParts.length > 0) {
+                     const lastPart = dParts[dParts.length - 1];
+                     const cmd = lastPart[0];
+                     let coords = lastPart.substring(1).trim().split(/[ ,]+/).map(parseFloat).filter(c => !isNaN(c));
+                     if (coords.length >= 2) {
+                         coords[coords.length - 2] = point.x.toFixed(2);
+                         coords[coords.length - 1] = point.y.toFixed(2);
+                         dParts[dParts.length - 1] = cmd + coords.join(' ');
+                         d = dParts.join('');
+                         pathEl.setAttribute('d', d);
+                     }
+                 }
+             } catch (e) { console.error("Error adjusting path for marker:", e, d); }
+        }
+    }
+    svgElement.appendChild(pathEl);
+
+    const labelPos = pathEl.getPointAtLength(pathLen * 0.70);
+    const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    labelGroup.classList.add('edge-label-group');
+    const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    textBg.setAttribute('x', labelPos.x - 7); textBg.setAttribute('y', labelPos.y - 8);
+    textBg.setAttribute('width', 14); textBg.setAttribute('height', 14);
+    textBg.classList.add('edge-label-bg'); labelGroup.appendChild(textBg);
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', labelPos.x); text.setAttribute('y', labelPos.y + 4);
+    text.classList.add('edge-label'); text.textContent = edge.weight; labelGroup.appendChild(text);
+    svgElement.appendChild(labelGroup);
+
+    // Attach listener using a closure to capture the correct 'edge' object
+    labelGroup.addEventListener('dblclick', (event) => {
+         event.stopPropagation();
+         editEdgeWeight(edge);
+    });
+}
+
+
+function editEdgeWeight(edge) {
+    const newWeightStr = prompt(`Введіть нову вагу для ребра ${edge.from} → ${edge.to} (поточна: ${edge.weight}):`, edge.weight);
+    if (newWeightStr !== null) {
+        const newWeight = parseInt(newWeightStr, 10);
+        if (!isNaN(newWeight) && newWeight > 0) {
+            let edgeUpdated = false;
+
+            const edgeInEdges = graph.edges.find(e => e.from === edge.from && e.to === edge.to);
+            if(edgeInEdges) { edgeInEdges.weight = newWeight; edgeUpdated = true; }
+            
+            const adjEdge = graph.adj.get(edge.from)?.find(e => e.to === edge.to);
+            if (adjEdge) { adjEdge.weight = newWeight; edgeUpdated = true; }
+            
+             if (!graph.isDirected) {
+                 const reverseEdgeInEdges = graph.edges.find(e => e.from === edge.to && e.to === edge.from);
+                 if (reverseEdgeInEdges) { reverseEdgeInEdges.weight = newWeight; edgeUpdated = true; }
+                 const reverseAdjEdge = graph.adj.get(edge.to)?.find(e => e.to === edge.from);
+                 if (reverseAdjEdge) { reverseAdjEdge.weight = newWeight; edgeUpdated = true; }
+            }
+
+            if (edgeUpdated) restartSearch(); 
+            else console.error("Could not find edge to update:", edge);
+        } else {
+            alert("Будь ласка, введіть дійсне позитивне числове значення для ваги.");
+        }
+    }
+}
+
+// --- EVENT LISTENERS ---
+generateBtn.addEventListener('click', generateAndStart);
+presetBtn.addEventListener('click', loadPreset); 
+startNodeInput.addEventListener('change', restartSearch);
+endNodeInput.addEventListener('change', restartSearch);
+heuristicSelect.addEventListener('change', restartSearch);
+directedCheckbox.addEventListener('change', generateAndStart); 
+astarNextBtn.addEventListener('click', () => { if (astarState.currentStep < astarState.steps.length - 1) { astarState.currentStep++; updateAStarView(); }});
+astarPrevBtn.addEventListener('click', () => { if (astarState.currentStep > 0) { astarState.currentStep--; updateAStarView(); }});
+gridSizeSelect.addEventListener('change', () => {
+    const n = parseInt(gridSizeSelect.value.split('x')[0] * gridSizeSelect.value.split('x')[1]);
+    startNodeInput.max = n; endNodeInput.max = n;
+    let currentStart = parseInt(startNodeInput.value);
+    let currentEnd = parseInt(endNodeInput.value);
+    if (currentStart > n) startNodeInput.value = 1;
+    if (currentEnd > n) endNodeInput.value = n;
+    generateAndStart();
+});
+window.addEventListener('load', generateAndStart);
+</script>
+</body>
+</html>

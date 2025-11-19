@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Інтерактивний симулятор коду Прюфера</title>
+    
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['\\(', '\\)']], // Delimiters for inline math
+          displayMath: [['$$', '$$']]   // Delimiters for display math
+        },
+        chtml: {
+          scale: 0.92 // Adjusts the font size to 92% of the default to better match paragraph text
+        }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #555;
+            --leaf-color: #d4edda;
+            --neighbor-color: #f8d7da;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+            background-color: var(--light-bg);
+        }
+        .main-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .simulator-container, .theory-container {
+            background-color: var(--white-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+            max-width: 600px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: var(--text-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .controls, .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        button.toggle-physics.active { background-color: #28a745; }
+        button:hover { background-color: var(--primary-hover); }
+        button.toggle-physics.active:hover { background-color: #218838; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        input[type="number"], input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            width: 150px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input.highlight-input {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+        .visualization {
+            width: 100%;
+            height: 400px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .output, .commentary {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 50px;
+            font-size: 1.1em;
+            text-align: center;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        .commentary { margin-top: 15px; color: var(--comment-color); }
+        .output strong { color: #d9534f; font-family: monospace; font-size: 1.2em; }
+        .output s { color: #999; text-decoration: line-through; text-decoration-thickness: 2px; }
+        svg { width: 100%; height: 100%; }
+        .node { cursor: grab; }
+        .node circle { stroke: #333; stroke-width: 2px; fill: var(--white-bg); }
+        .node text { text-anchor: middle; dominant-baseline: central; font-size: 18px; font-weight: bold; pointer-events: none; fill: #333; }
+        .edge { stroke: #999; stroke-width: 3px; transition: stroke 0.3s; }
+        .node.leaf circle { fill: var(--leaf-color); }
+        .node.neighbor circle { fill: var(--neighbor-color); }
+        .node.removed { opacity: 0.2; }
+        .edge.removed { opacity: 0.2; }
+
+        /* Theory Section */
+        .theory-container { max-width: 1240px; }
+        details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
+        summary { font-size: 1.2em; font-weight: bold; cursor: pointer; color: var(--primary-color); }
+        details[open] summary { margin-bottom: 15px; }
+        .theory-content h3 { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .theory-content p, .theory-content li { line-height: 1.7; color: var(--text-color); }
+        .theory-content code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="simulator-container">
+        <h2>1. З Дерева в Код Прюфера</h2>
+        <div class="input-group">
+            <label for="node-count">Кількість вершин:</label>
+            <input type="number" id="node-count" value="8" min="3" max="10">
+            <button id="generate-tree-btn">Генерувати</button>
+        </div>
+        <div class="visualization">
+            <svg id="tree-to-code-svg"></svg>
+        </div>
+        <div class="controls">
+            <button id="t2c-prev-btn" disabled>Крок назад</button>
+            <button id="t2c-next-btn" disabled>Крок вперед</button>
+            <button id="copy-code-btn" title="Копіювати результат у другий симулятор" disabled>Скопіювати ↳</button>
+            <button id="t2c-physics-btn" class="toggle-physics">Фізика: OFF</button>
+        </div>
+        <div class="output">Код Прюфера: <strong id="prufer-code-output">[]</strong></div>
+        <div class="commentary" id="t2c-commentary">Натисніть "Генерувати", щоб почати.</div>
+    </div>
+
+    <div class="simulator-container">
+        <h2>2. З Коду Прюфера в Дерево</h2>
+        <div class="input-group">
+            <label for="prufer-input">Введіть код:</label>
+            <input type="text" id="prufer-input" placeholder="1, 4, 5, 4">
+            <button id="build-tree-btn">Побудувати</button>
+        </div>
+        <div class="visualization">
+            <svg id="code-to-tree-svg"></svg>
+        </div>
+        <div class="controls">
+            <button id="c2t-prev-btn" disabled>Крок назад</button>
+            <button id="c2t-next-btn" disabled>Крок вперед</button>
+            <button id="c2t-physics-btn" class="toggle-physics">Фізика: OFF</button>
+        </div>
+        <div class="output">
+            Початковий код: <strong id="prufer-sequence-output">[]</strong><br>
+            Доступні вершини (кількість вершин дорівнює довжина кода мінус 2): <strong id="vertex-set-output">[]</strong>
+        </div>
+        <div class="commentary" id="c2t-commentary">Введіть код (числа через кому/пробіл).</div>
+    </div>
+</div>
+
+<div class="theory-container">
+    <details>
+        <summary>Теоретична довідка по коду Прюфера</summary>
+        <div class="theory-content">
+            <h3>Що таке код Прюфера?</h3>
+            <p>
+                <b>Код (або послідовність) Прюфера</b> — це унікальне представлення маркованого дерева у вигляді послідовності чисел. Для дерева з <b>N</b> вершинами (пронумерованими від 1 до N) код має довжину рівно <b>N-2</b>. Цей метод дозволяє однозначно кодувати будь-яке дерево і відновлювати його з коду.
+            </p>
+            <h3>Термінологія</h3>
+            <ul>
+                <li><b>Дерево</b> — це зв'язний ациклічний граф.</li>
+                <li><b>Марковане дерево</b> — дерево, кожній вершині якого присвоєно унікальний номер (мітку).</li>
+                <li><b>Лист (висяча вершина)</b> — це вершина, степінь якої дорівнює 1 (тобто з неї виходить лише одне ребро).</li>
+            </ul>
+
+            <h3>Алгоритм кодування (Дерево → Код)</h3>
+            <ol>
+                <li>Поки в дереві більше двох вершин, повторювати:</li>
+                <li>Знайти <b>лист з найменшим номером</b>.</li>
+                <li>Додати в кінець коду Прюфера номер вершини, <b>суміжної</b> з цим листом.</li>
+                <li>Видалити з дерева цей лист і ребро, що його з'єднує.</li>
+            </ol>
+
+            <h3>Алгоритм декодування (Код → Дерево)</h3>
+            <ol>
+                <li>Взяти початковий код Прюфера і створити список усіх можливих вершин (наприклад, для коду довжиною <code>k</code>, список вершин буде від 1 до <code>k+2</code>).</li>
+                <li>Поки код не порожній, повторювати:</li>
+                <li>Знайти <b>найменше число зі списку вершин, якого немає</b> в поточному залишку коду. Це і є наш лист.</li>
+                <li>З'єднати цей лист ребром із <b>першим елементом коду</b>.</li>
+                <li>Видалити знайдений лист зі списку доступних вершин, а перший елемент — з коду.</li>
+                <li>Коли код стане порожнім, у списку вершин залишаться два номери. З'єднати їх ребром. Дерево побудовано.</li>
+            </ol>
+
+            <h3>Теоретична та практична цінність</h3>
+            <ul>
+                <li>
+                    <b>Формула Келі:</b> Існування коду Прюфера є конструктивним доведенням формули Келі, яка стверджує, що кількість кістякових (остовних) дерев у повному графі \(K_n\) дорівнює \(n^{n-2}\). Це точно відповідає кількості можливих послідовностей Прюфера довжиною \(n-2\), складених з \(n\) чисел.
+                </li>
+                <li>
+                    <b>Ефективне зберігання:</b> Дерево з N вершинами можна компактно зберегти за допомогою всього \(N-2\) цілих чисел. Це значно ефективніше за матрицю суміжності (яка вимагає \(N^2\) елементів) або списки суміжності.
+                </li>
+                <li>
+                    <b>Генерація випадкових дерев:</b> Щоб згенерувати випадкове марковане дерево з N вершинами, достатньо створити випадкову послідовність з \(N-2\) чисел (в діапазоні від 1 до N) і декодувати її.
+                </li>
+            </ul>
+            <h3>Де використовуються дерева?</h3>
+            <p>Графи-дерева є фундаментальною структурою, що моделює ієрархічні відносини. Вони застосовуються у:
+            </p>
+            <ul>
+                <li><b>Інформатиці:</b> файлові системи, дерева прийняття рішень, структури даних (двійкові дерева пошуку, купи), синтаксичні дерева в компіляторах.</li>
+                <li><b>Біології:</b> філогенетичні дерева для відображення еволюційних зв'язків між видами.</li>
+                <li><b>Мережах:</b> комп'ютерні мережі (протокол STP для уникнення циклів), ієрархія доменних імен (DNS), аналіз зв'язків у соціальних мережах.</li>
+                 <li><b>Хімії:</b> представлення структур молекул.</li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+
+<script>
+// --- GLOBAL STATE ---
+let t2c_state = { steps: [], currentStep: -1, nodes: [], edges: [], simId: null };
+let c2t_state = { steps: [], currentStep: -1, nodes: [], simId: null };
+
+// --- DOM ELEMENTS ---
+const nodeCountInput = document.getElementById('node-count');
+const generateBtn = document.getElementById('generate-tree-btn');
+const t2cPrevBtn = document.getElementById('t2c-prev-btn');
+const t2cNextBtn = document.getElementById('t2c-next-btn');
+const t2cSVG = document.getElementById('tree-to-code-svg');
+const pruferCodeOutput = document.getElementById('prufer-code-output');
+const t2cCommentary = document.getElementById('t2c-commentary');
+const t2cPhysicsBtn = document.getElementById('t2c-physics-btn');
+const copyCodeBtn = document.getElementById('copy-code-btn');
+
+const pruferInput = document.getElementById('prufer-input');
+const buildTreeBtn = document.getElementById('build-tree-btn');
+const c2tPrevBtn = document.getElementById('c2t-prev-btn');
+const c2tNextBtn = document.getElementById('c2t-next-btn');
+const c2tSVG = document.getElementById('code-to-tree-svg');
+const pruferSequenceOutput = document.getElementById('prufer-sequence-output');
+const vertexSetOutput = document.getElementById('vertex-set-output');
+const c2tCommentary = document.getElementById('c2t-commentary');
+const c2tPhysicsBtn = document.getElementById('c2t-physics-btn');
+
+// --- CONSTANTS ---
+const NODE_RADIUS = 20;
+
+// ===================================================================
+// PART 1: TREE TO PRÜFER CODE
+// ===================================================================
+
+function generateRandomTree() {
+    const n = parseInt(nodeCountInput.value, 10);
+    if (n < 3 || n > 10) {
+        alert("Кількість вершин має бути від 3 до 10.");
+        return;
+    }
+    stopPhysics('t2c');
+    copyCodeBtn.disabled = true;
+
+    const pruferSequence = Array.from({ length: n - 2 }, () => Math.floor(Math.random() * n) + 1);
+    let { edges } = robustDecodePrufer(pruferSequence);
+    
+    const width = t2cSVG.clientWidth;
+    const height = t2cSVG.clientHeight;
+    
+    t2c_state.nodes = Array.from({ length: n }, (_, i) => {
+        const angle = (2 * Math.PI * i) / n;
+        return {
+            id: i + 1,
+            x: width / 2 + (width / 2 - 40) * Math.cos(angle),
+            y: height / 2 + (height / 2 - 40) * Math.sin(angle),
+            vx: 0, vy: 0,
+        };
+    });
+
+    t2c_state.edges = edges;
+    calculateT2CSteps(JSON.parse(JSON.stringify(t2c_state.edges)), n);
+    t2c_state.currentStep = 0;
+    updateT2CView();
+}
+
+function calculateT2CSteps(initialEdges, n) {
+    t2c_state.steps = [];
+    let edges = initialEdges;
+    let pruferCode = [];
+
+    t2c_state.steps.push({
+        edges: JSON.parse(JSON.stringify(edges)),
+        pruferCode: [],
+        commentary: 'Початкове дерево. Шукаємо лист (вершину степеня 1) з найменшим номером.',
+        highlight: {}
+    });
+
+    for (let i = 0; i < n - 2; i++) {
+        const degrees = new Array(n + 1).fill(0);
+        edges.forEach(([u, v]) => {
+            degrees[u]++;
+            degrees[v]++;
+        });
+
+        let leaf = -1;
+        for (let j = 1; j <= n; j++) {
+            if (degrees[j] === 1) {
+                leaf = j;
+                break;
+            }
+        }
+        
+        let neighbor = -1;
+        let edgeToRemove = null;
+        for (const edge of edges) {
+            if (edge.includes(leaf)) {
+                neighbor = edge[0] === leaf ? edge[1] : edge[0];
+                edgeToRemove = edge;
+                break;
+            }
+        }
+
+        pruferCode.push(neighbor);
+        edges = edges.filter(e => e !== edgeToRemove);
+        
+        const commentary = `Знайдено лист з найменшим номером: <b>${leaf}</b>. Його сусід - <b>${neighbor}</b>. <br>Додаємо <b>${neighbor}</b> до коду. Видаляємо вершину <b>${leaf}</b> та ребро (${leaf},${neighbor}).`;
+        
+        t2c_state.steps.push({
+            edges: JSON.parse(JSON.stringify(edges)),
+            pruferCode: [...pruferCode],
+            commentary,
+            highlight: { leaf, neighbor }
+        });
+    }
+    
+    const remainingNodes = new Set(edges.flat());
+    const [lastU, lastV] = remainingNodes.size === 2 ? [...remainingNodes] : [null, null];
+    t2c_state.steps.push({
+        edges: [],
+        pruferCode: [...pruferCode],
+        commentary: `Залишились дві вершини: <b>${lastU}</b> та <b>${lastV}</b>. Алгоритм завершено.`,
+        highlight: {}
+    });
+}
+
+function updateT2CView() {
+    const step = t2c_state.steps[t2c_state.currentStep];
+    if (!step) return;
+
+    if (!t2c_state.simId) {
+      drawGraph(t2cSVG, t2c_state.nodes, t2c_state.edges, step.highlight, step.edges);
+    }
+    pruferCodeOutput.textContent = JSON.stringify(step.pruferCode);
+    t2cCommentary.innerHTML = step.commentary;
+
+    t2cPrevBtn.disabled = t2c_state.currentStep === 0;
+    t2cNextBtn.disabled = t2c_state.currentStep === t2c_state.steps.length - 1;
+    copyCodeBtn.disabled = t2c_state.currentStep !== t2c_state.steps.length - 1;
+}
+
+generateBtn.addEventListener('click', generateRandomTree);
+t2cNextBtn.addEventListener('click', () => {
+    if (t2c_state.currentStep < t2c_state.steps.length - 1) {
+        t2c_state.currentStep++;
+        updateT2CView();
+    }
+});
+t2cPrevBtn.addEventListener('click', () => {
+    if (t2c_state.currentStep > 0) {
+        t2c_state.currentStep--;
+        updateT2CView();
+    }
+});
+
+copyCodeBtn.addEventListener('click', () => {
+    if (t2c_state.steps.length === 0) return;
+    const finalCode = t2c_state.steps[t2c_state.steps.length - 1].pruferCode;
+    pruferInput.value = finalCode.join(', ');
+    
+    pruferInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pruferInput.classList.add('highlight-input');
+    setTimeout(() => {
+        pruferInput.classList.remove('highlight-input');
+    }, 1200);
+});
+
+// ===================================================================
+// PART 2: PRÜFER CODE TO TREE
+// ===================================================================
+
+function buildTreeFromCode() {
+    const codeStr = pruferInput.value;
+    const pruferSequence = codeStr.split(/[\s,]+/).filter(s => s.length > 0).map(Number);
+
+    if (pruferSequence.some(isNaN)) {
+        alert("Код містить нечислові значення.");
+        return;
+    }
+    if (pruferSequence.length > 8) {
+        alert("Код занадто довгий. Максимальна кількість вершин - 10 (код з 8 елементів).");
+        return;
+    }
+    
+    const n = pruferSequence.length + 2;
+    if (pruferSequence.some(x => x < 1 || x > n)) {
+        alert(`Код некоректний. Для ${n} вершин значення мають бути в діапазоні від 1 до ${n}.`);
+        return;
+    }
+    stopPhysics('c2t');
+
+    calculateC2TSteps(pruferSequence);
+
+    const width = c2tSVG.clientWidth;
+    const height = c2tSVG.clientHeight;
+    
+    c2t_state.nodes = Array.from({ length: n }, (_, i) => {
+        const angle = (2 * Math.PI * i) / n;
+        return {
+            id: i + 1,
+            x: width / 2 + (width / 2 - 40) * Math.cos(angle),
+            y: height / 2 + (height / 2 - 40) * Math.sin(angle),
+            vx: 0, vy: 0,
+        };
+    });
+
+    c2t_state.currentStep = 0;
+    updateC2TView();
+}
+
+function robustDecodePrufer(prufer) {
+    const n = prufer.length + 2;
+    const sequence = [...prufer];
+    const degrees = new Array(n + 1).fill(1);
+    for (const node of sequence) {
+        degrees[node]++;
+    }
+
+    const edges = [];
+    for (let i = 0; i < sequence.length; i++) {
+        const neighbor = sequence[i];
+        for (let leaf = 1; leaf <= n; leaf++) {
+            if (degrees[leaf] === 1) {
+                edges.push([leaf, neighbor].sort((a, b) => a - b));
+                degrees[leaf]--;
+                degrees[neighbor]--;
+                break;
+            }
+        }
+    }
+    const lastTwo = [];
+    for (let i = 1; i <= n; i++) {
+        if (degrees[i] === 1) {
+            lastTwo.push(i);
+        }
+    }
+    edges.push([lastTwo[0], lastTwo[1]].sort((a, b) => a - b));
+    return { edges };
+}
+
+function calculateC2TSteps(initialCode) {
+    c2t_state.steps = [];
+    const n = initialCode.length + 2;
+    let sequence = [...initialCode];
+    let edges = [];
+    let usedLeaves = [];
+
+    c2t_state.steps.push({
+        initialCode: [...initialCode],
+        edges: [],
+        sequence: [...sequence],
+        used: [],
+        commentary: 'Початок. Шукаємо найменшу вершину, якої немає в поточному залишку коду.',
+        highlight: {}
+    });
+
+    while (sequence.length > 0) {
+        const sequenceSet = new Set(sequence);
+        let leaf = -1;
+        for (let i = 1; i <= n; i++) {
+            if (!usedLeaves.includes(i) && !sequenceSet.has(i)) {
+                 leaf = i;
+                 break;
+            }
+        }
+        
+        const neighbor = sequence[0];
+        edges.push([leaf, neighbor]);
+        usedLeaves.push(leaf);
+        sequence.shift();
+
+        const commentary = `Найменша доступна вершина, відсутня в залишку коду - <b>${leaf}</b>. <br>З'єднуємо її з першим елементом коду: <b>${neighbor}</b>. Викреслюємо <b>${leaf}</b> з доступних вершин і <b>${neighbor}</b> з коду.`;
+        
+        c2t_state.steps.push({
+            initialCode: [...initialCode],
+            edges: JSON.parse(JSON.stringify(edges)),
+            sequence: [...sequence],
+            used: [...usedLeaves],
+            commentary,
+            highlight: { leaf, neighbor }
+        });
+    }
+    
+    const finalNodes = Array.from({ length: n }, (_, i) => i + 1).filter(v => !usedLeaves.includes(v));
+    edges.push([finalNodes[0], finalNodes[1]]);
+    const commentary = `Код порожній. З'єднуємо дві вершини, що залишилися: <b>${finalNodes[0]}</b> та <b>${finalNodes[1]}</b>. Побудова завершена.`;
+
+    c2t_state.steps.push({
+        initialCode: [...initialCode],
+        edges: JSON.parse(JSON.stringify(edges)),
+        sequence: [],
+        used: Array.from({ length: n }, (_, i) => i + 1),
+        commentary,
+        highlight: { leaf: finalNodes[0], neighbor: finalNodes[1] }
+    });
+}
+
+function updateC2TView() {
+    const step = c2t_state.steps[c2t_state.currentStep];
+    if (!step) return;
+    
+    if (step.initialCode) {
+        const originalCode = step.initialCode;
+        const usedCount = originalCode.length - step.sequence.length;
+        const codeHtml = originalCode.map((num, index) => {
+            return (index < usedCount) ? `<s>${num}</s>` : `${num}`;
+        }).join(', ');
+        pruferSequenceOutput.innerHTML = `[${codeHtml}]`;
+    } else {
+        pruferSequenceOutput.innerHTML = '[]';
+    }
+
+    if (!c2t_state.simId) {
+        drawGraph(c2tSVG, c2t_state.nodes, step.edges, step.highlight, step.edges, true);
+    }
+    
+    const n = c2t_state.nodes.length;
+    const allVertices = Array.from({ length: n }, (_, i) => i + 1);
+    const usedSet = new Set(step.used);
+    const verticesHtml = allVertices.map(v => usedSet.has(v) ? `<s>${v}</s>` : v).join(', ');
+    vertexSetOutput.innerHTML = `[${verticesHtml}]`;
+
+    c2tCommentary.innerHTML = step.commentary;
+
+    c2tPrevBtn.disabled = c2t_state.currentStep === 0;
+    c2tNextBtn.disabled = c2t_state.currentStep === c2t_state.steps.length - 1;
+}
+
+buildTreeBtn.addEventListener('click', buildTreeFromCode);
+c2tNextBtn.addEventListener('click', () => {
+    if (c2t_state.currentStep < c2t_state.steps.length - 1) {
+        c2t_state.currentStep++;
+        updateC2TView();
+    }
+});
+c2tPrevBtn.addEventListener('click', () => {
+    if (c2t_state.currentStep > 0) {
+        c2t_state.currentStep--;
+        updateC2TView();
+    }
+});
+
+// ===================================================================
+// SHARED DRAWING & PHYSICS
+// ===================================================================
+
+function drawGraph(svgElement, nodes, allEdges, highlight, currentEdges, isDecoding = false) {
+    svgElement.innerHTML = '';
+    if (nodes.length === 0) return;
+
+    const edgesToDraw = isDecoding ? currentEdges : allEdges;
+    
+    edgesToDraw.forEach(([u, v]) => {
+        const nodeU = nodes.find(n => n.id === u);
+        const nodeV = nodes.find(n => n.id === v);
+        if (!nodeU || !nodeV) return;
+
+        const isCurrent = currentEdges.some(e => (e[0] === u && e[1] === v) || (e[0] === v && e[1] === u));
+        
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', nodeU.x);
+        line.setAttribute('y1', nodeU.y);
+        line.setAttribute('x2', nodeV.x);
+        line.setAttribute('y2', nodeV.y);
+        line.classList.add('edge');
+        if (!isDecoding && !isCurrent) {
+            line.classList.add('removed');
+        }
+        svgElement.appendChild(line);
+    });
+    
+    const allNodesInCurrentEdges = new Set(currentEdges.flat());
+
+    nodes.forEach(node => {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.classList.add('node');
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', NODE_RADIUS);
+        
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', node.x);
+        text.setAttribute('y', node.y);
+        text.textContent = node.id;
+        
+        if (node.id === highlight.leaf) group.classList.add('leaf');
+        if (node.id === highlight.neighbor) group.classList.add('neighbor');
+
+        if (!isDecoding && allNodesInCurrentEdges.size > 0 && !allNodesInCurrentEdges.has(node.id)) {
+            group.classList.add('removed');
+        }
+
+        group.appendChild(circle);
+        group.appendChild(text);
+        svgElement.appendChild(group);
+    });
+}
+
+const REPULSION = 1500;
+const SPRING_K = 0.05;
+const SPRING_LEN = 120;
+const DAMPING = 0.85;
+
+function physicsStep(nodes, edges, width, height) {
+    nodes.forEach(n => { n.fx = 0; n.fy = 0; });
+
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            const n1 = nodes[i];
+            const n2 = nodes[j];
+            const dx = n1.x - n2.x;
+            const dy = n1.y - n2.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > 1) {
+                const dist = Math.sqrt(distSq);
+                const force = REPULSION / distSq;
+                n1.fx += (dx / dist) * force;
+                n1.fy += (dy / dist) * force;
+                n2.fx -= (dx / dist) * force;
+                n2.fy -= (dy / dist) * force;
+            }
+        }
+    }
+
+    edges.forEach(([u, v]) => {
+        const n1 = nodes.find(n => n.id === u);
+        const n2 = nodes.find(n => n.id === v);
+        if (!n1 || !n2) return;
+        const dx = n1.x - n2.x;
+        const dy = n1.y - n2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const displacement = dist - SPRING_LEN;
+        const force = SPRING_K * displacement;
+        n1.fx -= (dx / dist) * force;
+        n1.fy -= (dy / dist) * force;
+        n2.fx += (dx / dist) * force;
+        n2.fy += (dy / dist) * force;
+    });
+
+    nodes.forEach(n => {
+        n.vx = (n.vx + n.fx) * DAMPING;
+        n.vy = (n.vy + n.fy) * DAMPING;
+        n.x += n.vx;
+        n.y += n.vy;
+
+        if (n.x < NODE_RADIUS) { n.x = NODE_RADIUS; n.vx *= -1; }
+        if (n.x > width - NODE_RADIUS) { n.x = width - NODE_RADIUS; n.vx *= -1; }
+        if (n.y < NODE_RADIUS) { n.y = NODE_RADIUS; n.vy *= -1; }
+        if (n.y > height - NODE_RADIUS) { n.y = height - NODE_RADIUS; n.vy *= -1; }
+    });
+}
+
+function animate(state, svg, allEdgesGetter, currentEdgesGetter, isDecoding) {
+    const step = state.steps[state.currentStep];
+    if (!step) {
+        state.simId = null;
+        return;
+    }
+    physicsStep(state.nodes, currentEdgesGetter(step), svg.clientWidth, svg.clientHeight);
+    drawGraph(svg, state.nodes, allEdgesGetter(state), step.highlight, currentEdgesGetter(step), isDecoding);
+    state.simId = requestAnimationFrame(() => animate(state, svg, allEdgesGetter, currentEdgesGetter, isDecoding));
+}
+
+function togglePhysics(type) {
+    const isT2C = type === 't2c';
+    const state = isT2C ? t2c_state : c2t_state;
+    const btn = isT2C ? t2cPhysicsBtn : c2tPhysicsBtn;
+    const svg = isT2C ? t2cSVG : c2tSVG;
+    
+    if (state.steps.length === 0) return;
+
+    if (state.simId) {
+        cancelAnimationFrame(state.simId);
+        state.simId = null;
+        btn.textContent = 'Фізика: OFF';
+        btn.classList.remove('active');
+    } else {
+        const allEdgesGetter = isT2C ? (s => s.edges) : (s => s.steps[s.steps.length - 1].edges);
+        const currentEdgesGetter = step => step.edges;
+        animate(state, svg, allEdgesGetter, currentEdgesGetter, !isT2C);
+        btn.textContent = 'Фізика: ON';
+        btn.classList.add('active');
+    }
+}
+
+function stopPhysics(type) {
+    const isT2C = type === 't2c';
+    const state = isT2C ? t2c_state : c2t_state;
+    const btn = isT2C ? t2cPhysicsBtn : c2tPhysicsBtn;
+    if (state.simId) {
+        cancelAnimationFrame(state.simId);
+        state.simId = null;
+        btn.textContent = 'Фізика: OFF';
+        btn.classList.remove('active');
+    }
+}
+
+t2cPhysicsBtn.addEventListener('click', () => togglePhysics('t2c'));
+c2tPhysicsBtn.addEventListener('click', () => togglePhysics('c2t'));
+
+</script>
+</body>
+</html>

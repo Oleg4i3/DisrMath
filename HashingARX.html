@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>4-bit ARX Calculator</title>
+<style>
+  body { font-family: monospace; background: #111; color: #eee; text-align: center; }
+  input { width: 60px; text-align: center; }
+  .bits { display: flex; justify-content: center; gap: 1em; margin-top: 1em; }
+  button { margin-top: 1em; padding: 0.5em 1em; border: none; border-radius: 6px; background: #333; color: #fff; cursor: pointer; }
+  button:hover { background: #555; }
+  .theory { text-align: left; max-width: 700px; margin: 2em auto; background: #1a1a1a; padding: 1em; border-radius: 8px; line-height: 1.5; }
+  h3 { color: #9cf; }
+</style>
+</head>
+<body>
+<h2>4-bit ARX калькулятор</h2>
+<p>ARX = (x + y) mod 16; x = x XOR ROTL(y, r)</p>
+<div class="bits">
+  <div>
+    <label>x: <input id="x" value="5"></label>
+  </div>
+  <div>
+    <label>y: <input id="y" value="9"></label>
+  </div>
+  <div>
+    <label>r: <input id="r" value="1"></label>
+  </div>
+</div>
+<button onclick="calc()">Обчислити</button>
+<pre id="out"></pre><div class="theory">
+  <h3>Принцип ARX</h3>
+  <p><strong>ARX</strong> — це скорочення від <em>Add–Rotate–Xor</em>. Це конструкція, що поєднує три прості операції над двійковими словами:</p>
+  <ul>
+    <li><b>Add</b> —  звичайне арифметичне додавання (по модулю 2ⁿ, тобто відкидає старші біти). Вносить <em>нелінійність</em> через переноси між бітами.</li>
+    <li><b>Rotate</b> — циклічне обертання (зсув) бітів. Забезпечує <em>дифузію</em>, перемішуючи локальні зміни.</li>
+    <li><b>Xor</b> — побітове XOR, яке швидко розподіляє зміни між словами.</li>
+  </ul>
+  <p>У поєднанні вони дають сильний лавинний ефект — зміна одного біта на вході змінює багато бітів на виході.</p>  <h3>Застосування</h3>
+  <p>ARX використовується у сучасних криптографічних алгоритмах:</p>
+  <ul>
+    <li><b>ChaCha20</b> і <b>Salsa20</b> — поточні шифри з високою швидкістю на будь-яких процесорах.</li>
+    <li><b>BLAKE2</b> і <b>BLAKE3</b> — криптографічні хеш-функції нового покоління, де ARX забезпечує простоту й надійність без S-боксів.</li>
+  </ul>  <h3>Вимоги до хеш-функцій</h3>
+  <ul>
+    <li><b>Односторонність</b> — неможливо відновити вхід із хешу.</li>
+    <li><b>Стійкість до колізій</b> — неможливо знайти два різних входи з однаковим хешем.</li>
+    <li><b>Стійкість до другого прообразу</b> — важко знайти інший вхід, що дає заданий хеш.</li>
+    <li><b>Лавинний ефект</b> — зміна одного біта на вході змінює приблизно половину бітів хешу.</li>
+    <li><b>Ефективність</b> — швидке обчислення навіть для великих даних.</li>
+  </ul>
+  <p>ARX-конструкції добре задовольняють ці вимоги, оскільки їх нелінійність виникає з простої арифметики, а не зі складних таблиць заміни.</p>
+</div><script>
+function rotl4(v, r){
+  r = r & 3;
+  return ((v << r) | (v >> (4 - r))) & 0xF;
+}
+function bin4(n){ return n.toString(2).padStart(4,'0'); }
+function calc(){
+  let x = parseInt(document.getElementById('x').value) & 0xF;
+  let y = parseInt(document.getElementById('y').value) & 0xF;
+  let r = parseInt(document.getElementById('r').value);
+  let sum = (x + y) & 0xF;
+  let rot = rotl4(y, r);
+  let res = sum ^ rot;
+  let txt = `x = ${bin4(x)}\ny = ${bin4(y)}\nr = ${r}\n` +
+            `(x + y) mod 16 = ${bin4(sum)}\nROTL(y,r) = ${bin4(rot)}\n` +
+            `x_final = sum XOR rot = ${bin4(res)} (dec=${res})`;
+  document.getElementById('out').textContent = txt;
+}
+calc();
+</script></body>
+</html>

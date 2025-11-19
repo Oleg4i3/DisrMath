@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Алгоритму Хелда-Карпа (TSP)</title>
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']] },
+            chtml: { scale: 0.95 },
+            options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <style>
+        :root {
+            --primary-color: #153545; /* Red #dc3545;*/
+            --primary-hover: #c82333;
+            --light-bg: #f4f7f9;
+            --white-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --text-color: #333;
+            --comment-color: #555;
+            --highlight-color: #fff3cd; /* Light yellow */
+            --path-color: #007bff; /* Blue */
+            --nn-path-color: #fd7e14; /* Orange for NN Path */
+            
+            /* --- КОЛЬОРИ для підсвічування обчислень --- */
+            --calc-subset-color: #d4edda; /* light green bg */
+            --calc-subset-stroke: #155724; /* dark green stroke/fill */
+            --calc-edge-color: #ffc107; /* amber */
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 20px; padding: 20px; background-color: var(--light-bg);
+        }
+        .simulator-container, .theory-container {
+            background-color: var(--white-bg); border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); padding: 25px;
+            width: 100%; max-width: 1000px; box-sizing: border-box;
+        }
+        h2 { text-align: center; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin: 0 0 15px 0; }
+        .step-counter { text-align: center; font-size: 0.9em; color: #6c757d; margin-bottom: 15px; height: 1.2em; }
+        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; }
+        button { padding: 10px 18px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; background-color: var(--primary-color); color: white; transition: background-color 0.2s; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+        .content-wrapper { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
+        .visualization-wrapper { flex: 1; min-width: 300px; max-width: 400px; }
+        .table-wrapper { flex: 2; min-width: 400px; max-height: 500px; overflow: auto; border: 1px solid var(--border-color); border-radius: 5px;}
+
+        .visualization { width: 100%; height: 400px; position: relative; }
+        .commentary { background-color: #f8f9fa; border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; min-height: 50px; font-size: 1.1em; text-align: center; word-wrap: break-word; line-height: 1.5; margin-top: 15px; color: var(--comment-color); }
+        .commentary code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        .commentary .highlight { background-color: var(--highlight-color); font-weight: bold; }
+
+        svg { width: 100%; height: 100%; }
+        .node circle { stroke: #333; stroke-width: 2px; fill: var(--white-bg); transition: fill 0.2s, stroke 0.2s; }
+        .node text { text-anchor: middle; dominant-baseline: central; font-size: 16px; font-weight: bold; fill: #333; pointer-events: none; }
+        .edge-label-group { cursor: pointer; pointer-events: bounding-box; }
+        .edge-label { font-size: 12px; fill: #555; text-anchor: middle; pointer-events: none; }
+        .edge-label-bg { fill: white; opacity: 0.7; pointer-events: none; }
+
+        /* --- СТИЛІ для ШЛЯХІВ (path) --- */
+        .edge { stroke: #ccc; stroke-width: 2px; fill: none; transition: stroke 0.2s, stroke-width 0.2s; }
+        .path-overlay {
+            fill: none;
+            stroke-width: 3px;
+            transition: stroke 0.2s, stroke-width 0.2s;
+        }
+        .path-overlay.path { 
+            stroke: var(--path-color); 
+            stroke-width: 4px;
+        }
+        .path-overlay.nn-path { 
+            stroke: var(--nn-path-color); 
+            stroke-width: 3px; 
+            opacity: 0.6;
+        }
+        .path-overlay.calculating-result {
+            stroke: var(--primary-color);
+            stroke-width: 4px;
+            stroke-dasharray: 5 3;
+        }
+        .path-overlay.calculating-path { 
+            stroke: var(--calc-subset-stroke);
+            stroke-width: 3px;
+        }
+        .path-overlay.calculating-edge { 
+            stroke: var(--calc-edge-color);
+            stroke-width: 4px;
+            stroke-dasharray: 8 4;
+        }
+        .node circle.calculating-subset {
+            fill: var(--calc-subset-color);
+            stroke: var(--calc-subset-stroke);
+            stroke-width: 3px;
+        }
+        #dp-table td.calculating-source {
+            background-color: var(--calc-subset-color);
+            border: 2px solid var(--calc-subset-stroke);
+        }
+        #dp-table td.highlight {
+            background-color: var(--highlight-color);
+        }
+        /* --- КІНЕЦЬ СТИЛІВ --- */
+        
+        #dp-table { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+        #dp-table th, #dp-table td { border: 1px solid var(--border-color); padding: 6px 8px; text-align: center; }
+        #dp-table th { background-color: #f8f9fa; position: sticky; top: 0; z-index: 1; }
+        #dp-table td.subset-col { font-family: monospace; text-align: left; }
+        #dp-table span.infinity { font-size: 1.2em; }
+
+        .theory-container { max-width: 1000px; }
+        details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
+        summary { font-size: 1.2em; font-weight: bold; cursor: pointer; color: var(--primary-color); }
+        details[open] summary { margin-bottom: 15px; }
+        .theory-content h3, .theory-content h4 { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .theory-content p, .theory-content li { line-height: 1.7; color: var(--text-color); }
+        .theory-content code { background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        .theory-content strong { color: var(--primary-color); }
+    </style>
+</head>
+<body>
+<div class="simulator-container">
+    <h2>Алгоритм Хелда-Карпа (TSP)</h2>
+    <div class="step-counter" id="hk-step-counter"></div>
+    <div class="content-wrapper">
+        <div class="visualization-wrapper">
+            <div class="visualization">
+                <svg id="hk-svg"></svg>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table id="dp-table">
+                <thead>
+                    <tr>
+                        <th>Розмір</th>
+                        <th>Підмножина (S)</th>
+                        </tr>
+                </thead>
+                <tbody id="dp-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="controls" id="generation-controls">
+        <button id="start-preset-k5">K₅ (Приклад)</button>
+        <button id="start-random-k5">K₅ (Випадковий)</button>
+        <button id="start-random-k6">K₆ (Випадковий)</button>
+    </div>
+    <div class="controls">
+        <button id="reset-btn" disabled>Скинути</button>
+        <button id="hk-prev-btn" disabled>Крок назад</button>
+        <button id="hk-next-btn" disabled>Крок вперед</button>
+        <button id="hk-play-btn" class="secondary" disabled>Запустити</button> <button id="nn-btn" class="secondary" disabled>Жадібний Маршрут (NN)</button>
+    </div>
+    <div class="commentary" id="hk-commentary">Оберіть режим генерації графа (K₅ або K₆) для початку.</div>
+</div>
+
+<div class="theory-container">
+    <details open>
+        <summary>Теоретична довідка по алгоритму Хелда-Карпа</summary>
+        <div class="theory-content">
+            <h3>Задача Комівояжера (Traveling Salesperson Problem, TSP)</h3>
+            <p>
+                Задача комівояжера — це класична NP-складна задача комбінаторної оптимізації. Її формулювання полягає в наступному: дано набір міст та відстані (або вартості переїзду) між кожною парою міст. Потрібно знайти <strong>найкоротший можливий маршрут</strong>, який відвідує кожне місто рівно один раз і повертається в початкове місто.
+            </p>
+            <p>
+                Простий перебір усіх можливих маршрутів (брут-форс) має факторіальну складність \(\mathcal{O}(n!)\), де n — кількість міст. Це стає обчислювально неможливим навіть для невеликої кількості міст (наприклад, для 15 міст це вже понад трильйон варіантів).
+            </p>
+
+            <h3>Алгоритм Хелда-Карпа: Динамічне програмування</h3>
+            <p>
+                Алгоритм Хелда-Карпа, розроблений незалежно Майклом Хелдом, Річардом Карпом, а також Річардом Беллманом, використовує підхід <strong>динамічного програмування</strong> для розв'язання TSP значно ефективніше, ніж повний перебір. Його складність складає \(\mathcal{O}(n^2 \cdot 2^n)\), що є експоненційною, але набагато кращою за факторіальну.
+            </p>
+            <h4>Ідея алгоритму:</h4>
+            <p>
+                Алгоритм будує розв'язок ітеративно, розглядаючи все більші підмножини міст. Він використовує таблицю для зберігання вартості найкоротших шляхів, що проходять через певні підмножини міст і закінчуються в конкретному місті.
+            </p>
+            <ol>
+                <li>
+                    <strong>Стан (Підзадача):</strong> Визначається як \(D[S, j]\) — мінімальна вартість шляху, що починається у стартовому місті (зазвичай місто 1), проходить через <strong>усі</strong> міста з підмножини \(S\) (де \(1 \in S\)) і закінчується в місті \(j \in S\) (\(j \neq 1\)).
+                </li>
+                <li>
+                    <strong>Базовий випадок:</strong> Для підмножин розміром 1 (тільки стартове місто): \(D[\{1\}, 1] = 0\).
+                </li>
+                <li>
+                    <strong>Рекурентне співвідношення:</strong> Для підмножин \(S\) розміром \(s > 1\), що містять місто 1, та для кожного міста \(j \in S, j \neq 1\), вартість \(D[S, j]\) обчислюється як:
+                    $$ D[S, j] = \min_{k \in S \setminus \{j\}} \{ D[S \setminus \{j\}, k] + \text{cost}(k, j) \} $$
+                    де мінімум береться по всіх містах \(k \in S \setminus \{j\}\). \(\text{cost}(k, j)\) — вартість переїзду з міста \(k\) до міста \(j\).
+                </li>
+                 <li>
+                    <strong>Фінальний крок:</strong> Після обчислення всіх значень \(D[V, j]\) для множини \(V\), що містить усі міста, фінальна вартість найкоротшого туру обчислюється як:
+                    $$ \min_{k \neq 1} \{ D[V, k] + \text{cost}(k, 1) \} $$
+                    де мінімум береться по всіх містах \(k \neq 1\).
+                </li>
+            </ol>
+            <h4>Переваги та недоліки:</h4>
+            <ul>
+                <li>(+) Значно швидший за повний перебір (\(\mathcal{O}(n^2 \cdot 2^n)\) проти \(\mathcal{O}(n!)\)).</li>
+                <li>(+) Гарантує знаходження оптимального розв'язку.</li>
+                <li>(-) Все ще експоненційна складність (непридатний для n > 50...60).</li>
+                <li>(-) Вимагає значного обсягу пам'яті (\(\mathcal{O}(n \cdot 2^n)\)).</li>
+            </ul>
+             <h4>Коли потрібне точне рішення?</h4>
+             <p>Незважаючи на високу обчислювальну складність, знаходження <strong>гарантовано оптимального</strong> розв'язку TSP є критично важливим у багатьох реальних сценаріях:</p>
+             <ul>
+                 <li><strong>Виробництво мікросхем (VLSI):</strong> Оптимізація шляху лазера/свердла.</li>
+                 <li><strong>Секвенування геному:</strong> Упорядкування фрагментів ДНК.</li>
+                 <li><strong>Логістика:</strong> Для критично важливих або часто повторюваних маршрутів (доставка, шкільні автобуси).</li>
+                 <li><strong>Рентгенівська кристалографія:</strong> Оптимальний порядок збору даних.</li>
+                 <li><strong>Планування астрономічних спостережень:</strong> Мінімізація часу перенацілювання телескопа.</li>
+             </ul>
+             <p>У цих випадках витрати на обчислення виправдовуються довгостроковою економією від використання оптимального маршруту.</p>
+         
+        
+        <div class="answer-box">
+           
+            <p> Для <span class="highlight">n ≈ 20-50 вершин</span> алгоритм Хелда-Карпа (та інші методи динамічного програмування за підмножинами) не просто "переважує" наївний факторіальний перебір, а є <span class="highlight">єдиним практично застосовним точним методом</span>.</p>
+            <p>Факторіальний перебір стає недоцільним вже при <span class="highlight">n > 12-15</span>.</p>
+        </div>
+
+        <h2>Порівняльна таблиця: Факторіальний перебір vs. Хелд-Карп</h2>
+        
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Розмірність задачі</th>
+                    <th>Наївний перебір (O(n!))</th>
+                    <th>Алгоритм Хелда-Карпа (O(n² × 2ⁿ))</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>n = 10</strong></td>
+                    <td>~3.6 млн операцій (миттєво)</td>
+                    <td>~10,240 операцій (миттєво)</td>
+                </tr>
+                <tr>
+                    <td><strong>n = 15</strong></td>
+                    <td>~1.3 трлн операцій (<strong>~2 хвилини</strong>)</td>
+                    <td>~7.3 млн операцій (миттєво)</td>
+                </tr>
+                <tr>
+                    <td><strong>n = 20</strong></td>
+                    <td>~2.4 × 10¹⁸ операцій (<strong>~77 років</strong>)</td>
+                    <td>~419 млн операцій (миттєво)</td>
+                </tr>
+                <tr>
+                    <td><strong>n = 25</strong></td>
+                    <td>~1.5 × 10²⁵ операцій (<strong>~500 млн років</strong>)</td>
+                    <td>~20.9 млрд операцій (<strong>~20 секунд</strong>)</td>
+                </tr>
+                <tr>
+                    <td><strong>n = 30</strong></td>
+                    <td>~2.6 × 10³² операцій (Вік Всесвіту)</td>
+                    <td>~1.07 трлн операцій (<strong>~18 хвилин</strong>)</td>
+                </tr>
+                <tr>
+                    <td><strong>n = 40</strong></td>
+                    <td>~8.2 × 10⁴⁷ операцій</td>
+                    <td>~11.0 × 10¹⁵ операцій (<strong>~13 днів</strong>)</td>
+                </tr>
+                <tr>
+                    <td><strong>n = 50</strong></td>
+                    <td>~3.0 × 10⁶⁴ операцій</td>
+                    <td>~112.6 × 10¹⁸ операцій (<strong>~36 років</strong>)</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p class="note">*Примітка: Час обчислено грубо, виходячи з ~10⁹ операцій в секунду.*</p>
+        
+        <p>Як видно з таблиці, <span class="highlight">"вікно практичної застосовності"</span> для точного розв'язання TSP лежить саме в діапазоні <span class="highlight">n = 15-50</span>, і в цьому вікні Хелд-Карп — король.</p>
+
+        <h2>Реальні приклади застосування для n ≈ 50</h2>
+        
+        <div class="example-section">
+            <h3>1. Логістика та управління ланцюгами поставок "останньої милі"</h3>
+            <p><strong>Сценарій:</strong> Оптимізація маршрутів для команди інженерів, які виїжджають на об'єкти. Наприклад, 40 інженерів отримують заявки на наступний день. Необхідно побудувати для кожного оптимальний маршрут відвідування 15-25 об'єктів у місті.</p>
+            <p><strong>Чому тут n ~ 50?</strong> Хелд-Карп може використовуватися для попереднього розрахунку ідеальних маршрутів для невеликих кластерів заявок або для перебору можливих комбінацій в рамках гібридних алгоритмів.</p>
+        </div>
+        
+        <div class="example-section">
+            <h3>2. Виробництво електроніки та автоматизація</h3>
+            <p><strong>Сценарій:</strong> Задача свердління отворів у друкованих платах. Координатний стіл зі свердлом має відвідати десятки точок на платі. Час переміщення між отворами необхідно мінімізувати для збільшення швидкості виробництва.</p>
+            <p><strong>Чому тут n ~ 50?</strong> Кількість отворів, які потрібно просвердлити в межах одного типу плати за один прохід, часто становить кілька десятків. Точне рішення гарантує максимальну продуктивність обладнання.</p>
+        </div>
+        
+        <div class="example-section">
+            <h3>3. Задачі розміщення та трасування в САПР (CAD)</h3>
+            <p><strong>Сценарій:</strong> Розміщення компонентів на мікросхемі або трасування з'єднань для мінімізації загальної довжини провідників.</p>
+            <p><strong>Чому тут n ~ 50?</strong> Деякі підзадачі, такі як оптимальне з'єднання невеликої групи (до 50) контактів у заданому порядку, ідеально лягають на TSP і точно розв'язуються Хелдом-Карпом.</p>
+        </div>
+        
+        <div class="example-section">
+            <h3>4. Біоінформатика та хемоінформатика</h3>
+            <p><strong>Сценарій:</strong> Порівняння та кластеризація молекул. Можна представити молекулу як граф, де атоми — вершини, а зв'язки — ребра. Задача порівняння двох молекул може бути зведена до TSP.</p>
+            <p><strong>Сценарій:</strong> Розрахунок структур білків. Деякі методи для передбачення укладки білка використовують дискретні моделі, де пошук оптимальної конформації може бути сформульований як TSP-подібна задача.</p>
+            <p><strong>Чому тут n ~ 50?</strong> Для невеликих молекул або фрагментів білків (пептидів) кількість значимих атомів/залишків якраз потрапляє в цей діапазон.</p>
+        </div>
+        
+        <div class="example-section">
+            <h3>5. Наукові дослідження: Тестування та бенчмаркінг</h3>
+            <p><strong>Сценарій:</strong> Дослідник розробляє новий евристичний або наближений алгоритм для TSP (наприклад, мурашиний алгоритм, метод гілок та меж).</p>
+            <p><strong>Як використовується:</strong> Щоб оцінити якість свого нового алгоритму, він запускає його на відомих задачах з n ≤ 50-60, де алгоритм Хелда-Карпа може отримати точну, еталонну відповідь.</p>
+        </div>
+
+        <div class="conclusion">
+            <h2>Висновок</h2>
+            <p>Алгоритм Хелда-Карпа — це <span class="highlight">потужний та актуальний інструмент</span> для свого нішевого, але важливого діапазону задач.</p>
+            <ul>
+                <li>Для <span class="highlight">n < 15</span> з ним впорається і перебір</li>
+                <li>Для <span class="highlight">n > 60</span> його витісняють наближені методи та евристики</li>
+            </ul>
+            <p>Але саме в <span class="highlight">діапазоні (n = 15-50)</span>, де задача вже нетривіальна, але ще не стала неосяжною, Хелд-Карп і подібні йому алгоритми демонструють свою перевагу і знаходять практичне застосування в інженерії, логістиці та науці.</p>
+        </div>
+
+	   </div>
+    </details>
+</div>
+
+<script>
+// --- GLOBAL STATE (Додано isPlaying, playInterval) ---
+let graph = { nodes: [], adjMatrix: [], n: 0 };
+let hkState = { steps: [], currentStep: -1, dpTable: null, parents: null, nnPath: null, nnCost: Infinity, isPlaying: false, playInterval: null };
+
+// --- DOM ELEMENTS (Додано hkPlayBtn) ---
+const startPresetK5Btn = document.getElementById('start-preset-k5');
+const startRandomK5Btn = document.getElementById('start-random-k5');
+const startRandomK6Btn = document.getElementById('start-random-k6');
+const resetBtn = document.getElementById('reset-btn');
+
+const hkPlayBtn = document.getElementById('hk-play-btn'); // НОВИЙ
+const hkPrevBtn = document.getElementById('hk-prev-btn');
+const hkNextBtn = document.getElementById('hk-next-btn');
+const nnBtn = document.getElementById('nn-btn');
+const hkSVG = document.getElementById('hk-svg');
+const dpTableHead = document.querySelector('#dp-table thead tr'); 
+const dpTableBody = document.getElementById('dp-table-body');
+const hkCommentary = document.getElementById('hk-commentary');
+const hkStepCounter = document.getElementById('hk-step-counter');
+
+// --- CONSTANTS ---
+const NODE_RADIUS = 20;
+const INFINITY = Infinity; 
+
+// ===================================================================
+// MAIN CONTROL & GRAPH GENERATION
+// ===================================================================
+
+function initializePresetK5() {
+    resetSimulator(false); 
+    loadPresetGraph(5); 
+    updateTableHeader(5); 
+    calculateHeldKarpSteps();
+    runNearestNeighbor(); 
+    setSimulationActive(true);
+    hkState.currentStep = 0;
+    updateView();
+}
+
+function initializeRandom(n) {
+    resetSimulator(false); 
+    loadRandomGraph(n);
+    updateTableHeader(n); 
+    calculateHeldKarpSteps();
+    runNearestNeighbor(); 
+    setSimulationActive(true);
+    hkState.currentStep = 0;
+    updateView();
+}
+
+// --- ОНОВЛЕНО (Додано hkPlayBtn.disabled) ---
+function setSimulationActive(isActive) {
+    startPresetK5Btn.disabled = isActive;
+    startRandomK5Btn.disabled = isActive;
+    startRandomK6Btn.disabled = isActive;
+    
+    resetBtn.disabled = !isActive;
+    hkPlayBtn.disabled = !isActive; // ДОДАНО
+    
+    hkPrevBtn.disabled = !isActive;
+    hkNextBtn.disabled = !isActive;
+    nnBtn.disabled = !isActive;
+}
+
+// --- ОНОВЛЕНО (Додано зупинку анімації та скидання кнопки) ---
+function resetSimulator(resetButtons = true) {
+    stopAutoPlay(); // --- ДОДАНО НА ПОЧАТКУ ---
+
+    graph = { nodes: [], adjMatrix: [], n: 0 };
+    // Скидаємо стан анімації
+    hkState = { steps: [], currentStep: -1, dpTable: null, parents: null, nnPath: null, nnCost: Infinity, isPlaying: false, playInterval: null };
+    hkSVG.innerHTML = '';
+    dpTableBody.innerHTML = '';
+    hkCommentary.innerHTML = 'Оберіть режим генерації графа (K₅ або K₆) для початку.';
+    hkStepCounter.textContent = '';
+    
+    updateTableHeader(0); 
+
+    if (resetButtons) {
+        setSimulationActive(false);
+    }
+    
+    // Завжди вимикаємо кроки при скиданні
+    hkPrevBtn.disabled = true;
+    hkNextBtn.disabled = true;
+    hkPlayBtn.disabled = true; // ДОДАНО
+    hkPlayBtn.textContent = "Запустити"; // ДОДАНО
+    nnBtn.disabled = true;
+    
+     if (window.MathJax && window.MathJax.typesetPromise) {
+         window.MathJax.typesetPromise();
+     }
+}
+
+function updateTableHeader(n) {
+    const headers = dpTableHead.querySelectorAll('th');
+    for (let i = headers.length - 1; i > 1; i--) {
+        dpTableHead.removeChild(headers[i]);
+    }
+    if (n === 0) return; 
+    for (let j = 1; j <= n; j++) {
+        const nodeTh = document.createElement('th');
+        nodeTh.innerHTML = `\\(D[S, ${j}]\\)`;
+        dpTableHead.appendChild(nodeTh);
+    }
+     if (window.MathJax && window.MathJax.typesetPromise) {
+         window.MathJax.typesetPromise([dpTableHead]);
+     }
+}
+
+function loadPresetGraph(n) {
+    if (n !== 5) {
+        console.error("Preset graph is only available for K=5.");
+        return;
+    }
+    graph.n = n;
+    graph.nodes = [];
+    graph.adjMatrix = Array(n).fill(0).map(() => Array(n).fill(INFINITY));
+    const width = hkSVG.clientWidth, height = hkSVG.clientHeight;
+    const centerX = width / 2, centerY = height / 2;
+    const radius = Math.min(width, height) / 2 - 40;
+
+    for (let i = 0; i < n; i++) {
+        const angle = (2 * Math.PI * i) / n - Math.PI / 2; 
+        graph.nodes.push({ id: i + 1, x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) });
+        graph.adjMatrix[i][i] = 0; 
+    }
+
+     const weights = [
+       [0,  10,  5, 30, 30], // From 1
+       [10,  0, 10, 20, 30], // From 2
+       [ 5, 10,  0, 10, 20], // From 3
+       [30, 20, 10,  0, 10], // From 4
+       [30, 30, 20, 10,  0]  // From 5
+     ];
+
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            if (i !== j) graph.adjMatrix[i][j] = weights[i][j];
+        }
+    }
+}
+
+function loadRandomGraph(n) {
+    graph.n = n;
+    graph.nodes = [];
+    graph.adjMatrix = Array(n).fill(0).map(() => Array(n).fill(INFINITY));
+    const width = hkSVG.clientWidth, height = hkSVG.clientHeight;
+    const centerX = width / 2, centerY = height / 2;
+    const radius = Math.min(width, height) / 2 - 40;
+
+    for (let i = 0; i < n; i++) {
+        const angle = (2 * Math.PI * i) / n - Math.PI / 2; 
+        graph.nodes.push({ id: i + 1, x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) });
+        graph.adjMatrix[i][i] = 0; 
+    }
+
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const weight = Math.floor(Math.random() * 45) + 5; // Ваги від 5 до 50
+            graph.adjMatrix[i][j] = weight;
+            graph.adjMatrix[j][i] = weight;
+        }
+    }
+}
+
+
+// ===================================================================
+// HELD-KARP ALGORITHM & STEP SAVING (Код не змінено)
+// ===================================================================
+function calculateHeldKarpSteps() {
+    hkState.steps = [];
+    const n = graph.n, startNode = 0;
+    const numSubsets = 1 << n; 
+    hkState.dpTable = Array(numSubsets).fill(0).map(() => Array(n).fill(INFINITY));
+    hkState.parents = Array(numSubsets).fill(0).map(() => Array(n).fill(-1));
+
+    const saveStep = (data) => {
+        const dpCopy = hkState.dpTable.map(row => [...row]);
+        hkState.steps.push({ ...data, dpTableState: dpCopy });
+    };
+
+    hkState.dpTable[1 << startNode][startNode] = 0;
+    saveStep({ 
+        subsetMask: 1 << startNode, endNode: startNode, size: 1, 
+        commentary: `<b>Базовий випадок:</b> \\(D[\\{${startNode + 1}\\}, ${startNode + 1}] = 0\\).`,
+        isCalculationStep: false, isResultStep: true
+    });
+
+    for (let s = 2; s <= n; s++) {
+        const subsets = generateSubsets(n, s, startNode); 
+        for (const subsetMask of subsets) {
+             let subsetCommentary = `Розглядаємо підмножини розміром ${s}. Поточна множина: <b>\\(${maskToSetString(subsetMask)}\\)</b>.<br/>`;
+             let addedSubsetComment = false;
+
+            for (let j = 0; j < n; j++) {
+                if (!(subsetMask & (1 << j)) || j === startNode) continue;
+                
+                if(!addedSubsetComment) {
+                     saveStep({ 
+                         size: s, subsetMask: subsetMask, commentary: subsetCommentary, 
+                         isCalculationStep: false, isResultStep: false 
+                    });
+                     addedSubsetComment = true;
+                }
+
+                const prevSubsetMask = subsetMask ^ (1 << j); 
+                let minDist = INFINITY, bestK = -1;
+                let calculationDetails = []; 
+                let introComment = `Обчислення \\(D[${maskToSetString(subsetMask)}, ${j + 1}] = \\min_{k \\in S \\setminus \\{j\\}} \\{ D[S \\setminus \\{j\\}, k] + cost(k, ${j + 1}) \\}\\):<br/>`;
+                
+                saveStep({
+                    subsetMask: subsetMask, endNode: j, size: s,
+                    isCalculationStep: false, isResultStep: false,
+                    commentary: introComment
+                });
+
+                for (let k = 0; k < n; k++) {
+                    if (prevSubsetMask & (1 << k)) {
+                        const currentDist = hkState.dpTable[prevSubsetMask][k];
+                        const edgeCost = graph.adjMatrix[k][j];
+                        let stepComment = "";
+                        let totalCost = INFINITY;
+
+                        if (currentDist !== INFINITY && edgeCost !== INFINITY) {
+                            totalCost = currentDist + edgeCost;
+                            stepComment = `Якщо попередній вузол <b>${k + 1}</b>: \\(D[${maskToSetString(prevSubsetMask)}, ${k + 1}] + cost(${k + 1},${j + 1}) = ${currentDist} + ${edgeCost} = \\) <span class="highlight">${totalCost}</span>`;
+                            calculationDetails.push(stepComment);
+                            if (totalCost < minDist) { minDist = totalCost; bestK = k; }
+                        } else { 
+                            stepComment = `Якщо попередній вузол <b>${k + 1}</b>: \\(D[${maskToSetString(prevSubsetMask)}, ${k + 1}]\\) = ∞ (шлях неможливий)`; 
+                            calculationDetails.push(stepComment);
+                        }
+                        
+                        const partialPathToK = reconstructPartialPath(prevSubsetMask, k, hkState.parents);
+                        
+                        saveStep({
+                            subsetMask: subsetMask, endNode: j, size: s,
+                            prevSubsetMask: prevSubsetMask, 
+                            prevNodeK: k,
+                            edgeCost: edgeCost, dpValue: currentDist, totalCost: totalCost,
+                            partialPathToK: partialPathToK, 
+                            commentary: introComment + stepComment,
+                            isCalculationStep: true,
+                            isResultStep: false
+                        });
+                    }
+                }
+                
+                let resultComment = introComment + calculationDetails.join('<br/>');
+                if (minDist !== INFINITY) {
+                     hkState.dpTable[subsetMask][j] = minDist;
+                     hkState.parents[subsetMask][j] = bestK; 
+                     resultComment += `<br/><b>Мінімум = ${minDist}</b>. Цей шлях досягається через вузол <b>${bestK + 1}</b> (тобто, \\(k=${bestK + 1}\\)). Оновлюємо таблицю.`;
+                } else { 
+                     resultComment += `<br/>Вершина <b>${j + 1}</b> недосяжна для цієї підмножини.`; 
+                }
+                
+                saveStep({ 
+                    subsetMask: subsetMask, endNode: j, size: s, 
+                    prevNode: bestK, 
+                    calculatedValue: minDist, 
+                    commentary: resultComment,
+                    isCalculationStep: false,
+                    isResultStep: true 
+                });
+            }
+        }
+    }
+
+    // --- Логіка фінального кроку (Код не змінено) ---
+    const finalMask = (1 << n) - 1; 
+    let minTourCost = INFINITY, lastNode = -1;
+    let finalCalcs = [];
+    
+    let finalIntroComment = `<b>Фінальний крок:</b> \\(\\min_{k \\neq ${startNode + 1}} \\{ D[V, k] + cost(k, ${startNode + 1}) \\}\\):<br/>`;
+    saveStep({ 
+        commentary: finalIntroComment, isCalculationStep: false, isResultStep: false 
+    });
+
+    for (let k = 0; k < n; k++) {
+        if (k === startNode) continue;
+        const currentCost = hkState.dpTable[finalMask][k];
+        const returnCost = graph.adjMatrix[k][startNode];
+        let stepComment = "";
+        let totalTourCost = INFINITY;
+
+        if (currentCost !== INFINITY && returnCost !== INFINITY) {
+            totalTourCost = currentCost + returnCost;
+            stepComment = `Повернення з <b>${k + 1}</b>: \\(D[V, ${k + 1}] + cost(${k + 1}, ${startNode + 1}) = ${currentCost} + ${returnCost} = \\) <span class="highlight">${totalTourCost}</span>`;
+            finalCalcs.push(stepComment);
+            if (totalTourCost < minTourCost) { minTourCost = totalTourCost; lastNode = k; }
+        } else { 
+            stepComment = `Повернення з <b>${k + 1}</b>: \\(D[V, ${k + 1}]\\) = ∞`; 
+            finalCalcs.push(stepComment);
+        }
+
+        const partialPathToK = reconstructPartialPath(finalMask, k, hkState.parents);
+
+        saveStep({
+            subsetMask: finalMask, endNode: startNode, 
+            prevSubsetMask: finalMask, 
+            prevNodeK: k, 
+            partialPathToK: partialPathToK,
+            commentary: finalIntroComment + stepComment,
+            isCalculationStep: true, isResultStep: false
+        });
+    }
+    
+    let finalResultComment = finalIntroComment + finalCalcs.join('<br/>');
+    let path = null;
+    if (minTourCost !== INFINITY) {
+         finalResultComment += `<br/><b>Мінімальна вартість туру = ${minTourCost}</b> (останній перехід з <b>${lastNode + 1}</b>).`;
+         path = reconstructPath(finalMask, lastNode);
+         finalResultComment += `<br/>Оптимальний шлях: <b>${path.map(id => id + 1).join(' → ')} → ${startNode + 1}</b>`;
+    } else { 
+         finalResultComment += `<br/>Не вдалося знайти повний тур.`; 
+    }
+    saveStep({ 
+        commentary: finalResultComment, finalCost: minTourCost, path: path,
+        isCalculationStep: false, isResultStep: true 
+    });
+}
+
+
+function generateSubsets(n, size, mustInclude) {
+    const subsets = [];
+    for (let i = 0; i < (1 << n); i++) if ((i & (1 << mustInclude)) && countSetBits(i) === size) subsets.push(i);
+    subsets.sort((a,b)=>a-b); 
+    return subsets;
+}
+
+function countSetBits(n) { let c = 0; while(n > 0) { n &= (n - 1); c++; } return c; }
+
+function maskToSetString(mask) {
+    const set = [];
+    for (let i = 0; i < graph.n; i++) if ((mask >> i) & 1) set.push(i + 1);
+    return `\\{${set.join(', ')}\\}`; 
+}
+
+function reconstructPartialPath(mask, endNode, parentsTable) {
+    const pathEdges = [];
+    let currentMask = mask;
+    let currentNode = endNode;
+    
+    while (currentNode !== 0 && currentNode !== -1) { 
+        if (!parentsTable[currentMask]) break; 
+        const prevNode = parentsTable[currentMask][currentNode];
+        if (prevNode === -1 || prevNode === undefined) break; 
+        pathEdges.push([prevNode, currentNode]); 
+        currentMask = currentMask ^ (1 << currentNode); 
+        currentNode = prevNode; 
+        if (pathEdges.length > graph.n + 2) { console.error("Partial path reconstruction loop"); break; }
+    }
+    return pathEdges;
+}
+
+
+function reconstructPath(finalMask, lastNode) {
+    const path = [];
+    let currentMask = finalMask, currentNode = lastNode;
+    const finalParents = hkState.parents; 
+    while (currentNode !== -1 && currentNode !== undefined) { 
+        path.unshift(currentNode);
+        const parentsForMask = finalParents[currentMask]; 
+        const prevNode = parentsForMask ? parentsForMask[currentNode] : -1; 
+        currentMask = currentMask ^ (1 << currentNode); 
+        currentNode = prevNode;
+        if (path.length > graph.n + 2) { console.error("Path reconstruction loop"); break; } 
+    }
+    if (path.length === 0 || path[0] !== 0) path.unshift(0); 
+    return path; 
+}
+
+
+// ===================================================================
+// NEAREST NEIGHBOR ALGORITHM (Код не змінено)
+// ===================================================================
+function runNearestNeighbor() {
+    const n = graph.n, startNode = 0;
+    let current = startNode, path = [current], visited = new Set([current]), cost = 0;
+    while (visited.size < n) {
+        let nearestDist = INFINITY, nearestNode = -1;
+        for (let next = 0; next < n; next++) {
+            if (!visited.has(next) && graph.adjMatrix[current][next] < nearestDist) {
+                nearestDist = graph.adjMatrix[current][next]; nearestNode = next;
+            }
+        }
+        if (nearestNode !== -1) {
+            cost += nearestDist; path.push(nearestNode); visited.add(nearestNode); current = nearestNode;
+        } else { console.error("NN: Could not find next node"); break; }
+    }
+    const returnCost = graph.adjMatrix[current][startNode];
+    if (returnCost !== INFINITY) cost += returnCost; else cost = INFINITY; 
+    hkState.nnPath = path; hkState.nnCost = cost;
+}
+
+function showNNPath() {
+    if (!hkState.nnPath || hkState.steps.length === 0) return;
+    const hkFinalStep = hkState.steps[hkState.steps.length - 1];
+    drawGraph(hkFinalStep.path, null, null, null, hkState.nnPath, null);
+    hkCommentary.innerHTML = `<b>Жадібний маршрут (NN):</b> ${hkState.nnPath.map(id => id+1).join(' → ')} → 1 <br/> Вартість: <b>${hkState.nnCost}</b><hr/><b>Оптимальний маршрут (Х-К):</b> ${hkFinalStep.path ? hkFinalStep.path.map(id=>id+1).join(' → ') + ' → 1' : 'Не знайдено'} <br/> Вартість: <b>${hkFinalStep.finalCost !== INFINITY ? hkFinalStep.finalCost : 'N/A'}</b>`;
+     if (window.MathJax && window.MathJax.typesetPromise) {
+         window.MathJax.typesetPromise([hkCommentary]);
+     }
+}
+
+// --- НОВІ ФУНКЦІЇ (stopAutoPlay, startAutoPlay, togglePlay) ---
+// ===================================================================
+// AUTO-PLAY ANIMATION
+// ===================================================================
+
+function stopAutoPlay() {
+    if (!hkState.isPlaying) return; // Вже зупинено
+    
+    hkState.isPlaying = false;
+    clearInterval(hkState.playInterval);
+    hkState.playInterval = null;
+    
+    hkPlayBtn.textContent = "Запустити";
+    
+    // Повторно вмикаємо елементи керування, якщо симуляція активна
+    if (hkState.steps.length > 0) {
+        resetBtn.disabled = false;
+        nnBtn.disabled = false;
+        // updateView() мав би встановити їх, але для надійності
+        hkPrevBtn.disabled = hkState.currentStep === 0;
+        hkNextBtn.disabled = hkState.currentStep === hkState.steps.length - 1;
+    }
+}
+
+function startAutoPlay() {
+    if (hkState.isPlaying) return; // Вже грає
+    if (hkState.currentStep >= hkState.steps.length - 1) return; // Вже в кінці
+
+    hkState.isPlaying = true;
+    hkPlayBtn.textContent = "Пауза";
+
+    // Вимикаємо керування під час відтворення
+    hkPrevBtn.disabled = true;
+    hkNextBtn.disabled = true;
+    resetBtn.disabled = true;
+    nnBtn.disabled = true; 
+
+    const intervalTime = 1000 / 6; // 6 разів на секунду
+    hkState.playInterval = setInterval(() => {
+        if (hkState.currentStep < hkState.steps.length - 1) {
+            // Логіка "Крок Вперед"
+            hkState.currentStep++;
+            updateView();
+        } else {
+            // Дійшли до кінця, зупиняємо
+            stopAutoPlay();
+        }
+    }, intervalTime);
+}
+
+function togglePlay() {
+    if (hkState.isPlaying) {
+        stopAutoPlay();
+    } else {
+        startAutoPlay();
+    }
+}
+
+
+// ===================================================================
+// VISUALIZATION & UI UPDATES (Код не змінено)
+// ===================================================================
+function updateView() {
+    const step = hkState.steps[hkState.currentStep];
+    if (!step) return;
+
+    let highlightNodesMask = null;
+    let highlightEdge = null;
+    let highlightResultEdge = null;
+    let highlightSourceCell = null;
+    let highlightResultCell = null;
+    let highlightPartialPath = null; 
+
+    if (step.isCalculationStep) {
+        highlightNodesMask = step.prevSubsetMask; 
+        highlightEdge = [step.prevNodeK, step.endNode]; 
+        highlightSourceCell = { mask: step.prevSubsetMask, node: step.prevNodeK }; 
+        highlightPartialPath = step.partialPathToK; 
+    } else if (step.isResultStep) {
+        highlightResultEdge = [step.prevNode, step.endNode]; 
+        highlightResultCell = { mask: step.subsetMask, node: step.endNode }; 
+    }
+    
+    if (step.size === 1 && step.isResultStep) {
+         highlightResultCell = { mask: step.subsetMask, node: step.endNode };
+    }
+
+    drawGraph(
+        step.path, 
+        highlightNodesMask,
+        highlightEdge,
+        highlightResultEdge,
+        null, // nnPath
+        highlightPartialPath 
+    ); 
+    
+    updateTable(
+        step.dpTableState, 
+        highlightSourceCell,
+        highlightResultCell
+    );
+
+    hkCommentary.innerHTML = step.commentary;
+    
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([hkCommentary, dpTableBody]).catch((err) => console.error('MathJax Typesetting failed:', err));
+    }
+
+    hkStepCounter.textContent = `Крок: ${hkState.currentStep + 1} / ${hkState.steps.length}`;
+    
+    // Кнопки "Вперед/Назад" мають бути вимкнені, якщо грає анімація
+    if (!hkState.isPlaying) {
+        hkPrevBtn.disabled = hkState.currentStep === 0;
+        hkNextBtn.disabled = hkState.currentStep === hkState.steps.length - 1;
+    }
+}
+
+// --- drawArrow (Код не змінено) ---
+function drawArrow(u, v, styleClass, markerId) {
+    if (u === undefined || v === undefined) return;
+    const uNode = graph.nodes[u], vNode = graph.nodes[v];
+    if (!uNode || !vNode) return;
+
+    const x1 = uNode.x, y1 = uNode.y;
+    let x2 = vNode.x, y2 = vNode.y;
+
+    const dx = x2 - x1, dy = y2 - y1;
+    const norm = Math.sqrt(dx * dx + dy * dy);
+    
+    if (norm > 0) {
+        const ratio = (norm - (NODE_RADIUS + 2)) / norm; 
+        if (ratio > 0) {
+             x2 = x1 + dx * ratio;
+             y2 = y1 + dy * ratio;
+        } else {
+            x2 = vNode.x;
+            y2 = vNode.y;
+        }
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    path.classList.add('path-overlay');
+    path.classList.add(styleClass);
+    path.setAttribute('marker-end', `url(#${markerId})`);
+    
+    hkSVG.appendChild(path);
+}
+
+
+// --- drawGraph (Код не змінено) ---
+function drawGraph(hkPath, highlightNodesMask, highlightEdge, highlightResultEdge, nnPath, highlightPartialPath) {
+    hkSVG.innerHTML = ''; 
+    
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <marker id="arrow-path" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M0,-5L10,0L0,5" fill="var(--path-color)"></path>
+        </marker>
+        <marker id="arrow-nn-path" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M0,-5L10,0L0,5" fill="var(--nn-path-color)" opacity="0.6"></path>
+        </marker>
+        <marker id="arrow-calc-path" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M0,-5L10,0L0,5" fill="var(--calc-subset-stroke)"></path>
+        </marker>
+        <marker id="arrow-calc-edge" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M0,-5L10,0L0,5" fill="var(--calc-edge-color)"></path>
+        </marker>
+        <marker id="arrow-calc-result" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M0,-5L10,0L0,5" fill="var(--primary-color)"></path>
+        </marker>
+    `;
+    hkSVG.appendChild(defs);
+
+    const highlightNodes = new Set();
+    if (highlightNodesMask) {
+        for(let i=0; i < graph.n; i++) {
+            if((highlightNodesMask >> i) & 1) {
+                highlightNodes.add(i);
+            }
+        }
+    }
+
+    // ЕТАП 1: Малюємо базові сірі ребра (лінії) та їх вагу
+    for (let i = 0; i < graph.n; i++) {
+        for (let j = i + 1; j < graph.n; j++) {
+            const weight = graph.adjMatrix[i][j];
+            if (weight === INFINITY) continue;
+            const uNode = graph.nodes[i], vNode = graph.nodes[j];
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', uNode.x); line.setAttribute('y1', uNode.y);
+            line.setAttribute('x2', vNode.x); line.setAttribute('y2', vNode.y);
+            line.classList.add('edge');
+            hkSVG.appendChild(line);
+
+            const midX = (uNode.x + vNode.x) / 2, midY = (uNode.y + vNode.y) / 2;
+            const dx = vNode.x - uNode.x, dy = vNode.y - uNode.y, norm = Math.sqrt(dx*dx + dy*dy);
+            const labelX = midX + (-dy / norm) * 10, labelY = midY + (dx / norm) * 10;
+            const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            labelGroup.classList.add('edge-label-group');
+            const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            textBg.setAttribute('x', labelX - 9); textBg.setAttribute('y', labelY - 9);
+            textBg.setAttribute('width', 18); textBg.setAttribute('height', 18);
+            textBg.classList.add('edge-label-bg'); labelGroup.appendChild(textBg);
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', labelX); text.setAttribute('y', labelY + 4);
+            text.classList.add('edge-label'); text.textContent = weight; labelGroup.appendChild(text);
+            hkSVG.appendChild(labelGroup);
+            labelGroup.addEventListener('dblclick', (event) => { 
+                 event.stopPropagation(); 
+                 editEdgeWeight(i, j); 
+            }); 
+        }
+    }
+
+    // ЕТАП 2: Малюємо кольорові СТРІЛКИ
+    if (hkPath) {
+        for (let i = 0; i < hkPath.length - 1; i++) {
+            drawArrow(hkPath[i], hkPath[i+1], 'path', 'arrow-path');
+        }
+        drawArrow(hkPath[hkPath.length - 1], hkPath[0], 'path', 'arrow-path'); 
+    }
+    if (nnPath) {
+        for (let i = 0; i < nnPath.length - 1; i++) {
+            drawArrow(nnPath[i], nnPath[i+1], 'nn-path', 'arrow-nn-path');
+        }
+        drawArrow(nnPath[nnPath.length - 1], nnPath[0], 'nn-path', 'arrow-nn-path');
+    }
+    if (highlightPartialPath) {
+        highlightPartialPath.forEach(edge => {
+            drawArrow(edge[0], edge[1], 'calculating-path', 'arrow-calc-path');
+        });
+    }
+    if (highlightEdge) {
+        drawArrow(highlightEdge[0], highlightEdge[1], 'calculating-edge', 'arrow-calc-edge');
+    }
+    if (highlightResultEdge && highlightResultEdge[0] !== -1) {
+        drawArrow(highlightResultEdge[0], highlightResultEdge[1], 'calculating-result', 'arrow-calc-result');
+    }
+
+    // ЕТАП 3: Малюємо вузли
+    graph.nodes.forEach(node => {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.classList.add('node');
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y); circle.setAttribute('r', NODE_RADIUS);
+        
+        if (highlightNodes.has(node.id - 1)) {
+            circle.classList.add('calculating-subset');
+        }
+        
+        group.appendChild(circle);
+        const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idText.setAttribute('x', node.x); idText.setAttribute('y', node.y);
+        idText.textContent = node.id; group.appendChild(idText);
+        hkSVG.appendChild(group);
+    });
+}
+
+
+// --- updateTable (Код не змінено) ---
+function updateTable(dpTableState, highlightSourceCell, highlightResultCell) {
+    dpTableBody.innerHTML = ''; 
+    const n = graph.n; 
+    let subsetGroups = {};
+
+    for (let s = 1; s <= n; s++) {
+        const subsets = generateSubsets(n, s, 0); 
+        subsetGroups[s] = [];
+        for (const mask of subsets) {
+            const row = dpTableBody.insertRow();
+            row.insertCell(); // Розмір
+            const subsetCell = row.insertCell();
+            subsetCell.innerHTML = `\\(${maskToSetString(mask)}\\)`; 
+            subsetCell.classList.add('subset-col');
+            subsetCell.setAttribute('data-mask', mask); 
+
+            for (let j = 0; j < n; j++) {
+                const cell = row.insertCell();
+                const value = dpTableState[mask] ? dpTableState[mask][j] : INFINITY; 
+                cell.innerHTML = value === INFINITY ? '<span class="infinity">∞</span>' : value;
+                
+                if (highlightSourceCell && mask === highlightSourceCell.mask && j === highlightSourceCell.node) {
+                    cell.classList.add('calculating-source');
+                }
+                if (highlightResultCell && mask === highlightResultCell.mask && j === highlightResultCell.node) {
+                    cell.classList.add('highlight');
+                }
+            }
+             subsetGroups[s].push(row);
+        }
+    }
+
+     for (let s = 1; s <= n; s++) {
+         if (subsetGroups[s] && subsetGroups[s].length > 0) {
+             const firstRow = subsetGroups[s][0];
+             const sizeCell = firstRow.cells[0];
+             sizeCell.textContent = s;
+             if (subsetGroups[s].length > 1) {
+                 sizeCell.setAttribute('rowspan', subsetGroups[s].length);
+                 for (let i = 1; i < subsetGroups[s].length; i++) {
+                     subsetGroups[s][i].cells[0].style.display = 'none';
+                 }
+             }
+         }
+     }
+
+     let rowToScroll = null;
+     if (highlightSourceCell) {
+         rowToScroll = dpTableBody.querySelector(`td[data-mask="${highlightSourceCell.mask}"]`)?.parentElement;
+     } else if (highlightResultCell) {
+         rowToScroll = dpTableBody.querySelector(`td[data-mask="${highlightResultCell.mask}"]`)?.parentElement;
+     }
+
+     if (rowToScroll) {
+         rowToScroll.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+     }
+}
+
+// --- editEdgeWeight (Код не змінено) ---
+function editEdgeWeight(i, j) { 
+    const currentWeight = graph.adjMatrix[i][j];
+    const newWeightStr = prompt(`Введіть нову вагу для ребра ${i + 1} ↔ ${j + 1} (поточна: ${currentWeight}):`, currentWeight);
+    if (newWeightStr !== null) {
+        const newWeight = parseInt(newWeightStr, 10);
+        if (!isNaN(newWeight) && newWeight > 0) {
+            graph.adjMatrix[i][j] = newWeight;
+            graph.adjMatrix[j][i] = newWeight; 
+            
+            // Повний перерахунок (зупинить анімацію, якщо вона була)
+            calculateHeldKarpSteps();
+            runNearestNeighbor(); 
+            hkState.currentStep = 0; 
+            updateView();
+        } else {
+            alert("Будь ласка, введіть дійсне позитивне числове значення для ваги.");
+        }
+    }
+}
+
+
+// ===================================================================
+// EVENT LISTENERS (ОНОВЛЕНО - Додано hkPlayBtn)
+// ===================================================================
+startPresetK5Btn.addEventListener('click', initializePresetK5);
+startRandomK5Btn.addEventListener('click', () => initializeRandom(5));
+startRandomK6Btn.addEventListener('click', () => initializeRandom(6));
+resetBtn.addEventListener('click', () => resetSimulator(true)); 
+
+hkPlayBtn.addEventListener('click', togglePlay); // --- НОВИЙ ЛІСЕНЕР ---
+nnBtn.addEventListener('click', showNNPath);
+hkNextBtn.addEventListener('click', () => { if (hkState.currentStep < hkState.steps.length - 1) { hkState.currentStep++; updateView(); }});
+hkPrevBtn.addEventListener('click', () => { if (hkState.currentStep > 0) { hkState.currentStep--; updateView(); }});
+window.addEventListener('load', () => resetSimulator(true)); 
+
+document.addEventListener('DOMContentLoaded', () => {
+     if (window.MathJax && window.MathJax.typesetPromise) {
+         window.MathJax.typesetPromise();
+     }
+});
+</script>
+</body>
+</html>
