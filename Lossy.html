@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lossy Compression Visualizer</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --accent: #ff9800; /* Orange for Compression */
+            --kept: #4caf50;   /* Green */
+            --deleted: #333;   /* Grey */
+            --threshold: #00bcd4; /* Cyan line */
+            --text: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Consolas, monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: var(--accent); margin-bottom: 5px; font-weight: 300; }
+        p.subtitle { color: #aaa; margin-bottom: 20px; text-align: center; max-width: 800px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Audio Controls */
+        .recorder-box {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #37474f; color: white; border: 1px solid #555;
+            padding: 10px 20px; border-radius: 4px; cursor: pointer;
+            font-family: inherit; font-weight: 600; transition: 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        button:hover { background: #455a64; border-color: var(--accent); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-record.recording { background: #f44336; animation: pulse 1.5s infinite; }
+        .btn-play { background: var(--kept); color: #fff; }
+        .btn-play-compressed { background: var(--accent); color: #000; }
+
+        /* Canvas */
+        canvas {
+            width: 100%;
+            background: #000;
+            border-radius: 4px;
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* Threshold Slider overlay */
+        .slider-container {
+            position: relative;
+            height: 40px;
+            background: #222;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--threshold);
+            cursor: pointer;
+        }
+
+        /* Stats Grid */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .stat-box { background: #2a2a2a; padding: 10px; border-radius: 4px; }
+        .stat-val { font-size: 1.2rem; font-weight: bold; display: block; margin-top: 5px; }
+        .bad { color: #f44336; }
+        .good { color: #4caf50; }
+
+        /* Theory Details */
+        details {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 8px; 
+            margin: 0 0 20px 0; width: 100%; overflow: hidden;
+        }
+        summary {
+            padding: 15px; cursor: pointer; background: #222; font-weight: bold; 
+            color: var(--accent); outline: none;
+        }
+        .theory-content { padding: 20px; line-height: 1.6; color: #ccc; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <h1>Стиснення Аудіо (Lossy Compression)</h1>
+    <p class="subtitle">
+        Видалення "непотрібних" звуків. Запишіть голос або завантажте пресет, 
+        потім підніміть поріг, щоб побачити, як MP3 економить місце.
+    </p>
+
+    <div style="max-width: 1000px; width: 100%;">
+        <details>
+            <summary>📖 Теорія: Як працює MP3/AAC? (Натисніть)</summary>
+            <div class="theory-content">
+                <h3>1. Спектральне представлення</h3>
+                <p>
+                    Комп'ютер не стискає звукову хвилю напряму. Спочатку він розбиває звук на шматочки (вікна) і перетворює їх у частотний спектр (за допомогою FFT/MDCT).
+                    Ми бачимо звук не як графік часу, а як набір стовпчиків: Бас, Середні, Високі.
+                </p>
+
+                <h3>2. Психоакустика та Маскування</h3>
+                <p>
+                    Людське вухо — недосконалий прилад.
+                    <ul>
+                        <li><b>Поріг чутності:</b> Ми погано чуємо дуже тихі звуки, особливо на високих частотах.</li>
+                        <li><b>Маскування:</b> Якщо грає гучний барабан, ви не почуєте тихий шурхіт поруч з ним. Цей шурхіт можна видалити з файлу, і ніхто не помітить!</li>
+                    </ul>
+                </p>
+
+                <h3>3. Sparsity (Розрідженість)</h3>
+                <p>
+                    У цьому симуляторі ми використовуємо простий метод: <b>Hard Thresholding</b>. 
+                    Ми встановлюємо "планку". Всі гармоніки, які тихіші за цю планку, обнуляються (стають нулями).
+                    <br>
+                    <span style="color:var(--kept)">Збережені дані:</span> [120, 0, 0, 45, 0, 99, 0...] 
+                    <br>
+                    Такий масив з купою нулів ідеально стискається архіватором (наприклад, алгоритмом Хаффмана).
+                </p>
+            </div>
+        </details>
+    </div>
+
+    <div class="recorder-box">
+        <button id="btnPreset" onclick="loadPreset()">🎹 Завантажити Пресет (Синтезатор)</button>
+        <div style="width: 1px; background: #555; margin: 0 10px;"></div>
+        <button id="btnMic" class="btn-record" onclick="toggleRecord()">🎤 Мікрофон (REC)</button>
+        <span id="statusText" style="align-self: center; color: #aaa; font-size: 0.9rem;">Очікування...</span>
+    </div>
+
+    <div class="container">
+        
+        <div class="panel">
+            <div style="display:flex; justify-content:space-between; align-items: center;">
+                <h3>Частотний Спектр (FFT)</h3>
+                <div style="font-size: 0.8rem; color:#aaa">X: Частота (Hz) | Y: Гучність (dB)</div>
+            </div>
+            
+            <canvas id="cvSpectrum" height="250"></canvas>
+            
+            <div class="slider-container">
+                <span style="min-width: 80px; font-size: 0.9rem;">✂️ Поріг:</span>
+                <input type="range" id="slThreshold" min="0" max="100" value="10" oninput="updateCompression()">
+                <span id="lblThreshold" style="min-width: 50px; text-align: right; font-weight: bold; color: var(--threshold);">10%</span>
+            </div>
+
+            <div class="stats">
+                <div class="stat-box">
+                    <div style="color:#aaa; font-size:0.8rem">Всього гармонік</div>
+                    <span class="stat-val" id="valTotal">0</span>
+                </div>
+                <div class="stat-box">
+                    <div style="color:var(--kept); font-size:0.8rem">Збережено (Non-Zero)</div>
+                    <span class="stat-val" id="valKept">0</span>
+                </div>
+                <div class="stat-box">
+                    <div style="color:var(--accent); font-size:0.8rem">Ступінь стиснення</div>
+                    <span class="stat-val" id="valRatio">1.0x</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Результат</h3>
+            <div style="display: flex; gap: 20px; justify-content: center; margin: 20px 0;">
+                <button class="btn-play" id="btnPlayOrig" onclick="playOriginal()" disabled>▶ Оригінал</button>
+                <button class="btn-play-compressed" id="btnPlayComp" onclick="playCompressed()" disabled>▶ Стиснене</button>
+            </div>
+            <canvas id="cvWave" height="100"></canvas>
+            <p style="text-align: center; font-size: 0.85rem; color: #777; margin-top: 10px;">
+                Зелена лінія — оригінал. Помаранчева — після видалення частот. <br>
+                Якщо лінії розходяться — це "Дзвін" (Ringing artifacts).
+            </p>
+        </div>
+
+    </div>
+
+<script>
+    // --- FFT LIBRARY (Simplified for Education) ---
+    // A generic Cooley-Tukey implementation
+    const FFT = {
+        reverseBits: function(x, n) {
+            let result = 0;
+            for (let i = 0; i < n; i++, x >>= 1) result = (result << 1) | (x & 1);
+            return result;
+        },
+        transform: function(real, imag) {
+            const n = real.length;
+            const levels = Math.log2(n);
+            // Bit-reversal permutation
+            for (let i = 0; i < n; i++) {
+                const rev = this.reverseBits(i, levels);
+                if (rev > i) {
+                    [real[i], real[rev]] = [real[rev], real[i]];
+                    [imag[i], imag[rev]] = [imag[rev], imag[i]];
+                }
+            }
+            // Butterfly operations
+            for (let size = 2; size <= n; size *= 2) {
+                const half = size / 2;
+                const step = 2 * Math.PI / size;
+                for (let i = 0; i < n; i += size) {
+                    for (let j = 0; j < half; j++) {
+                        const k = i + j;
+                        const t = k + half;
+                        const angle = -j * step; // Negative for forward FFT
+                        const cos = Math.cos(angle);
+                        const sin = Math.sin(angle);
+                        const tr = real[t] * cos - imag[t] * sin;
+                        const ti = real[t] * sin + imag[t] * cos;
+                        real[t] = real[k] - tr;
+                        imag[t] = imag[k] - ti;
+                        real[k] += tr;
+                        imag[k] += ti;
+                    }
+                }
+            }
+        },
+        inverse: function(real, imag) {
+            const n = real.length;
+            // Conjugate -> Transform -> Conjugate -> Scale
+            for(let i=0; i<n; i++) imag[i] = -imag[i];
+            this.transform(real, imag);
+            for(let i=0; i<n; i++) {
+                imag[i] = -imag[i];
+                real[i] /= n;
+                imag[i] /= n;
+            }
+        }
+    };
+
+    // --- APP LOGIC ---
+
+    const CFG = {
+        fftSize: 4096, // Good resolution
+        sampleRate: 44100,
+        duration: 1.5 // seconds to record
+    };
+
+    let audioCtx = null;
+    let originalBuffer = null; // Float32Array with raw audio
+    let recordedData = null;   // Just the mono channel data
+    let windowStart = 0;
+    // Spectral Data
+    let spectrumReal = [];
+    let spectrumImag = [];
+    let spectrumMag = []; // Magnitude for visualization
+    let maxMag = 0;
+
+    // Compressed Data
+    let compressedSignal = null;
+
+    // UI References
+    const els = {
+        cvSpec: document.getElementById('cvSpectrum'),
+        cvWave: document.getElementById('cvWave'),
+        slThresh: document.getElementById('slThreshold'),
+        lblThresh: document.getElementById('lblThreshold'),
+        btnPlayOrig: document.getElementById('btnPlayOrig'),
+        btnPlayComp: document.getElementById('btnPlayComp'),
+        status: document.getElementById('statusText'),
+        valTotal: document.getElementById('valTotal'),
+        valKept: document.getElementById('valKept'),
+        valRatio: document.getElementById('valRatio')
+    };
+    
+    const ctxSpec = els.cvSpec.getContext('2d');
+    const ctxWave = els.cvWave.getContext('2d');
+
+    // --- AUDIO HANDLING ---
+
+    async function initAudio() {
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === 'suspended') await audioCtx.resume();
+        return audioCtx;
+    }
+
+    // 1. Generate Preset (FM Synthesis)
+    async function loadPreset() {
+        await initAudio();
+        els.status.innerText = "Генерую пресет...";
+        
+        const length = CFG.sampleRate * CFG.duration;
+        const data = new Float32Array(length);
+        
+        // Create a rich FM sound (Carrier + Modulator)
+        for(let i=0; i<length; i++) {
+            let t = i / CFG.sampleRate;
+            // Envelope
+            let env = 1 - (t / CFG.duration);
+            // FM: sin(2pi*fc*t + I*sin(2pi*fm*t))
+            let mod = Math.sin(2 * Math.PI * 110 * t) * 5; 
+            let carrier = Math.sin(2 * Math.PI * 220 * t + mod);
+            
+            // Add some noise
+            let noise = (Math.random() - 0.5) * 0.05;
+            
+            data[i] = (carrier * 0.8 + noise) * env;
+        }
+        
+        processInput(data);
+        els.status.innerText = "Пресет завантажено!";
+    }
+
+    // 2. Microphone Recording
+    let isRecording = false;
+    async function toggleRecord() {
+        await initAudio();
+        if(isRecording) return;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaStreamSource = audioCtx.createMediaStreamSource(stream);
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+            
+            let chunks = [];
+            let samplesCollected = 0;
+            const maxSamples = CFG.sampleRate * CFG.duration;
+
+            isRecording = true;
+            document.getElementById('btnMic').classList.add('recording');
+            els.status.innerText = "Запис...";
+
+            mediaStreamSource.connect(processor);
+            processor.connect(audioCtx.destination);
+
+            processor.onaudioprocess = (e) => {
+                if(!isRecording) return;
+                const input = e.inputBuffer.getChannelData(0);
+                
+                // Clone chunk
+                const chunk = new Float32Array(input);
+                chunks.push(chunk);
+                samplesCollected += chunk.length;
+
+                if(samplesCollected >= maxSamples) {
+                    stopRecord(stream, processor, chunks);
+                }
+            };
+
+        } catch(err) {
+            alert("Доступ до мікрофону заблоковано або недоступний. Використайте пресет.");
+            console.error(err);
+        }
+    }
+
+    function stopRecord(stream, processor, chunks) {
+        isRecording = false;
+        document.getElementById('btnMic').classList.remove('recording');
+        stream.getTracks().forEach(t => t.stop());
+        processor.disconnect();
+        
+        // Flatten chunks
+        let totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+        const data = new Float32Array(totalLen);
+        let offset = 0;
+        for(let c of chunks) {
+            data.set(c, offset);
+            offset += c.length;
+        }
+        
+        // Trim to exact duration
+        const finalData = data.slice(0, CFG.sampleRate * CFG.duration);
+        processInput(finalData);
+        els.status.innerText = "Записано!";
+    }
+
+    // --- CORE PROCESSING ---
+
+    function processInput(rawData) {
+        recordedData = rawData;
+        
+        // Знаходимо центр запису (там зазвичай найгучніше)
+        const center = Math.floor(rawData.length / 2);
+        // Зберігаємо глобально точку початку нашого "вікна"
+        windowStart = Math.max(0, center - CFG.fftSize/2);
+        
+        // Вирізаємо шматочок саме для FFT аналізу
+        const slice = rawData.slice(windowStart, windowStart + CFG.fftSize);
+        
+        // Вікно Хеннінга (щоб спектр був чистий)
+        const windowed = new Float32Array(CFG.fftSize);
+        for(let i=0; i<CFG.fftSize; i++) {
+            let val = (i < slice.length) ? slice[i] : 0;
+            let win = 0.5 * (1 - Math.cos(2 * Math.PI * i / (CFG.fftSize - 1)));
+            windowed[i] = val * win;
+        }
+
+        // Рахуємо FFT для графіку
+        spectrumReal = new Float32Array(windowed);
+        spectrumImag = new Float32Array(CFG.fftSize).fill(0);
+        FFT.transform(spectrumReal, spectrumImag);
+
+        // Рахуємо Магнітуду
+        spectrumMag = new Float32Array(CFG.fftSize / 2);
+        maxMag = 0;
+        for(let i=0; i<spectrumMag.length; i++) {
+            let mag = Math.sqrt(spectrumReal[i]**2 + spectrumImag[i]**2);
+            spectrumMag[i] = mag;
+            if(mag > maxMag) maxMag = mag;
+        }
+
+        // Активуємо інтерфейс
+        els.btnPlayOrig.disabled = false;
+        els.btnPlayComp.disabled = false;
+        
+        // Запускаємо перше стиснення
+        updateCompression();
+    }
+
+    // --- COMPRESSION SIMULATION ---
+function updateCompression() {
+        if (!recordedData || !recordedData.length) return;
+
+        const thresholdPercent = parseInt(els.slThresh.value);
+        els.lblThresh.innerText = thresholdPercent + "%";
+        
+        // --- 1. ПІДГОТОВКА (OVERLAP-ADD) ---
+        const fullLength = recordedData.length;
+        const processedData = new Float32Array(fullLength); // Вихідний буфер (тиша)
+        
+        // Крок зміщення (Hop Size). Для вікна Хеннінга це 50% від довжини FFT
+        const hopSize = CFG.fftSize / 2; 
+
+        // Створюємо віконну функцію (Hanning Window) один раз
+        // Вона потрібна, щоб згладити краї кожного шматочка
+        const winFunc = new Float32Array(CFG.fftSize);
+        for(let i=0; i<CFG.fftSize; i++) {
+            winFunc[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (CFG.fftSize - 1)));
+        }
+
+        // Статистика
+        let totalBinsProcessed = 0;
+        let keptBinsProcessed = 0;
+
+        // --- 2. ЦИКЛ З ПЕРЕКРИТТЯМ ---
+        // offset += hopSize (рухаємось наполовину довжини вікна)
+        for (let offset = 0; offset <= fullLength - CFG.fftSize; offset += hopSize) {
+            
+            // А. Підготовка буферів
+            const chunkReal = new Float32Array(CFG.fftSize);
+            const chunkImag = new Float32Array(CFG.fftSize);
+            
+            // Б. Копіюємо дані ТА ЗАСТОСОВУЄМО ВІКНО (Windowing)
+            for (let i = 0; i < CFG.fftSize; i++) {
+                chunkReal[i] = recordedData[offset + i] * winFunc[i];
+            }
+
+            // В. FFT
+            FFT.transform(chunkReal, chunkImag);
+
+            // Г. Обробка (Thresholding)
+            // Шукаємо локальний максимум для динамічного порогу
+            let localMax = 0;
+            const mags = new Float32Array(CFG.fftSize);
+            for (let i = 0; i < CFG.fftSize; i++) {
+                 let m = Math.sqrt(chunkReal[i]**2 + chunkImag[i]**2);
+                 mags[i] = m;
+                 if (m > localMax) localMax = m;
+            }
+
+            const currentThreshold = localMax * (thresholdPercent / 100);
+
+            // Фільтруємо
+            for (let i = 0; i < CFG.fftSize; i++) {
+                if (mags[i] < currentThreshold) {
+                    chunkReal[i] = 0;
+                    chunkImag[i] = 0;
+                } else {
+                    if (i < CFG.fftSize / 2 && mags[i] > 1e-5) keptBinsProcessed++;
+                }
+            }
+            totalBinsProcessed += (CFG.fftSize / 2);
+
+            // Д. Inverse FFT
+            FFT.inverse(chunkReal, chunkImag);
+
+            // Е. OVERLAP-ADD (Додавання з перекриттям)
+            // Ми не замінюємо дані (=), а додаємо їх (+=) до буфера
+            // Математика вікна Хеннінга така, що при накладанні 50% амплітуда відновлюється до 1.
+            // Але оскільки ми застосували вікно на вході, нам треба помножити результат
+            // на коефіцієнт (зазвичай 2/3 або просто підібрати на слух для симулятора).
+            // Для ідеальної реконструкції: Synthesis Window теж потрібен, але тут спростимо:
+            // Просто додаємо. (Вікно Хеннінга сумується в одиницю при overlap 50%)
+            
+            for (let i = 0; i < CFG.fftSize; i++) {
+                // scaleFactor * 2 компенсує втрату енергії від вікна при аналізі
+                // Експериментально для цього коду: множник 1.0 працює м'яко, 2.0 повертає повну гучність
+                processedData[offset + i] += chunkReal[i]; 
+            }
+        }
+
+        // --- 3. ФІНАЛ ---
+        compressedSignal = processedData;
+
+        // Оновлюємо інтерфейс
+        els.valTotal.innerText = Math.floor(totalBinsProcessed / (fullLength/hopSize)); // Середнє на фрейм
+        els.valKept.innerText = Math.floor(keptBinsProcessed / (fullLength/hopSize));
+        
+        let ratio = (keptBinsProcessed > 0) ? (totalBinsProcessed / keptBinsProcessed).toFixed(1) : "MAX";
+        els.valRatio.innerText = ratio + ":1";
+        els.valRatio.style.color = (parseFloat(ratio) > 10 || ratio === "MAX") ? '#ff9800' : '#4caf50';
+
+        // Малюємо графік (використовуємо глобальний максимум для масштабу лінії порогу)
+        drawVisuals((thresholdPercent / 100) * maxMag);
+    }
+
+    // --- VISUALIZATION ---
+
+    function drawVisuals(absThreshold) {
+        drawSpectrum(absThreshold);
+        drawWaveforms();
+    }
+
+   function drawSpectrum(threshold) {
+        const w = els.cvSpec.width = els.cvSpec.clientWidth;
+        const h = els.cvSpec.height = els.cvSpec.clientHeight;
+        
+        ctxSpec.clearRect(0, 0, w, h);
+        
+        // --- 1. Налаштування Логарифмічної шкали ---
+        const minFreq = 20; // Початок шкали (20 Гц)
+        const maxFreq = CFG.sampleRate / 2; // Кінець (22050 Гц)
+        // Кількість Герц на один біт FFT
+        const freqPerBin = CFG.sampleRate / CFG.fftSize; 
+        
+        // Функція: перетворює X (пікселі) -> Frequency (Гц)
+        const getFreqAtX = (x) => {
+            const t = x / w; // 0.0 ... 1.0
+            // Формула: min * (max/min)^t
+            return minFreq * Math.pow(maxFreq / minFreq, t);
+        };
+
+        // Функція: перетворює Frequency -> X (для сітки)
+        const getXAtFreq = (f) => {
+            return (Math.log(f / minFreq) / Math.log(maxFreq / minFreq)) * w;
+        };
+
+        // --- 2. Малюємо СІТКУ (Grid) ---
+        ctxSpec.strokeStyle = '#333';
+        ctxSpec.fillStyle = '#555';
+        ctxSpec.font = '10px monospace';
+        ctxSpec.textAlign = 'center';
+        ctxSpec.lineWidth = 1;
+
+        // Вертикальні лінії (100Hz, 1kHz, 10kHz)
+        [100, 1000, 10000].forEach(f => {
+            const x = getXAtFreq(f);
+            ctxSpec.beginPath();
+            ctxSpec.moveTo(x, 0);
+            ctxSpec.lineTo(x, h);
+            ctxSpec.stroke();
+            ctxSpec.fillText(f >= 1000 ? (f/1000)+'k' : f, x, h - 5);
+        });
+
+        // Горизонтальна лінія порогу (Поріг)
+        const thY = h - (threshold / maxMag * h * 0.9);
+        if(threshold > 0) {
+            ctxSpec.strokeStyle = '#00bcd4';
+            ctxSpec.setLineDash([5, 5]);
+            ctxSpec.beginPath();
+            ctxSpec.moveTo(0, thY);
+            ctxSpec.lineTo(w, thY);
+            ctxSpec.stroke();
+            ctxSpec.setLineDash([]);
+            ctxSpec.fillStyle = '#00bcd4';
+            ctxSpec.textAlign = 'left';
+            ctxSpec.fillText("Поріг", 5, thY - 5);
+        }
+
+        // --- 3. Малюємо СПЕКТР ---
+        // Ми йдемо по кожному пікселю екрану
+        for (let x = 0; x < w; x++) {
+            // Визначаємо діапазон частот, який покриває цей піксель
+            const fStart = getFreqAtX(x);
+            const fEnd = getFreqAtX(x + 1);
+
+            // Переводимо Герци в індекси масиву FFT
+            let iStart = Math.floor(fStart / freqPerBin);
+            let iEnd = Math.ceil(fEnd / freqPerBin);
+            
+            // Обмежувачі
+            if (iStart < 0) iStart = 0;
+            if (iEnd >= spectrumMag.length) iEnd = spectrumMag.length - 1;
+            if (iEnd < iStart) iEnd = iStart;
+
+            // Знаходимо МАКСИМАЛЬНЕ значення в цьому діапазоні (Peak detection)
+            // Це важливо для високих частот, щоб не "губити" звуки
+            let val = 0;
+            for (let i = iStart; i <= iEnd; i++) {
+                if (spectrumMag[i] > val) val = spectrumMag[i];
+            }
+
+            // Малюємо стовпчик
+            const heightNorm = Math.min(1, val / (maxMag || 1));
+            const barH = heightNorm * h * 0.9;
+            const y = h - barH;
+
+            if (val >= threshold) {
+                ctxSpec.fillStyle = '#4caf50'; // Зелений (Keep)
+            } else {
+                ctxSpec.fillStyle = '#222';    // Тьмяний (Delete)
+            }
+
+            // Малюємо лінію шириною 1px (щоб заповнити суцільно)
+            ctxSpec.fillRect(x, y, 1, barH);
+        }
+    }
+
+function drawWaveforms() {
+        // Перевірка: якщо немає даних, нічого не малюємо
+        if (!recordedData || !compressedSignal) return;
+
+        const w = els.cvWave.width = els.cvWave.clientWidth;
+        const h = els.cvWave.height = els.cvWave.clientHeight;
+        const cy = h/2;
+
+        ctxWave.clearRect(0, 0, w, h);
+        ctxWave.lineWidth = 2;
+
+        // --- 1. Оригінал (Зелена) ---
+        ctxWave.beginPath();
+        ctxWave.strokeStyle = 'rgba(76, 175, 80, 0.5)'; 
+        for(let i=0; i<w; i++) {
+            // Який це семпл у вікні?
+            let idxInWindow = Math.floor((i/w) * CFG.fftSize);
+            // Який це семпл у повному файлі?
+            let globalIdx = windowStart + idxInWindow;
+            
+            if (globalIdx < recordedData.length) {
+                let val = recordedData[globalIdx] * 2; // Множник *2 для масштабу
+                if(i===0) ctxWave.moveTo(i, cy - val*50);
+                else ctxWave.lineTo(i, cy - val*50);
+            }
+        }
+        ctxWave.stroke();
+
+        // --- 2. Стиснене (Помаранчева) ---
+        ctxWave.beginPath();
+        ctxWave.strokeStyle = '#ff9800'; 
+        for(let i=0; i<w; i++) {
+            let idxInWindow = Math.floor((i/w) * CFG.fftSize);
+            let globalIdx = windowStart + idxInWindow;
+            
+            if (globalIdx < compressedSignal.length) {
+                let val = compressedSignal[globalIdx] * 2;
+                if(i===0) ctxWave.moveTo(i, cy - val*50);
+                else ctxWave.lineTo(i, cy - val*50);
+            }
+        }
+        ctxWave.stroke();
+    }
+    // --- PLAYBACK ---
+    // Important: We cannot simply play the 1 window. We must play the full recorded buffer.
+    // BUT, for the "Compressed" version, applying FFT to the whole 1.5s buffer in JS is slow.
+    // Trick: We will play the *original* buffer for "Original",
+    // and for "Compressed", we will implement a simple Real-Time filter node 
+    // or just loop the visualized window (which sounds buzzy but demonstrates the timbre).
+    
+    // BETTER DECISION: Let's just process the whole 1.5s buffer using the same Threshold Logic
+    // but in chunks (Overlap-Add is too complex for this snippet).
+    // Simplified approach: We will just play the single "Window" looped.
+    // Why? Because that's exactly what the user Sees. Hearing the "Timbre of the frame".
+
+    function playBuffer(bufferData) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const src = audioCtx.createBufferSource();
+        const buf = audioCtx.createBuffer(1, bufferData.length, CFG.sampleRate);
+        buf.getChannelData(0).set(bufferData);
+        src.buffer = buf;
+        
+        // Fade edges to prevent clicking if looped (we won't loop)
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.5;
+        
+        src.connect(gain);
+        gain.connect(audioCtx.destination);
+        src.start();
+    }
+
+function playOriginal() {
+        if (!recordedData) return;
+        // Граємо повний записаний масив, а не шматочок FFT
+        playBuffer(recordedData);
+    }
+
+   function playCompressed() {
+        if (!compressedSignal) return;
+        playBuffer(compressedSignal);
+    }
+
+    // Init
+    window.addEventListener('resize', () => {
+        if(spectrumReal.length) updateCompression();
+    });
+
+</script>
+</body>
+</html>
