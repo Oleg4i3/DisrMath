@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Фруктова Комбінаторика 🍒</title>
+    <title> Комбінаторика 🍒</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
     <style>
         :root {
@@ -179,6 +179,48 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
+        /* JUICE MODE STYLES (NEW) */
+        .juice-pack {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        .juice-blob {
+            width: 30px; height: 30px;
+            border-radius: 5px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            margin-bottom: 4px;
+        }
+        .glass {
+            width: 30px;
+            height: 45px;
+            border: 2px solid #b2bec3;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            background: rgba(255,255,255,0.8);
+            display: inline-block;
+            margin: 4px;
+            position: relative;
+            vertical-align: middle;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .glass.empty {
+            background: repeating-linear-gradient(45deg, rgba(255,255,255,0.5), rgba(255,255,255,0.5) 5px, #f1f1f1 5px, #f1f1f1 10px);
+        }
+        .glass-liquid {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 75%;
+            border-radius: 0 0 8px 8px;
+            opacity: 0.9;
+            transition: height 0.3s;
+        }
+
         button.action-btn {
             background-color: var(--secondary);
             color: white;
@@ -263,7 +305,7 @@
 <body>
 
 <div class="container">
-    <h3>Фруктова Комбінаторика</h3>
+    <h3>Комбінаторика</h3>
     
     <div class="tabs" id="tabs">
         <button class="tab-btn active" onclick="setMode('perm')">🍹 Перестановки (Pₙ)</button>
@@ -272,6 +314,7 @@
         <button class="tab-btn" onclick="setMode('arr_rep')">🎰 Слот-машина (Ãₙᵏ)</button>
         <button class="tab-btn" onclick="setMode('comb')">🥣 Комбінації (Cₙᵏ)</button>
         <button class="tab-btn" onclick="setMode('comb_rep')">🐵 Банани та Друзі (C̃ₙᵏ)</button>
+        <button class="tab-btn" onclick="setMode('comb_rep_juice')">🥤 Соки та Склянки (C̃ₙᵏ)</button>
     </div>
 
     <div id="scenario-text" class="scenario-box">
@@ -303,8 +346,24 @@
 <script>
     // --- CONFIG & DATA ---
     let currentMode = 'perm';
-    const FRUITS = ['🍎','🍌','🍇','🍉','🍓','🍒','🍍','🥝','🍑','🍋'];
+    const FRUITS = ['🍎','🍌','🍇','🥝','🍍','🍉','🍓','🍒','🍑','🍋'];
     const PEOPLE = ['🐵','👴','👩','👨','👽','🤖']; // For banana mode
+
+    // Color mapping for Juice Mode
+  // Color mapping for Juice Mode
+    const JUICE_COLORS = {
+		'🥝': '#2ecc71', // Ківі (Яскраво-зелений)
+       	'🍓': '#c0392b', // Полуниця (Темно-бордовий)
+        '🍌': '#f1c40f', // Банан (Жовтий)
+        '🍇': '#8e44ad', // Виноград (Фіолетовий)
+		'🍍': '#f39c12', // Ананас (Помаранчевий)
+        '🍉': '#ff9ff3', // Кавун (Неоново-рожевий - для контрасту)
+         '🍎': '#e74c3c', // Яблуко (Яскраво-червоний)
+        '🍒': '#2c3e50', // Вишня (Темно-синій/Чорний, як черешня - щоб відрізнялась від яблука)
+            
+        '🍑': '#ffcccc', // Персик (Блідо-рожевий)
+        '🍋': '#f6e58d'  // Лимон (Блідо-жовтий)
+    };
 
     // State for multiset inputs (Fruit Salad)
     let multisetState = [
@@ -318,7 +377,8 @@
         arr: "🏆 <b>Конкурс краси:</b> У нас є купа фруктів, але призових місць лише декілька (1-ше, 2-ге...). Хто переможе?",
         arr_rep: "🎰 <b>Фруктовий замок:</b> Кодовий замок на холодильнику! На кожному колесі (K) є всі види фруктів (N). Фрукти можуть повторюватись.",
         comb: "🥣 <b>Фруктовий салат:</b> Кидаємо фрукти в миску. Порядок не важливий — головне, що всередині. (Яблуко+Груша = Груша+Яблуко).",
-        comb_rep: "🍌 <b>Роздача бананів:</b> У нас є запас бананів (K). Ми роздаємо їх персонажам (N). Кому скільки дістанеться?"
+        comb_rep: "🍌 <b>Роздача бананів:</b> У нас є запас бананів (K). Ми роздаємо їх персонажам (N). Кому скільки дістанеться?",
+        comb_rep_juice: "🥤 <b>Соковий бар:</b> У нас є види соків (N) та однакові порожні склянки (K). Наповнюємо склянки соком. Які набори напоїв ми можемо отримати?"
     };
 
     // --- INIT ---
@@ -378,6 +438,11 @@
                        getInputHtml('Бананів роздати (K):', 'inp-k', 4, 1, 8);
                 formula = '$$ \\tilde{C}_n^k = C_{n+k-1}^k $$';
                 break;
+            case 'comb_rep_juice':
+                html = getInputHtml('Види соків (N):', 'inp-n', 3, 1, 6) + 
+                       getInputHtml('Склянок (K):', 'inp-k', 4, 1, 8);
+                formula = '$$ \\tilde{C}_n^k = C_{n+k-1}^k = \\frac{(n+k-1)!}{k!(n-1)!} $$';
+                break;
         }
 
         container.innerHTML = html;
@@ -430,12 +495,33 @@
         if(nEl) n = parseInt(nEl.value);
         if(kEl) k = parseInt(kEl.value);
 
+        // Visual Helper function
+        const makeGroup = (label, content) => `<div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;"><span style="font-size:0.9rem; font-weight:bold; color:#666; text-transform:uppercase;">${label}:</span> ${content}</div>`;
+
         if(currentMode === 'comb_rep') {
             // Special Banana Mode
             let pplHtml = '';
             for(let i=0; i<n; i++) pplHtml += `<span class="fruit-icon">${PEOPLE[i] || '?'}</span>`;
             container.innerHTML = `<div>Власники (N=${n}): ${pplHtml}</div>`;
             container.innerHTML += `<div style="margin-top:5px; font-size:1rem; color:#666">Роздаємо 🍌: ${k} шт.</div>`;
+            return;
+        }
+
+        if(currentMode === 'comb_rep_juice') {
+            // New Juice Mode
+            let juiceHtml = '';
+            for(let i=0; i<n; i++) {
+                const fruit = FRUITS[i] || '?';
+                const color = JUICE_COLORS[fruit] || '#ccc';
+                juiceHtml += `<div class="juice-pack"><div class="juice-blob" style="background:${color}"></div><span>${fruit}</span></div>`;
+            }
+            container.innerHTML = makeGroup(`Соки (N=${n})`, juiceHtml);
+            
+            let glassesHtml = '';
+            for(let i=0; i<k; i++) {
+                glassesHtml += `<div class="glass empty"></div>`;
+            }
+            container.innerHTML += makeGroup(`Склянки (K=${k})`, glassesHtml);
             return;
         }
 
@@ -484,8 +570,8 @@
         else if (currentMode === 'arr_rep') {
             latex = `$$ \\tilde{A}_{${n}}^{${k}} = ${n}^{${k}} = ${Math.pow(n, k)} $$`;
         }
-        else if (currentMode === 'comb_rep') {
-            // Banana math
+        else if (currentMode === 'comb_rep' || currentMode === 'comb_rep_juice') {
+            // Banana math & Juice math
             let top = n + k - 1;
             let val = Math.round(fact(top) / (fact(k) * fact(top-k)));
             latex = `$$ \\tilde{C}_{${n}}^{${k}} = C_{${top}}^{${k}} = \\frac{${top}!}{${k}!${n-1}!} = ${val} $$`;
@@ -564,23 +650,23 @@
                     results = getArrangementsRep(FRUITS.slice(0, n), k);
                 }
                 else if (currentMode === 'comb_rep') {
-                    // Special logic: Banana Distribution
-                    // We are distributing K bananas among N owners.
-                    // Mathematically equivalent to choosing K items from N types with repetition.
+                    // Banana Distribution
                     const n = parseInt(document.getElementById('inp-n').value); // Owners
                     const k = parseInt(document.getElementById('inp-k').value); // Bananas
                     const owners = PEOPLE.slice(0, n);
-                    // Get raw combinations of owners
                     const rawCombs = getCombinationsRep(owners, k);
-                    
-                    // Format them for display
                     results = rawCombs.map(comb => {
-                        // Count how many bananas each owner got in this combination
                         let distribution = {};
                         owners.forEach(o => distribution[o] = 0);
                         comb.forEach(o => distribution[o]++);
                         return { type: 'banana_dist', data: distribution };
                     });
+                }
+                else if (currentMode === 'comb_rep_juice') {
+                    // Juice & Glasses (same logic as generic CombRep with balls)
+                    const n = parseInt(document.getElementById('inp-n').value);
+                    const k = parseInt(document.getElementById('inp-k').value);
+                    results = getCombinationsRep(FRUITS.slice(0, n), k);
                 }
                 else if (currentMode === 'perm_rep') {
                     let pool = [];
@@ -591,7 +677,7 @@
                     results = getUniquePermutations(pool);
                 }
 
-                stats.innerText = `🍌 Всього варіантів: ${results.length}`;
+                stats.innerText = `⚡ Всього варіантів: ${results.length}`;
                 
                 if(results.length > limit) {
                     warning.innerText = `Показано перші ${limit}. Решта не вмістилася.`;
@@ -611,7 +697,6 @@
                     } 
                     else if (currentMode === 'comb_rep') {
                         // Banana owners look
-                        // res is { type: 'banana_dist', data: { '🐵': 2, '👩': 1 } }
                         let html = '';
                         for (const [owner, count] of Object.entries(res.data)) {
                             if(count > 0) {
@@ -619,6 +704,15 @@
                                 html += `<div class="banana-group"><span class="banana-owner">${owner}</span><span class="banana-item">${bananas}</span></div>`;
                             }
                         }
+                        itemDiv.innerHTML = html;
+                    }
+                    else if (currentMode === 'comb_rep_juice') {
+                        // Juice Glasses look
+                        let html = '';
+                        res.forEach(fruit => {
+                             const color = JUICE_COLORS[fruit] || '#ccc';
+                             html += `<div class="glass" title="${fruit}"><div class="glass-liquid" style="background:${color}"></div></div>`;
+                        });
                         itemDiv.innerHTML = html;
                     }
                     else {
@@ -699,11 +793,11 @@
     function getCombinationsRep(arr, k) {
         if (k === 0) return [[]];
         if (arr.length === 0) return [];
-        let head = arr[0]; // This represents an Owner type
+        let head = arr[0]; // This represents an Owner type (or Juice Type)
         let tail = arr.slice(1);
-        // Option 1: Give a banana to 'head' (re-use head as option)
+        
         let withHead = getCombinationsRep(arr, k - 1).map(c => [head, ...c]);
-        // Option 2: Don't give any more to 'head' (move to tail)
+        
         let withoutHead = getCombinationsRep(tail, k);
         return withHead.concat(withoutHead);
     }
