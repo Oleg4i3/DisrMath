@@ -37,8 +37,8 @@
         
         header {
             text-align: center;
-            margin-bottom: 5px;
-            padding: 5px;
+            margin-bottom: 30px;
+            padding: 20px;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
             border-radius: 10px;
@@ -268,6 +268,17 @@
             background-color: #f8d7da;
             border-color: var(--danger);
         }
+
+        /* Стиль для пояснення помилки */
+        .answer-explanation {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff3f3;
+            border-left: 4px solid var(--danger);
+            color: #c0392b;
+            font-size: 0.95rem;
+            display: none; /* Приховано за замовчуванням */
+        }
         
         .test-controls {
             display: flex;
@@ -401,7 +412,7 @@
 <body>
     <div class="container">
         <header>
-          
+            <h1>Симулятор обчислювальної складності</h1>
             <p>Обчислювальна складність</p>
         </header>
         
@@ -426,8 +437,7 @@
             </div>
             
             <div class="time-calculations">
-                <!-- Буде заповнено JavaScript -->
-            </div>
+                </div>
             
             <div class="examples">
                 <h2>Приклади алгоритмів за складністю</h2>
@@ -618,8 +628,7 @@
             </div>
             
             <div class="test-container" id="testQuestions">
-                <!-- Питання будуть додані через JavaScript -->
-            </div>
+                </div>
             
             <div class="test-controls">
                 <button id="checkAnswers">Перевірити відповіді</button>
@@ -651,56 +660,68 @@
         ];
 
         // Дані для тесту
+        // ЗМІНЕНО: Прибрано питання про графи, додано пояснення та загальні питання
+       // Дані для тесту
         const testQuestions = [
             {
                 question: "Яка складність пошуку елемента у відсортованому масиві за допомогою бінарного пошуку?",
                 options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"],
-                correct: 1
+                correct: 1,
+                explanation: "Бінарний пошук ділить діапазон пошуку навпіл на кожному кроці, що дає логарифмічну складність O(log n)."
             },
             {
                 question: "Яка складність алгоритму сортування бульбашкою в найгіршому випадку?",
                 options: ["O(n)", "O(n log n)", "O(n²)", "O(2ⁿ)"],
-                correct: 2
+                correct: 2,
+                explanation: "Сортування бульбашкою використовує два вкладених цикли для перебору елементів, що призводить до квадратичної складності O(n²)."
             },
             {
                 question: "Яка складність множення двох матриць розміром n×n наївним методом?",
                 options: ["O(n)", "O(n²)", "O(n³)", "O(2ⁿ)"],
-                correct: 2
+                correct: 2,
+                explanation: "Наївний метод множення матриць потребує трьох вкладених циклів (по рядках, по стовпцях і для скалярного добутку), тому складність O(n³)."
             },
             {
                 question: "Яка складність алгоритму швидкого сортування в середньому випадку?",
                 options: ["O(n)", "O(n log n)", "O(n²)", "O(n³)"],
-                correct: 1
+                correct: 1,
+                explanation: "В середньому випадку швидке сортування розділяє масив на частини та рекурсивно сортує їх, що дає O(n log n). В найгіршому — O(n²)."
             },
             {
                 question: "Яка складність пошуку елемента у невпорядкованому масиві в найгіршому випадку?",
                 options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
-                correct: 2
+                correct: 2,
+                explanation: "У невпорядкованому масиві ми змушені перевірити кожен елемент по черзі, тому складність лінійна O(n)."
             },
             {
-                question: "Яка складність алгоритму для задачі комівояжера методом повного перебору?",
-                options: ["O(n²)", "O(n³)", "O(2ⁿ)", "O(n!)"],
-                correct: 3
+                question: "Скільки варіантів паролів треба перебрати, якщо пароль має довжину n, і кожен символ обирається з n можливих літер?",
+                options: ["O(n!)", "O(2ⁿ)", "O(n^n)", "O(n³)"],
+                correct: 2,
+                explanation: "На кожну з n позицій можна поставити одну з n літер. Це n × n × ... × n (n разів) = n^n варіантів."
             },
             {
                 question: "Яка складність доступу до елемента масиву за індексом?",
                 options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
-                correct: 0
+                correct: 0,
+                explanation: "Доступ за індексом — це пряме звернення до пам'яті за допомогою адресної арифметики, що виконується миттєво: O(1)."
             },
             {
-                question: "Яка складність алгоритму Дейкстри для пошуку найкоротшого шляху в графі з n вершинами?",
-                options: ["O(n)", "O(n log n)", "O(n²)", "O(n³)"],
-                correct: 1
+                question: "Скільки операцій потрібно, щоб згенерувати всі можливі підмножини множини з n елементів?",
+                options: ["O(n)", "O(n²)", "O(2ⁿ)", "O(n!)"],
+                correct: 2,
+                explanation: "Кожен елемент може бути або включений у підмножину, або ні (2 варіанти). Для n елементів це дає 2^n комбінацій."
             },
             {
-                question: "Яка складність алгоритму пошуку в глибину в графі з n вершинами та m ребрами?",
-                options: ["O(n)", "O(m)", "O(n + m)", "O(n × m)"],
-                correct: 2
+                question: "Якщо алгоритм має три вкладені цикли, кожен з яких виконується n разів, яка його складність?",
+                options: ["O(n)", "O(3n)", "O(n³)", "O(log n)"],
+                correct: 2,
+                explanation: "Вкладеність циклів призводить до множення їх складностей. n * n * n = n³."
             },
             {
-                question: "Яка складність алгоритму обчислення чисел Фібоначчі за допомогою динамічного програмування?",
+                question: "Яка складність алгоритму обчислення суми всіх елементів масиву розміром n?",
                 options: ["O(1)", "O(n)", "O(2ⁿ)", "O(n!)"],
-                correct: 1
+                correct: 1,
+                explanation: "Щоб знайти суму, потрібно відвідати кожен елемент масиву рівно один раз і додати його до загальної суми: O(n)."
             }
         ];
 
@@ -882,10 +903,12 @@
         // Ініціалізація тесту
         function initializeTest() {
             const testContainer = document.getElementById('testQuestions');
+            testContainer.innerHTML = ''; // Очищення контейнера перед ініціалізацією
             
             testQuestions.forEach((question, index) => {
                 const questionElement = document.createElement('div');
                 questionElement.className = `single-question ${index === 0 ? 'active' : ''}`;
+                // ЗМІНЕНО: Додано div class="answer-explanation"
                 questionElement.innerHTML = `
                     <div class="question-text">${index + 1}. ${question.question}</div>
                     <div class="options">
@@ -894,6 +917,9 @@
                                 ${option}
                             </div>
                         `).join('')}
+                    </div>
+                    <div class="answer-explanation" id="explanation-${index}">
+                        <strong>Помилка!</strong> ${question.explanation}
                     </div>
                 `;
                 testContainer.appendChild(questionElement);
@@ -979,6 +1005,7 @@
             testQuestions.forEach((question, index) => {
                 const selectedOption = selectedOptions[index];
                 const options = document.querySelectorAll(`.option[data-question="${index}"]`);
+                const explanationDiv = document.getElementById(`explanation-${index}`);
                 
                 if (selectedOption !== undefined) {
                     options.forEach((option, optIndex) => {
@@ -991,14 +1018,22 @@
                     
                     if (selectedOption === question.correct) {
                         correctCount++;
+                    } else {
+                        // ЗМІНЕНО: Якщо відповідь неправильна, показуємо пояснення
+                        if (explanationDiv) {
+                            explanationDiv.style.display = 'block';
+                        }
                     }
                 } else {
-                    // Якщо відповідь не вибрана, показуємо правильну
+                    // Якщо відповідь не вибрана, показуємо правильну і пояснення
                     options.forEach((option, optIndex) => {
                         if (optIndex === question.correct) {
                             option.classList.add('correct');
                         }
                     });
+                     if (explanationDiv) {
+                        explanationDiv.style.display = 'block';
+                    }
                 }
             });
             
@@ -1017,9 +1052,9 @@
             } else if (correctCount >= testQuestions.length * 0.7) {
                 message = 'Добре! Ви добре розумієте основи обчислювальної складності.';
             } else if (correctCount >= testQuestions.length * 0.5) {
-                message = 'Задовільно. Рекомендуємо повторити матеріал.';
+                message = 'Задовільно. Рекомендуємо повторити матеріал та переглянути пояснення до помилок.';
             } else {
-                message = 'Потрібно більше практики з аналізом складності алгоритмів.';
+                message = 'Потрібно більше практики. Будь ласка, ознайомтеся з поясненнями до помилок.';
             }
             
             resultMessage.textContent = message;
@@ -1038,6 +1073,11 @@
             // Скидаємо виділення варіантів
             document.querySelectorAll('.option').forEach(option => {
                 option.classList.remove('selected', 'correct', 'incorrect');
+            });
+
+            // ЗМІНЕНО: Ховаємо пояснення
+            document.querySelectorAll('.answer-explanation').forEach(div => {
+                div.style.display = 'none';
             });
             
             // Показуємо перше питання
