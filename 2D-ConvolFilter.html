@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Згорткового Фільтра</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            margin-top: 20px;
+        }
+        .controls, .image-section {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .controls {
+            flex: 1;
+            min-width: 320px;
+        }
+        .image-section {
+            flex: 2;
+            min-width: 450px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            background-color: #eee;
+            cursor: crosshair; /* Default cursor for canvas */
+            display: block; /* Remove extra space below canvas */
+        }
+        canvas.selecting-roi {
+            cursor: crosshair;
+        }
+        select, button, input[type="file"], input[type="range"] {
+            padding: 10px;
+            margin: 8px 0;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #resetBtn { background-color: #dc3545; }
+        #resetBtn:hover { background-color: #c82333; }
+        #toggleRoiBtn, #applyRoiZoomBtn { background-color: #28a745; }
+        #toggleRoiBtn:hover, #applyRoiZoomBtn:hover { background-color: #218838; }
+
+        .kernel-grid {
+            display: grid;
+            gap: 5px;
+            margin: 10px 0;
+            width: 100%;
+        }
+        .kernel-grid.grid-3x3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .kernel-grid.grid-5x5 {
+            grid-template-columns: repeat(5, 1fr);
+        }
+        .kernel-grid input {
+            width: 100%;
+            text-align: center;
+            padding: 5px;
+            font-size: 0.9em;
+        }
+        .info-box {
+            background-color: #e9ecef;
+            border-left: 5px solid #007bff;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        .theory {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .theory h3 { color: #0056b3; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.9em;
+        }
+        table, th, td {
+            border: 1px solid #dee2e6;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            vertical-align: top;
+        }
+        th {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+        code {
+            background-color: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <h2>Симулятор згорткового фільтра</h2>
+    
+    <div class="container">
+        <div class="controls">
+            <h3>Виберіть невеликий(!) малюнок</h3>
+            <input type="file" id="imageUpload" accept="image/*">
+            
+            <h3>Розмір ядра</h3>
+            <select id="kernelSizeSelect">
+                <option value="3x3">3x3</option>
+                <option value="5x5">5x5</option>
+            </select>
+
+            <h3>Пресети фільтрів</h3>
+            <select id="presetSelect">
+                <option value="custom">Користувацький</option>
+                <option value="identity">Ідентичність</option>
+                <option value="blur">Розмиття (Average)</option>
+                <option value="gaussian">Гаусівське розмиття</option>
+                <option value="sharpen">Підвищення різкості</option>
+                <option value="edge">Детектор країв (Laplacian)</option>
+                <option value="prewittH">Prewitt (горизонтальний)</option>
+                <option value="prewittV">Prewitt (вертикальний)</option>
+                <option value="highPass">Високочастотний</option>
+                <option value="emboss">Тиснення (Emboss)</option>
+                <option value="motionBlur">Розмиття в русі (по діагоналі)</option>
+            </select>
+            
+            <h3>Користувацька матриця <span id="kernelSizeLabel">3×3</span></h3>
+            <div id="kernelInputs" class="kernel-grid grid-3x3">
+                </div>
+            <button id="normalizeBtn">Нормалізувати ядро</button>
+            <div class="info-box">
+                <p><strong>Нормалізація ядра:</strong> Ділить кожен елемент ядра на суму всіх його елементів. Це запобігає зміні загальної яскравості зображення. **Увага:** Не всі фільтри (наприклад, детектори країв) потребують нормалізації, і вона може змінити їхній ефект.</p>
+            </div>
+            
+            <button id="applyBtn">Застосувати фільтр</button>
+            <button id="resetBtn">Скинути зображення</button>
+        </div>
+        
+        <div class="image-section">
+            <h2>Результат</h2>
+            <canvas id="canvas"></canvas>
+            <div>
+                <h3>Оригінал ↔ Результат</h3>
+                <input type="range" id="compareSlider" min="0" max="100" value="100">
+            </div>
+            <button id="toggleRoiBtn">Увімкнути/Вимкнути вибір ROI</button>
+            <button id="applyRoiZoomBtn" style="display: none;">Застосувати ROI Zoom</button>
+            <div class="info-box">
+                <p id="roiHint">Підказка: Натисніть кнопку вище, а потім виділіть мишею регіон на зображенні. Після вибору ROI з'явиться кнопка "Застосувати ROI Zoom".</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="theory">
+        <h2>Теоретичні відомості</h2>
+        <p><strong>Згортковий фільтр</strong> - це метод обробки зображень, який застосовує невелику матрицю (називається <strong>ядром</strong> або <strong>фільтром</strong>) до кожного пікселя зображення та його сусідів. Це базова операція в комп'ютерному зорі для таких завдань, як розмиття, підвищення різкості, виявлення країв тощо.</p>
+        
+        <h3>Формула Згортки</h3>
+        <p>Для пікселя з координатами \((x, y)\), значення вихідного пікселя \(\text{output}(x,y)\) розраховується як сума добутків елементів ядра на відповідні пікселі вхідного зображення:</p>
+        <p class="math-formula">
+            \[ \text{output}(x,y) = \sum_{i=-\lfloor K/2 \rfloor}^{\lfloor K/2 \rfloor} \sum_{j=-\lfloor K/2 \rfloor}^{\lfloor K/2 \rfloor} \text{kernel}(i,j) \cdot \text{input}(x+i, y+j) \]
+        </p>
+        <p>Де \(K\) - розмір ядра (наприклад, 3 для 3x3 ядра), \(\text{kernel}(i,j)\) - значення у матриці фільтра, \(\text{input}(x,y)\) - значення пікселя оригінального зображення.</p>
+        
+        <h3>Приклади ядер фільтрів:</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Тип фільтра</th>
+                    <th>Типове Ядро (3x3)</th>
+                    <th>Ефект</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Ідентичність</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} 0 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{bmatrix} \]
+                    </td>
+                    <td>Зображення залишається без змін. Центр ядра 1, решта 0.</td>
+                </tr>
+                <tr>
+                    <td><strong>Розмиття (Average)</strong></td>
+                    <td>
+                        \[ \frac{1}{9} \begin{bmatrix} 1 & 1 & 1 \\ 1 & 1 & 1 \\ 1 & 1 & 1 \end{bmatrix} \]
+                    </td>
+                    <td>Згладжує зображення, усереднюючи значення пікселів у вікні ядра.</td>
+                </tr>
+                <tr>
+                    <td><strong>Гаусівське розмиття</strong></td>
+                    <td>
+                        \[ \frac{1}{16} \begin{bmatrix} 1 & 2 & 1 \\ 2 & 4 & 2 \\ 1 & 2 & 1 \end{bmatrix} \]
+                    </td>
+                    <td>Розмиття з ваговим усередненням, де центральні пікселі мають більший вплив. Це створює більш "природне" розмиття.</td>
+                </tr>
+                <tr>
+                    <td><strong>Підвищення різкості</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} 0 & -1 & 0 \\ -1 & 5 & -1 \\ 0 & -1 & 0 \end{bmatrix} \]
+                    </td>
+                    <td>Підкреслює межі та деталі, збільшуючи контраст між сусідніми пікселями.</td>
+                </tr>
+                <tr>
+                    <td><strong>Детектор країв (Laplacian)</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} -1 & -1 & -1 \\ -1 & 8 & -1 \\ -1 & -1 & -1 \end{bmatrix} \]
+                    </td>
+                    <td>Виділяє контури та зміни інтенсивності в зображенні.</td>
+                </tr>
+                <tr>
+                    <td><strong>Prewitt (горизонтальний)</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} -1 & -1 & -1 \\ 0 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \]
+                    </td>
+                    <td>Виділяє горизонтальні краї. Простіший за Собеля, але теж ефективний.</td>
+                </tr>
+                <tr>
+                    <td><strong>Prewitt (вертикальний)</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} -1 & 0 & 1 \\ -1 & 0 & 1 \\ -1 & 0 & 1 \end{bmatrix} \]
+                    </td>
+                    <td>Виділяє вертикальні краї.</td>
+                </tr>
+                <tr>
+                    <td><strong>Високочастотний (High Pass)</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} 0 & -1 & 0 \\ -1 & 4 & -1 \\ 0 & -1 & 0 \end{bmatrix} \]
+                    </td>
+                    <td>Підсилює деталі та контури, роблячи зображення "чіткішим", але може підсилювати шум.</td>
+                </tr>
+                <tr>
+                    <td><strong>Тиснення (Emboss)</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} -2 & -1 & 0 \\ -1 & 1 & 1 \\ 0 & 1 & 2 \end{bmatrix} \]
+                    </td>
+                    <td>Створює ефект "тиснення" або рельєфу, підкреслюючи краї та надаючи зображенню тривимірний вигляд.</td>
+                </tr>
+                 <tr>
+                    <td><strong>Розмиття в русі (по діагоналі)</strong></td>
+                    <td>
+                        \[ \begin{bmatrix} 1 & 0 & -1 \\ 0 & 1 & 0 \\ -1 & 0 & 1 \end{bmatrix} \]
+                    </td>
+                    <td>Імітує розмиття, спричинене рухом по діагоналі.</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Додаткові Концепції:</h3>
+        <ul>
+            <li><strong>Padding (відступи):</strong> Додавання нульових пікселів по периметру зображення для збереження його розміру після згортки.</li>
+            <li><strong>Stride (крок):</strong> Відстань, на яку ядро переміщується між операціями згортки. Більший крок зменшує розмір вихідного зображення.</li>
+            <li><strong>Регіон Інтересу (ROI):</strong> Можливість вибору частини зображення, яка буде збільшена на весь розмір canvas для детальнішої обробки фільтром.</li>
+        </ul>
+    </div>
+
+    <script>
+        // DOM Elements
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const imageUpload = document.getElementById('imageUpload');
+        const kernelSizeSelect = document.getElementById('kernelSizeSelect');
+        const kernelSizeLabel = document.getElementById('kernelSizeLabel');
+        const presetSelect = document.getElementById('presetSelect');
+        const kernelInputsDiv = document.getElementById('kernelInputs'); // Parent for kernel inputs
+        const normalizeBtn = document.getElementById('normalizeBtn');
+        const applyBtn = document.getElementById('applyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const compareSlider = document.getElementById('compareSlider');
+        const toggleRoiBtn = document.getElementById('toggleRoiBtn');
+        const applyRoiZoomBtn = document.getElementById('applyRoiZoomBtn');
+        const roiHint = document.getElementById('roiHint');
+
+        // State Variables
+        let originalImage = null; // Stores the original loaded Image object (never modified by ROI zoom)
+        let currentDisplayedImage = null; // Stores the Image object currently rendered as "original" on canvas (can be originalImage or zoomed ROI)
+        let filteredImage = null; // Stores the filtered Image object for comparison
+        let currentKernelSize = 3; // Default 3x3
+        let currentKernelInputs = []; // Array to hold references to input elements
+        let isDrawingRoi = false;
+        let roiStart = { x: 0, y: 0 };
+        let roiEnd = { x: 0, y: 0 };
+        let currentROI = null; // { x, y, width, height } - always relative to originalImage dimensions
+        let roiEnabled = false;
+
+        // Default Image Path (place 'default_image.jpg' in the same directory)
+        // Ensure you have an image file named 'default_image.jpg' in the same folder as this HTML file.
+        const DEFAULT_IMAGE_PATH = 'default_image.jpg'; 
+
+        // Filter Presets (defined for 3x3 and 5x5)
+        const presets = {
+            identity: {
+                '3x3': [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                '5x5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            },
+            blur: { // Simple average blur
+                '3x3': [1/9, 1/9, 1/9, 1/9, 1/9, 1/9, 1/9, 1/9, 1/9],
+                '5x5': Array(25).fill(1/25),
+            },
+            gaussian: { // Gaussian blur
+                '3x3': [1/16, 2/16, 1/16, 2/16, 4/16, 2/16, 1/16, 2/16, 1/16],
+                '5x5': (function() { // Self-executing function to calculate 5x5 Gaussian
+                    const k = [
+                        1,  4,  7,  4, 1,
+                        4, 16, 26, 16, 4,
+                        7, 26, 41, 26, 7,
+                        4, 16, 26, 16, 4,
+                        1,  4,  7,  4, 1
+                    ];
+                    const sum = k.reduce((a, b) => a + b, 0);
+                    return k.map(val => val / sum);
+                })(),
+            },
+            sharpen: {
+                '3x3': [0, -1, 0, -1, 5, -1, 0, -1, 0],
+                '5x5': [ // A common 5x5 sharpen
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1,
+                    -1, -1, 25, -1, -1,
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1
+                ],
+            },
+            edge: { // Laplacian
+                '3x3': [-1, -1, -1, -1, 8, -1, -1, -1, -1],
+                '5x5': [ // Extended Laplacian (approximate)
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1,
+                    -1, -1, 24, -1, -1, // Sum is 24 + 16*(-1) = 8
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1
+                ],
+            },
+            prewittH: { // Prewitt Horizontal
+                '3x3': [-1, -1, -1, 0, 0, 0, 1, 1, 1],
+                '5x5': [ // 5x5 Prewitt H
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1,
+                     0,  0,  0,  0,  0,
+                     1,  1,  1,  1,  1,
+                     1,  1,  1,  1,  1
+                ],
+            },
+            prewittV: { // Prewitt Vertical
+                '3x3': [-1, 0, 1, -1, 0, 1, -1, 0, 1],
+                '5x5': [ // 5x5 Prewitt V
+                    -1, 0, 0, 0, 1,
+                    -1, 0, 0, 0, 1,
+                    -1, 0, 0, 0, 1,
+                    -1, 0, 0, 0, 1,
+                    -1, 0, 0, 0, 1
+                ],
+            },
+            highPass: { // High Pass filter
+                '3x3': [0, -1, 0, -1, 4, -1, 0, -1, 0],
+                '5x5': [ // Extended High Pass (approximate)
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1,
+                    -1, -1, 24, -1, -1, // Sum is 4, same as 3x3 high pass
+                    -1, -1, -1, -1, -1,
+                    -1, -1, -1, -1, -1
+                ],
+            },
+            emboss: {
+                '3x3': [-2, -1, 0, -1, 1, 1, 0, 1, 2],
+                '5x5': [ // Simple 5x5 Emboss
+                    -2, -2, -1, -1, 0,
+                    -2, -1, -1, 0, 1,
+                    -1, -1, 0, 1, 1,
+                    -1, 0, 1, 1, 2,
+                     0, 1, 1, 2, 2
+                ],
+            },
+            motionBlur: { // Diagonal motion blur
+                '3x3': [1, 0, -1, 0, 1, 0, -1, 0, 1],
+                '5x5': [ // 5x5 Diagonal motion blur
+                    1, 0, 0, 0, -1,
+                    0, 1, 0, -1, 0,
+                    0, 0, 1, 0, 0,
+                    0, -1, 0, 1, 0,
+                    -1, 0, 0, 0, 1
+                ],
+            }
+        };
+
+        // --- Initialization and Event Listeners ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            generateKernelInputs(currentKernelSize); // Generate 3x3 inputs on load
+            loadDefaultImage(); // Load default image
+            // Re-render MathJax after content changes
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typeset();
+            }
+        });
+
+        imageUpload.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        originalImage = img;
+                        currentDisplayedImage = originalImage; // Reset currentDisplayedImage
+                        currentROI = null; // Clear ROI when new image is loaded
+                        resetCanvas(); // This will redraw original and apply filter
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        kernelSizeSelect.addEventListener('change', function() {
+            currentKernelSize = parseInt(this.value.charAt(0)); // Extract 3 or 5
+            kernelSizeLabel.textContent = `${currentKernelSize}×${currentKernelSize}`;
+            generateKernelInputs(currentKernelSize);
+            setPreset('identity'); // Reset to identity when size changes
+            presetSelect.value = 'identity';
+            if (currentDisplayedImage) applyFilter(); // Apply filter to current displayed image
+        });
+
+        presetSelect.addEventListener('change', function() {
+            setPreset(this.value);
+            if (currentDisplayedImage) applyFilter(); // Apply filter to current displayed image
+        });
+
+        normalizeBtn.addEventListener('click', normalizeKernel);
+        applyBtn.addEventListener('click', applyFilter);
+        resetBtn.addEventListener('click', resetCanvas);
+
+        compareSlider.addEventListener('input', updateCompareSlider);
+        toggleRoiBtn.addEventListener('click', toggleRoiSelection);
+        applyRoiZoomBtn.addEventListener('click', applyRoiZoom);
+
+        // --- Canvas ROI Selection ---
+        canvas.addEventListener('mousedown', (e) => {
+            if (!roiEnabled || !currentDisplayedImage) return; // Only allow selection if ROI enabled and image exists
+            isDrawingRoi = true;
+            const rect = canvas.getBoundingClientRect();
+            // Convert mouse coordinates to canvas coordinates (scaled)
+            roiStart.x = Math.floor((e.clientX - rect.left) / rect.width * canvas.width);
+            roiStart.y = Math.floor((e.clientY - rect.top) / rect.height * canvas.height);
+            roiEnd.x = roiStart.x;
+            roiEnd.y = roiStart.y;
+            applyRoiZoomBtn.style.display = 'none'; // Hide zoom button during new selection
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawingRoi) return;
+            const rect = canvas.getBoundingClientRect();
+            roiEnd.x = Math.floor((e.clientX - rect.left) / rect.width * canvas.width);
+            roiEnd.y = Math.floor((e.clientY - rect.top) / rect.height * canvas.height);
+            drawCurrentStateAndROI();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isDrawingRoi) {
+                isDrawingRoi = false;
+                const x = Math.min(roiStart.x, roiEnd.x);
+                const y = Math.min(roiStart.y, roiEnd.y);
+                const width = Math.abs(roiEnd.x - roiStart.x);
+                const height = Math.abs(roiEnd.y - roiStart.y);
+
+                if (width > 5 && height > 5) { // Minimum size for a valid ROI
+                    currentROI = { x, y, width, height };
+                    applyRoiZoomBtn.style.display = 'block'; // Show zoom button
+                } else {
+                    currentROI = null; // Clear ROI if too small
+                    applyRoiZoomBtn.style.display = 'none'; // Hide zoom button
+                }
+                drawCurrentStateAndROI(); // Final draw to clear temporary rect if too small
+            }
+        });
+
+        // --- Core Functions ---
+
+        function loadDefaultImage() {
+            const img = new Image();
+            img.onload = function() {
+                originalImage = img;
+                currentDisplayedImage = originalImage; // Initial display is the original image
+                currentROI = null; // Ensure no ROI is set on initial load
+                resetCanvas();
+                applyFilter(); // Apply default filter
+            };
+            img.onerror = function() {
+                console.error(`Failed to load default image from ${DEFAULT_IMAGE_PATH}. Please ensure it exists in the same directory.`);
+                // Optionally display a message to the user
+            };
+            img.src = DEFAULT_IMAGE_PATH;
+        }
+
+        function generateKernelInputs(size) {
+            kernelInputsDiv.innerHTML = '';
+            currentKernelInputs = [];
+            const numInputs = size * size;
+            kernelInputsDiv.className = `kernel-grid grid-${size}x${size}`;
+
+            for (let i = 0; i < numInputs; i++) {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.step = '0.0001'; // Allow more precision for kernel values
+                // Set default values (identity for 3x3, extended for 5x5)
+                if (size === 3) {
+                    input.value = (i === 4) ? 1 : 0; // Center is 1 for identity, others 0
+                } else if (size === 5) {
+                    input.value = (i === Math.floor(numInputs / 2)) ? 1 : 0; // Center 1, others 0
+                }
+                input.addEventListener('input', () => presetSelect.value = 'custom'); // Set to custom if user changes
+                kernelInputsDiv.appendChild(input);
+                currentKernelInputs.push(input);
+            }
+        }
+
+        function setPreset(presetName) {
+            const presetKernel = presets[presetName]?.[`${currentKernelSize}x${currentKernelSize}`];
+
+            if (presetKernel) {
+                currentKernelInputs.forEach((input, i) => {
+                    input.value = (presetKernel[i] !== undefined) ? presetKernel[i].toFixed(4) : 0;
+                });
+            } else {
+                // Fallback to identity if no specific preset for current size
+                console.warn(`Preset ${presetName} not fully defined for ${currentKernelSize}x${currentKernelSize}. Falling back to identity.`);
+                const identityKernel = presets['identity'][`${currentKernelSize}x${currentKernelSize}`];
+                currentKernelInputs.forEach((input, i) => {
+                    input.value = (identityKernel[i] !== undefined) ? identityKernel[i].toFixed(4) : 0;
+                });
+            }
+        }
+
+        function normalizeKernel() {
+            const kernelValues = currentKernelInputs.map(input => parseFloat(input.value));
+            const sum = kernelValues.reduce((acc, val) => acc + val, 0);
+
+            if (Math.abs(sum) < 0.0001) { // Check for sum close to zero
+                alert('Сума елементів ядра дуже близька до нуля. Нормалізація неможлива без потенційного переповнення або втрати значущості.');
+                return;
+            }
+
+            currentKernelInputs.forEach((input, i) => {
+                input.value = (kernelValues[i] / sum).toFixed(4); // Update input field values
+            });
+            if (currentDisplayedImage) applyFilter();
+        }
+
+        function resetCanvas() {
+            if (!originalImage) return;
+            
+            currentDisplayedImage = originalImage; // Always revert to the full original image
+            
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear before drawing
+            ctx.drawImage(originalImage, 0, 0);
+            compareSlider.value = 100; // Show filtered by default after reset/initial load
+            filteredImage = null; // Clear filtered image
+            currentROI = null; // Clear ROI on reset
+            roiEnabled = false; // Disable ROI mode
+            applyRoiZoomBtn.style.display = 'none'; // Hide zoom button
+            canvas.classList.remove('selecting-roi'); // Remove ROI cursor
+            
+            drawCurrentStateAndROI(); // Ensure view is clean
+            applyFilter(); // Re-apply filter to the original image
+        }
+
+        function applyRoiZoom() {
+            if (!currentROI || !originalImage) return;
+
+            // Create a temporary canvas for the ROI part of the original image
+            const roiCanvas = document.createElement('canvas');
+            roiCanvas.width = currentROI.width;
+            roiCanvas.height = currentROI.height;
+            const roiCtx = roiCanvas.getContext('2d');
+            
+            // Draw the selected ROI portion onto the temporary canvas
+            roiCtx.drawImage(originalImage,
+                currentROI.x, currentROI.y, currentROI.width, currentROI.height, // Source rectangle
+                0, 0, currentROI.width, currentROI.height // Destination rectangle (full roiCanvas)
+            );
+
+            // Set currentDisplayedImage to the ROI canvas content
+            // This new image will be stretched to fill the main canvas
+            currentDisplayedImage = new Image();
+            currentDisplayedImage.onload = () => {
+                // Set main canvas dimensions to match the zoomed image
+                // For "zoom to fill canvas", we just apply the filter to currentDisplayedImage
+                // and the canvas will naturally scale it via CSS max-width.
+                // The underlying pixel operations will still be on the cropped ROI dimensions.
+                canvas.width = currentDisplayedImage.width;
+                canvas.height = currentDisplayedImage.height;
+
+                applyFilter(); // Apply filter to the zoomed ROI
+            };
+            currentDisplayedImage.src = roiCanvas.toDataURL(); // Get image data from ROI canvas
+            
+            // Disable ROI selection mode after zooming
+            roiEnabled = false;
+            applyRoiZoomBtn.style.display = 'none';
+            canvas.classList.remove('selecting-roi');
+            currentROI = null; // Clear currentROI after zoom applied
+        }
+
+        function applyFilter() {
+            if (!currentDisplayedImage) return;
+
+            // Create a temporary canvas for currentDisplayedImage data
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = currentDisplayedImage.width;
+            tempCanvas.height = currentDisplayedImage.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(currentDisplayedImage, 0, 0); // Use currentDisplayedImage data
+
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+            
+            const kernel = currentKernelInputs.map(input => parseFloat(input.value));
+            const newData = convolute(data, tempCanvas.width, tempCanvas.height, kernel, currentKernelSize);
+            
+            // Update imageData with new filtered data
+            for (let i = 0; i < data.length; i++) {
+                data[i] = newData[i];
+            }
+            
+            // Put the modified image data back to the temporary context
+            tempCtx.putImageData(imageData, 0, 0);
+            
+            // Render the result to the main canvas
+            canvas.width = tempCanvas.width;
+            canvas.height = tempCanvas.height;
+            ctx.drawImage(tempCanvas, 0, 0);
+            
+            // Save the filtered image for comparison
+            filteredImage = new Image();
+            filteredImage.onload = () => updateCompareSlider(); // Update slider display once image is loaded
+            filteredImage.src = tempCanvas.toDataURL();
+        }
+        
+        // Convolution function
+        function convolute(data, width, height, kernel, kernelSize) {
+            const newData = new Uint8ClampedArray(data.length);
+            const halfSide = Math.floor(kernelSize / 2);
+            
+            const rgba = {r:0, g:1, b:2, a:3};
+            const channels = 4;
+
+            // Copy initial data to newData for boundary pixels that won't be convolved
+            // or if kernel sum is 0 and normalization fails, or custom kernel is 0.
+            for (let i = 0; i < data.length; i++) {
+                newData[i] = data[i];
+            }
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const px = (y * width + x) * channels;
+                    let r = 0, g = 0, b = 0;
+                    
+                    // Convolve
+                    for (let ky = 0; ky < kernelSize; ky++) {
+                        for (let kx = 0; kx < kernelSize; kx++) {
+                            const imageX = x + kx - halfSide;
+                            const imageY = y + ky - halfSide;
+                            
+                            // Check for bounds. Use clamping to nearest valid pixel if outside.
+                            // This handles image edges gracefully.
+                            const clampedX = Math.max(0, Math.min(width - 1, imageX));
+                            const clampedY = Math.max(0, Math.min(height - 1, imageY));
+                            
+                            const cpx = (clampedY * width + clampedX) * channels;
+                            
+                            const weight = kernel[ky * kernelSize + kx];
+                            r += data[cpx + rgba.r] * weight;
+                            g += data[cpx + rgba.g] * weight;
+                            b += data[cpx + rgba.b] * weight;
+                        }
+                    }
+                    
+                    // Clamp values to 0-255 range and set to newData
+                    newData[px + rgba.r] = Math.max(0, Math.min(255, r));
+                    newData[px + rgba.g] = Math.max(0, Math.min(255, g));
+                    newData[px + rgba.b] = Math.max(0, Math.min(255, b));
+                    newData[px + rgba.a] = data[px + rgba.a]; // Alpha channel unchanged
+                }
+            }
+            return newData;
+        }
+
+        function updateCompareSlider() {
+            if (!currentDisplayedImage || !filteredImage) return; 
+            
+            const ratio = compareSlider.value / 100;
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height); // Clear previous content
+            
+            if (ratio === 1) { // Show only filtered
+                ctx.drawImage(filteredImage, 0, 0, width, height);
+            } else if (ratio === 0) { // Show only original (or currentDisplayedImage, which might be zoomed ROI)
+                ctx.drawImage(currentDisplayedImage, 0, 0, width, height);
+            } else { // Split view
+                const splitPos = Math.floor(width * ratio);
+                
+                // Draw filtered image on the left side
+                ctx.drawImage(filteredImage, 
+                    0, 0, splitPos, height, // Source rectangle
+                    0, 0, splitPos, height); // Destination rectangle
+                
+                // Draw original (or zoomed ROI) image on the right side
+                ctx.drawImage(currentDisplayedImage, 
+                    splitPos, 0, width - splitPos, height, // Source rectangle
+                    splitPos, 0, width - splitPos, height); // Destination rectangle
+                
+                // Draw a red dividing line
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(splitPos, 0);
+                ctx.lineTo(splitPos, height);
+                ctx.stroke();
+            }
+            drawCurrentStateAndROI(); // Redraw ROI if active
+        }
+
+        function toggleRoiSelection() {
+            roiEnabled = !roiEnabled;
+            toggleRoiBtn.textContent = roiEnabled ? 'Вимкнути вибір ROI' : 'Увімкнути вибір ROI';
+            roiHint.style.display = roiEnabled ? 'block' : 'none';
+            canvas.classList.toggle('selecting-roi', roiEnabled);
+            if (!roiEnabled) {
+                currentROI = null; // Clear ROI when disabled
+                applyRoiZoomBtn.style.display = 'none'; // Hide zoom button
+                resetCanvas(); // Reset view to full original image
+            } else {
+                // If enabling ROI, ensure we are showing the original image to select from
+                if (currentDisplayedImage !== originalImage) {
+                    currentDisplayedImage = originalImage;
+                    canvas.width = originalImage.width;
+                    canvas.height = originalImage.height;
+                    ctx.drawImage(originalImage, 0, 0);
+                }
+                drawCurrentStateAndROI(); // Redraw current image + potential existing ROI
+            }
+        }
+
+        function drawCurrentStateAndROI() {
+            // This function ensures that the current image on canvas (either original or filtered)
+            // is drawn, and then the ROI rectangle is drawn on top if active.
+            updateCompareSlider(); // This will draw the original/filtered image based on slider
+
+            if (roiEnabled && currentROI) {
+                // If ROI exists, draw it in its fixed position relative to the current image
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]); // Dashed line
+                ctx.strokeRect(currentROI.x, currentROI.y, currentROI.width, currentROI.height);
+                ctx.setLineDash([]); // Reset line dash
+            } else if (roiEnabled && isDrawingRoi) {
+                // Draw selection rectangle while dragging
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                const x = Math.min(roiStart.x, roiEnd.x);
+                const y = Math.min(roiStart.y, roiEnd.y);
+                const width = Math.abs(roiEnd.x - roiStart.x);
+                const height = Math.abs(roiEnd.y - roiStart.y);
+                ctx.strokeRect(x, y, width, height);
+                ctx.setLineDash([]);
+            }
+        }
+    </script>
+</body>
+</html>
