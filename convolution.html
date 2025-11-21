@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandwich  Dice Convolution </title>
+    
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+      },
+      svg: { fontCache: 'global' }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --bread: #F5D0A9;
+            --butter: #FFE66D;
+            --floor: #e74c3c;
+            --sky: #2ecc71;
+            --accent: #3498db;
+            --text: #2c3e50;
+            --bg: #fdfbf7;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 10px; }
+
+        /* UI Elements */
+        .card {
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex; justify-content: center; margin-bottom: 20px;
+            background: #eee; border-radius: 30px; padding: 5px; width: fit-content; margin: 0 auto 20px auto;
+        }
+        .tab-btn {
+            border: none; background: none; padding: 10px 30px;
+            border-radius: 25px; cursor: pointer; font-size: 1.1em; font-weight: bold; color: #7f8c8d;
+        }
+        .tab-btn.active { background: white; color: var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+
+        /* Spoiler */
+        details.theory-spoiler {
+            background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; margin-bottom: 20px; overflow: hidden;
+        }
+        details.theory-spoiler summary {
+            padding: 15px; background: #e9ecef; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; list-style: none;
+        }
+        details.theory-spoiler summary::-webkit-details-marker { display: none; }
+        details.theory-spoiler summary::after { content: '+'; font-size: 1.2em; }
+        details.theory-spoiler[open] summary::after { content: '-'; }
+        
+        .theory-content { padding: 20px; font-size: 0.95em; }
+        .theory-tag {
+            display: inline-block; background: #e1f5fe; color: #0288d1; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px;
+        }
+
+        .controls { text-align: center; background: #fff0f0; }
+        button {
+            background-color: var(--accent); color: white; border: none;
+            padding: 10px 25px; border-radius: 25px; cursor: pointer; margin: 5px; font-size: 1em;
+            transition: background 0.2s;
+        }
+        button:hover { background: #2980b9; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        /* Visualization Scene */
+        .scene-container {
+            position: relative;
+            height: 400px;
+			background: url('shpalery.jpg');
+			background-size: cover;
+            border-radius: 10px;
+            border: 2px dashed #ddd;
+            overflow-x: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .stage {
+            position: absolute; display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+        }
+
+        .axis-line {
+            position: absolute; left: 0; width: 100%; height: 2px; background: #ddd; z-index: 0;
+        }
+
+        /* Bar Groups in Scene */
+        .bar-group {
+            position: absolute; bottom: 60px;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            width: 50px;
+            transition: left 0.5s ease, opacity 0.3s;
+        }
+        .dense .bar-group { width: 40px; }
+
+        .bar {
+            width: 80%; border-radius: 4px 4px 0 0;
+            transition: height 0.2s, background 0.2s;
+            display: flex; justify-content: center; align-items: flex-start;
+            color: #333; font-weight: bold; font-size: 0.75em;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.5);
+            padding-top: 2px; z-index: 1;
+        }
+
+        .layer-f { z-index: 10; bottom: 160px; }
+        .layer-g { z-index: 20; bottom: 60px; }
+
+        .style-f .bar { border: 2px solid #333; background: rgba(255,255,255,0.9); }
+        .style-g .bar { border: 2px solid var(--accent); background: rgba(236, 240, 241, 0.9); }
+        
+        .highlighted .bar { 
+            background-color: var(--accent) !important; color: white !important; 
+            box-shadow: 0 0 15px var(--accent); z-index: 100;
+        }
+
+        .sand-icon { width: 24px; height: 16px; border: 1px solid #999; margin-bottom: 2px; }
+        .sand-up { background: var(--bread); border-top: 4px solid var(--butter); }
+        .sand-down { background: var(--bread); border-bottom: 4px solid var(--floor); }
+
+        /* Math & Results */
+        .formula-box {
+            font-family: 'Segoe UI Mono', 'Courier New', monospace;
+            background: #f8f9fa; border-radius: 8px; padding: 15px;
+            text-align: center; margin-top: 15px; min-height: 60px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .combo-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: white; border: 1px solid #ccc; 
+            padding: 4px 8px; margin: 4px; border-radius: 6px;
+            font-size: 0.9em; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .k-label { font-size: 0.7em; color: #999; margin-top: 5px; }
+        
+        /* Result Chart Styles */
+        .chart-container {
+            margin-top: 20px; height: 100px; 
+            display: flex; align-items: flex-end; justify-content: center; 
+            gap: 4px;
+        }
+        .chart-group {
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .chart-bar {
+            border-radius: 3px 3px 0 0; border: 1px solid #ccc;
+            transition: height 0.3s;
+        }
+        .chart-label {
+            font-size: 0.75em; color: #555; margin-top: 4px; font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h3> Дискретна згортка</h3>
+
+    <details class="theory-spoiler">
+        <summary>📖 Теоретична довідка: Що це і для чого?</summary>
+        <div class="theory-content">
+            <p>
+                <strong>Дискретна згортка</strong> — це математична операція над двома функціями (або масивами даних) $f$ та $g$, результатом якої є третя функція, що виражає, як форма однієї змінюється іншою.
+            </p>
+            <p>Формула: $$ (f * g)[n] = \sum_{k} f[k] \cdot g[n-k] $$</p>
+            <p>Інтуїтивно це можна уявити так: ми беремо масив $g$, <strong>розвертаємо його задом наперед</strong> (дзеркально відносно нуля), і "протягуємо" вздовж масиву $f$. У кожній точці зміщення $n$ ми перемножуємо елементи, що наклалися, і додаємо результати.</p>
+            
+            <hr>
+            <h4>🚀 Практичні застосунки:</h4>
+            <ul>
+                <li><span class="theory-tag">Ймовірність</span> <strong>Сума випадкових величин:</strong> Якщо кинути два кубики, розподіл суми очок — це згортка розподілів кожного кубика.</li>
+                <li><span class="theory-tag">AI / Deep Learning</span> <strong>Згорткові нейромережі (CNN):</strong> Використовують згортку для пошуку ознак на зображенні (лінії, кути).</li>
+                <li><span class="theory-tag">Обробка сигналів</span> <strong>Фільтрація:</strong> Згладжування графіків або видалення шуму з аудіо — це згортка сигналу з ядром фільтра.</li>
+            </ul>
+        </div>
+    </details>
+	
+<div class="card">
+        <h3>📚 Задача</h3>
+        <p>
+            У нас є два ідентичні бутерброди. Ми кидаємо іх на підлогу.
+            <br>
+            Нехай $X$ та $Y$ — це випадкові величини - кількість очок для першого та другого бутерброда:
+            <br>
+            Значення: $0$ (маслом вниз 😞) або $1$ (маслом вгору 😋). В загальному випадку ймовірності не рівні.
+        </p>
+        <p>
+            Ми шукаємо розподіл суми очок $Z = X + Y$ (тобто ймовірності подій "вниз-вниз", "вниз-вгору" і "вгору-вгору". Це можна реалізувати, "розвертаючии" один з двох розполілів і накладаючи на інший із різними зсувавми. Це і є згортка.
+            У математиці розподіл суми незалежних випадкових величин є <strong>згорткою (convolution)</strong> їхніх розподілів.
+            $$ (f * g)[n] = \sum_{k} f[k] \cdot g[n-k] $$
+        </p>
+		<p>
+           Якщо бутерброди замінити на гральні кубіки - математика залишається така сама, посто розподіли будут довші (від 2 до 12 очок в сумі)
+        </p>
+    </div>
+	
+	
+    <div class="tabs">
+        <button class="tab-btn active" onclick="setMode('sandwich')">🥪 Бутерброди</button>
+        <button class="tab-btn" onclick="setMode('dice')">🎲 Кубики</button>
+    </div>
+
+    <div class="card controls">
+        <div id="sandwich-controls">
+            <label>Ймовірність успіху (маслом вгору) ($p$): <span id="probValue">0.7</span></label><br>
+            <input type="range" id="probSlider" min="0.1" max="0.9" step="0.1" value="0.7" style="width: 300px;">
+        </div>
+        
+        <div id="dice-controls" style="display: none;">
+            <div style="display: inline-flex; align-items: center; gap: 10px; background: white; padding: 8px 15px; border-radius: 20px; border: 1px solid #ddd;">
+                <input type="checkbox" id="asymCheck" onchange="resetSim()">
+                <label for="asymCheck">
+                    <strong>Несиметричні кубики</strong><br>
+                    <small style="color:#7f8c8d">$P(1)=1/12, P(6)=3/12$, інші $2/12$</small>
+                </label>
+            </div>
+        </div>
+		
+		
+		
+
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <button onclick="resetSim()">⏮ Рестарт</button>
+            <button id="nextBtn" onclick="nextStep()">▶ Наступний крок</button>
+            <button onclick="toggleAuto()" id="autoBtn">⏩ Авто</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+            <div style="font-size: 1.2em; font-weight: bold; color: var(--accent);">
+                Статус: <span id="status-text" style="color: #333;">Готово</span>
+            </div>
+            <div style="text-align: right; font-size: 0.9em; color: #7f8c8d;">
+                $k$ — вісь координат, $n$ — крок зсуву
+            </div>
+        </div>
+
+        <div class="scene-container" id="scene">
+            <div class="axis-line" style="bottom: 160px;"></div> <div class="axis-line" style="bottom: 60px;"></div>  <div class="stage" id="stage"></div>
+            
+            <div id="math-op" style="position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font-size: 24px; color: #ccc; font-weight: bold;"> </div>
+        </div>
+
+        <div class="formula-box" id="formula-box">
+            Натисніть <strong>"Наступний крок"</strong>, щоб почати.
+        </div>
+        
+        <div class="chart-container" id="mini-chart"></div>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    let mode = 'sandwich';
+    let p = 0.7, q = 0.3;
+    
+    // --- State ---
+    let step = -2; // -2: Init, -1: Mirror, 0+: Slide
+    let isAuto = false;
+    let autoTimer = null;
+
+    // Data
+    let f = [], g = [], result = [];
+    let denom = 1; 
+
+    // Visual constants
+    const SLOT_W = 50; 
+    const CENTER_X = 550; 
+
+    // Refs
+    const els = {
+        stage: document.getElementById('stage'),
+        formula: document.getElementById('formula-box'),
+        status: document.getElementById('status-text'),
+        miniChart: document.getElementById('mini-chart'),
+        probVal: document.getElementById('probValue')
+    };
+
+    // --- Logic ---
+
+    function gcd(a, b) { return b ? gcd(b, a%b) : a; }
+    function simplifyFrac(n, d) {
+        if (Math.abs(n) < 0.0001) return [0, 1];
+        const common = gcd(Math.round(n), Math.round(d));
+        return [Math.round(n)/common, Math.round(d)/common];
+    }
+
+ function formatVal(val, isProb = false, asLatex = false) {
+        if (val < 0.0001) return "";
+        if (mode === 'sandwich') return val.toFixed(2);
+        
+        const dBase = isProb ? denom*denom : denom;
+        const num = Math.round(val * dBase);
+        const [sNum, sDen] = simplifyFrac(num, dBase);
+        
+        if (sDen === 1) return sNum;
+
+        // ЯКЩО це для формули MathJax — повертаємо LaTeX дріб
+        if (asLatex) {
+            return `\\frac{${sNum}}{${sDen}}`;
+        }
+
+        // ЯКЩО це для HTML (стовпчики, бейджі) — повертаємо HTML
+        return `<sup>${sNum}</sup>&frasl;<sub>${sDen}</sub>`;
+    }
+    function setMode(m) {
+        mode = m;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById('sandwich-controls').style.display = m==='sandwich'?'block':'none';
+        document.getElementById('dice-controls').style.display = m==='dice'?'block':'none';
+        resetSim();
+    }
+
+    document.getElementById('probSlider').addEventListener('input', e => {
+        p = parseFloat(e.target.value); q = 1-p;
+        els.probVal.innerText = p;
+        if(mode==='sandwich') resetSim();
+    });
+
+    function initData() {
+        if (mode === 'sandwich') {
+            f = [q, p]; g = [q, p]; 
+            denom = 1;
+        } else {
+            const asym = document.getElementById('asymCheck').checked;
+            if (!asym) {
+                denom = 6; 
+                f = [0, 1/6,1/6,1/6,1/6,1/6,1/6]; // index 0 is 0
+                g = [...f];
+            } else {
+                denom = 12; 
+                const p1=1/12, p6=3/12, pm=2/12;
+                f = [0, p1, pm, pm, pm, pm, p6];
+                g = [...f];
+            }
+        }
+        const resLen = f.length + g.length - 1;
+        result = new Array(resLen).fill(0);
+    }
+
+    // --- Rendering ---
+
+    function createBar(val, label, type, highlight=false) {
+        const div = document.createElement('div');
+        div.className = `bar-group ${type === 'f' ? 'layer-f style-f' : 'layer-g style-g'}`;
+        if (mode==='dice') div.style.width = '40px';
+
+        let icon = '';
+        if (val > 0.0001) {
+            if (mode === 'sandwich') {
+                if (label.includes('0')) icon = '<div class="sand-icon sand-down"></div>';
+                else icon = '<div class="sand-icon sand-up"></div>';
+            }
+        }
+
+        const maxH = 80;
+        const scale = mode==='sandwich' ? 1 : (mode==='dice' && denom===6 ? 4 : 3); 
+        let h = Math.max(val * maxH * scale, 2);
+        if(val < 0.0001) { h = 2; } 
+
+        const content = `
+            ${icon}
+            <div class="bar" style="height:${h}px; ${highlight ? 'background:#3498db;color:white;border-color:#2980b9;z-index:100;' : ''}">
+                ${formatVal(val)}
+            </div>
+            <div class="k-label">${label}</div>
+        `;
+        div.innerHTML = content;
+        return div;
+    }
+
+    function renderScene() {
+        els.stage.innerHTML = '';
+        const isMirror = (step === -1);
+        const isInit = (step === -2);
+        
+        // Visual Range for K
+        // We iterate mostly for Fixed F drawing and alignment logic
+        let minK = mode === 'sandwich' ? -2 : -1;
+        let maxK = mode === 'sandwich' ? 4 : 14;
+        
+        // For Dice, we calculate N but we must make sure we don't draw empty col 0
+        
+        const startN = -(g.length);
+        const endN = f.length + g.length - 1;
+        let currentN = startN;
+        if (step >= 0) currentN = startN + step;
+
+        // Draw F (Fixed)
+        for (let k = minK; k <= maxK; k++) {
+            // REQUIREMENT: remove k=0 column for dice
+            if (mode === 'dice' && k === 0) continue;
+
+            const xPos = CENTER_X + (k * SLOT_W) - (mode==='dice'?100:0);
+            
+            if (k >= 0 && k < f.length) {
+                // If dice and value is 0 (like index 0), don't draw bar or draw ghost
+                if (f[k] > 0.0001 || mode === 'sandwich') {
+                    const b = createBar(f[k], `k=${k}`, 'f');
+                    b.style.left = `${xPos}px`;
+                    els.stage.appendChild(b);
+                }
+            }
+        }
+
+        // Draw G (Sliding)
+        for (let i = 0; i < g.length; i++) {
+            // REQUIREMENT: remove i=0 column for dice (g[0])
+            if (mode === 'dice' && i === 0) continue;
+
+            let k_pos; 
+            if (isInit) k_pos = i;
+            else if (isMirror) k_pos = -1 - i; 
+            else k_pos = currentN - i;
+
+            const xPos = CENTER_X + (k_pos * SLOT_W) - (mode==='dice'?100:0);
+            
+            // Determine highlight
+            let hl = false;
+            if (!isInit && !isMirror) {
+                if (k_pos >= 0 && k_pos < f.length && f[k_pos] > 0 && g[i] > 0) {
+                    hl = true;
+                }
+            }
+
+            const b = createBar(g[i], `g[${i}]`, 'g', hl);
+            b.style.left = `${xPos}px`;
+            
+            // Specific Dice Label for G
+            if (mode === 'dice' && g[i]>0) {
+                const face = String.fromCodePoint(9855 + i); 
+                b.querySelector('.k-label').innerHTML = `<span style="font-size:16px">${face}</span>`;
+            }
+            
+            els.stage.appendChild(b);
+        }
+        
+        // Info Logic
+        if (isInit) {
+            els.status.innerText = "Старт: Вхідні дані";
+            els.formula.innerHTML = "Маємо два розподіли. Натисніть Play.";
+        } else if (isMirror) {
+            els.status.innerText = "Крок -1: Віддзеркалення";
+            els.formula.innerHTML = "Розвертаємо $g$ і ховаємо у від'ємну область ($n < 0$).";
+        } else {
+            els.status.innerText = `Зсув n = ${currentN}`;
+            
+            let sum = 0;
+            let htmlParts = [];
+            
+            for (let k = 0; k < f.length; k++) {
+                const gIdx = currentN - k;
+                if (gIdx >= 0 && gIdx < g.length) {
+                    const prod = f[k] * g[gIdx];
+                    if (prod > 0) {
+                        sum += prod;
+                        let icon1 = mode==='sandwich' ? (k?'⬆':'⬇') : String.fromCodePoint(9855+k);
+                        let icon2 = mode==='sandwich' ? (gIdx?'⬆':'⬇') : String.fromCodePoint(9855+gIdx);
+                        htmlParts.push(`<span class="combo-badge">${icon1}${icon2} <b>${formatVal(prod, true)}</b></span>`);
+                    }
+                }
+            }
+            
+            if (currentN >= 0 && currentN < result.length) {
+                result[currentN] = sum;
+                updateMiniChart();
+            }
+
+            if (sum > 0) {
+                els.formula.innerHTML = `
+                   $$ (f*g)[${currentN}] = \\mathbf{${formatVal(sum, true, true)}} $$
+                    <div style="display:flex;flex-wrap:wrap;justify-content:center;margin-top:5px;">${htmlParts.join('')}</div>
+                `;
+            } else {
+                els.formula.innerHTML = `$$ (f*g)[${currentN}] = 0 $$`;
+            }
+            
+            if (currentN >= endN) {
+                document.getElementById('nextBtn').disabled = true;
+                els.status.innerText = "Фініш";
+            }
+        }
+        MathJax.typesetPromise([els.formula]);
+    }
+
+    function updateMiniChart() {
+        els.miniChart.innerHTML = '';
+        result.forEach((v, n) => {
+            // Hide dice 0, 1 sums
+            if (mode === 'dice' && n < 2) return;
+            
+            const group = document.createElement('div');
+            group.className = 'chart-group';
+
+            const h = Math.max(v * 150 * (mode==='sandwich'?1:3), 2);
+            const d = document.createElement('div');
+            d.className = 'chart-bar';
+            d.style.width = mode==='dice'?'15px':'30px';
+            d.style.height = h + 'px';
+            d.style.background = v > 0 ? '#FFE66D' : '#eee';
+            if(v > 0) d.style.borderColor = '#f1c40f';
+            d.title = `Sum=${n}, P=${v.toFixed(3)}`;
+
+            // REQUIREMENT: Add Label (Sum value)
+            const lbl = document.createElement('div');
+            lbl.className = 'chart-label';
+            lbl.innerText = n;
+
+            group.appendChild(d);
+            group.appendChild(lbl);
+            els.miniChart.appendChild(group);
+        });
+    }
+
+    function resetSim() {
+        isAuto = false;
+        clearTimeout(autoTimer);
+        step = -2;
+        initData();
+        result.fill(0);
+        updateMiniChart();
+        document.getElementById('nextBtn').disabled = false;
+        renderScene();
+    }
+
+    function nextStep() {
+        step++;
+        renderScene();
+        if(isAuto && !document.getElementById('nextBtn').disabled) {
+            autoTimer = setTimeout(nextStep, step===-1 ? 1500 : 800);
+        }
+    }
+
+    function toggleAuto() {
+        if (isAuto) { isAuto = false; clearTimeout(autoTimer); return; }
+        isAuto = true;
+        if (document.getElementById('nextBtn').disabled) resetSim();
+        nextStep();
+    }
+
+    window.onload = resetSim;
+
+</script>
+</body>
+</html>
