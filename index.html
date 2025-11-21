@@ -53,7 +53,7 @@
             padding: 15px 20px 5px 20px;
             font-size: 0.75rem;
             text-transform: uppercase;
-            color: #7f8c8d;
+            color: #ffffff;
             font-weight: bold;
             letter-spacing: 1px;
             background: #22303d;
@@ -124,7 +124,7 @@
             align-items: center;
         }
 
-        #sidebarCollapse {
+      #sidebarCollapse {
             background: #3498db;
             border: none;
             color: white;
@@ -133,17 +133,26 @@
             cursor: pointer;
             font-size: 1.2rem;
             
-            /* Додаємо тінь, щоб кнопку було видно на будь-якому фоні */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+            /* Тінь для контрасту на світлому фоні */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             
-            /* Важливо: вмикаємо кліки для самої кнопки */
+            /* --- ВАЖЛИВІ ЗМІНИ ТУТ --- */
+            
+            /* 0.5 означає 50% видимості (можна змінити від 0.1 до 1.0) */
+            opacity: 0.5; 
+            
+            /* Плавна анімація для всіх властивостей (кольору та прозорості) */
+            transition: all 0.3s ease;
+            
+            /* Не забуваємо про клікабельність (з попереднього кроку) */
             pointer-events: auto; 
-            
-            transition: background 0.2s;
         }
 
         #sidebarCollapse:hover {
             background: #2980b9;
+            
+            /* При наведенні робимо кнопку повністю видимою */
+            opacity: 1; 
         }
 
         /* Ховаємо заголовок, щоб не заважав */
@@ -164,7 +173,6 @@
             border: none;
             display: block; /* Прибирає можливі відступи знизу */
         }
-
         .placeholder {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -188,20 +196,21 @@
             <h3>ДИСКРЕТНА МАТЕМАТИКА. Інтерактивний посібник</h3>
         </div>
 
-        <div class="category">1. Комбінаторика і теорія множин</div>
+        <div class="category">1. Комбінаторика, теорія множин і математична логіка</div>
         
-        <button class="menu-btn" onclick="openSim('SetOperations.html', 'Операції над множинами', this)">Операції над множинами (кола Ейлера)</button>
+        <button class="menu-btn" onclick="openSim('SetOperations.html', 'Операції над множинами', this)">Операції над множинами</button>
         <button class="menu-btn" onclick="openSim('Cardinality_and_power-set.html', 'Потужність множин і булеан', this)">Потужність множин і булеан</button>
         <button class="menu-btn" onclick="openSim('Binary_relations.html', 'Бінарні відношення', this)">Відношення</button>
-        <button class="menu-btn" onclick="openSim('Combinatorics.html', 'Комбінаторика (частина 1)', this)">Основні формули комбінаторики</button>
-        <button class="menu-btn" onclick="openSim('Combinatorics2.html', 'Комбінаторика (частина 2)', this)">Комбінаторика-2</button>
-
-        <div class="category">2. Математична логіка</div>
-        
+       <button class="menu-btn" onclick="openSim('Combinatorics2.html', 'Комбінаторика', this)">Комбінаторика</button>
+       <button class="menu-btn" onclick="openSim('O_n_.html', 'Обчислювальна складність', this)">Обчислювальна складність ("O-велике")</button>
+                
         <button class="menu-btn" onclick="openSim('MathLogic.html', 'Основи мат. логіки', this)">Основні логічні операції</button>
-        <button class="menu-btn" onclick="openSim('karno.html', 'Карти Карно', this)">Карти Карно</button>
 
-        <div class="category">3. Теорія графів</div>
+
+		 <button class="menu-btn" onclick="openSim('logic3.html', 'Закони мат.логіки і Карти Карно', this)">Закони математичної логіки. Мінімізація логічних функцій</button>
+        <button class="menu-btn" onclick="openSim('karno.html', 'Карти Карно на торі', this)">Топологія Карт Карно</button>
+
+        <div class="category">2. Теорія графів</div>
         
         <div class="subcategory">Властивості графів</div>
         <button class="menu-btn" onclick="openSim('isomorphism.html', 'Ізоморфізм графів', this)">Ізоморфізм графів</button>
@@ -228,7 +237,7 @@
         <button class="menu-btn" onclick="openSim('DNA-assemblingWithGraphs.html', 'Збірка ДНК графами', this)">Прикладне застосування теорії графів: Збірка ДНК</button>
         <button class="menu-btn" onclick="openSim('graphNeuralNetwork.html', 'Графові нейромережі', this)">Вступ до Graph Neural Networks</button>
 
-        <div class="category">4. Кодування та кібербезпека</div>
+        <div class="category">3. Математичні основи кодування інформації та кібербезпеки</div>
         
         <div class="subcategory">Кодування інформації</div>
         <button class="menu-btn" onclick="openSim('Huffman_and_Shannon-Fano.html', 'Хаффман і Шеннон-Фано', this)">Коди Хаффмана і Шеннона-Фано</button>
@@ -237,13 +246,22 @@
         <button class="menu-btn" onclick="openSim('rANS.html', 'rANS кодування', this)">rANS кодування</button>
         <button class="menu-btn" onclick="openSim('convolution-codes.html', 'Згорткові коди', this)">Згорткові коди</button>
 
-        <div class="subcategory">Криптографія та безпека</div>
+        <div class="subcategory">Криптографія та кібербезпека</div>
         <button class="menu-btn" onclick="openSim('RSA.html', 'Шифрування RSA', this)">Алгоритм RSA</button>
         <button class="menu-btn" onclick="openSim('DH.html', 'Протокол Діффі-Хеллмана', this)">Обмін ключами (Діффі-Хеллман)</button>
           <button class="menu-btn" onclick="openSim('aes.html', ',Блочне симетричне шифрування AES', this)">Симетричне шифрування AES</button>
 		<button class="menu-btn" onclick="openSim('chacha20.html', 'Шифр ChaCha20', this)">Потоковий шифр ChaCha20</button>
         <button class="menu-btn" onclick="openSim('HashingARX.html', 'Хешування ARX', this)">Хешування (ARX конструкції)</button>
-
+ 
+			<div class="category">4. Вступ до цифрової обробки інформації</div>
+ 			 <button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення</button>
+			 <button class="menu-btn" onclick="openSim('DiscretQuant.html', 'Дискретизація і квантування', this)">Дискретизація і квантування</button>
+		 	 <button class="menu-btn" onclick="openSim('Lossy.html', 'Стиснення з втратами', this)">Стиснення з втратами (lossy compression) на прикладі звуку</button>
+		 	 <button class="menu-btn" onclick="openSim('convolution.html', 'згортка', this)">Дискретна згортка</button>
+			 <button class="menu-btn" onclick="openSim('2D-ConvolFilter.html', '2D згортковий фільтр', this)">Згортковий фільтр зображень</button>
+	
+ 
+		
         <div style="height: 50px;"></div>
     </nav>
 
@@ -301,4 +319,14 @@
 </body>
 
 </html>
+
+
+
+
+
+
+
+
+
+
 
