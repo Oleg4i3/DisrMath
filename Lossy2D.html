@@ -197,7 +197,7 @@
                 <input type="range" id="slQuality" min="1" max="100" value="50" oninput="updateQuality()">
             </div>
             <div style="width:1px; height:20px; background:#555;"></div>
-            <button onclick="loadPreset('lenna')">👩 Lena</button>
+            <button onclick="loadPreset('lenna')">Lena</button>
             <button onclick="loadPreset('text')">🅰️ Text</button>
             <button onclick="loadPreset('grid')">▦ Grid</button>
             <label style="cursor:pointer; background:#37474f; padding:6px 12px; border-radius:4px; font-size:0.85rem; border:1px solid #555;">
@@ -730,7 +730,7 @@
             for(let x=0; x<width; x++){
                 let val = 128;
                 if(name==='grid') {
-                    val = ((Math.floor(x/32) + Math.floor(y/32)) % 2 === 0) ? 200 : 50;
+                    val = ((Math.floor(x/7) + Math.floor(y/17)) % 3 === 0) ? 200 : 50;
                 } else if(name==='text') {
                     val = 255;
                     // Mock A shape
