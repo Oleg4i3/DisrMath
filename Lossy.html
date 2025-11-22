@@ -538,7 +538,7 @@ function updateCompression() {
 
         // Оновлюємо інтерфейс
         els.valTotal.innerText = Math.floor(totalBinsProcessed / (fullLength/hopSize)); // Середнє на фрейм
-        els.valKept.innerText = Math.floor(keptBinsProcessed / (fullLength/hopSize));
+        els.valKept.innerText = Math.floor(keptBinsProcessed / (fullLength/hopSize))+1;
         
         let ratio = (keptBinsProcessed > 0) ? (totalBinsProcessed / keptBinsProcessed).toFixed(1) : "MAX";
         els.valRatio.innerText = ratio + ":1";
