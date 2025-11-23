@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D DCT Simulator v2</title>
+    <title>2D DCT Simulator v3</title>
     <style>
         :root {
             --bg: #121212;
@@ -12,8 +12,6 @@
             --warn: #ff9800;   /* Orange */
             --grid-line: #333;
             --text: #e0e0e0;
-            --highlight-hover: rgba(255, 255, 255, 0.2);
-            --highlight-selected: rgba(0, 229, 255, 0.8);
         }
 
         body {
@@ -46,12 +44,19 @@
             gap: 15px;
         }
 
-        /* Bottom Row: 3 Analysis Panels */
+        /* Middle Row: 3 Analysis Panels (Input -> DCT -> Output) */
         .analysis-row {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr; /* 3 Equal Columns */
             gap: 15px;
-            height: 380px; /* Fixed height for uniformity */
+            /* height removed to auto-fit content */
+        }
+
+        /* Bottom Row: Basis Function */
+        .bottom-section {
+            display: flex;
+            justify-content: center;
+            width: 100%;
         }
 
         .panel {
@@ -85,6 +90,7 @@
             padding: 20px;
             border-radius: 8px;
             border: 1px solid #333;
+            flex-wrap: wrap;
         }
         
         .canvas-container {
@@ -94,10 +100,36 @@
             cursor: crosshair;
         }
 
+
+
+/* Стилі для академічної довідки */
+.help-content {
+    padding: 20px;
+    color: #ddd;
+    line-height: 1.6;
+    background: #181818;
+}
+.help-content h3 { color: var(--accent); border-bottom: 1px solid #444; padding-bottom: 8px; margin-top: 20px; }
+.help-content p { margin-bottom: 10px; }
+.math-block {
+    background: #252525;
+    padding: 15px;
+    border-left: 3px solid var(--accent);
+    margin: 15px 0;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 1.1rem;
+    overflow-x: auto;
+}
+.var { font-style: italic; }
+.sum-symbol { font-size: 1.2em; position: relative; top: 2px; }
+.fraction { display: inline-block; vertical-align: middle; text-align: center; font-size: 0.9em; }
+.fraction > span { display: block; padding: 0 5px; }
+.fraction span.bottom { border-top: 1px solid #aaa; }
+
+
         /* Selection Boxes */
         .box-hover {
             position: absolute;
-            width: 32px; height: 32px; /* Will be resized by JS */
             border: 1px dashed rgba(255,255,255,0.5);
             pointer-events: none;
             display: none;
@@ -105,7 +137,6 @@
         }
         .box-selected {
             position: absolute;
-            width: 32px; height: 32px; 
             border: 2px solid var(--accent);
             box-shadow: 0 0 8px var(--accent);
             pointer-events: none;
@@ -144,8 +175,8 @@
             background: #000;
             border: 1px solid #444;
             max-width: 100%;
-            max-height: 280px;
-            image-rendering: pixelated; /* Sharp edges */
+            height: auto;
+            image-rendering: pixelated;
         }
 
         /* Controls */
@@ -166,7 +197,6 @@
         button:hover { background: #455a64; border-color: var(--accent); }
         input[type=range] { accent-color: var(--warn); }
 
-        /* Theory Details */
         details {
             background: #1a1a1a; border: 1px solid #333; border-radius: 8px; 
             margin-bottom: 10px; width: 100%;
@@ -177,7 +207,7 @@
         }
 
         @media (max-width: 900px) {
-            .analysis-row { grid-template-columns: 1fr; height: auto; }
+            .analysis-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -185,8 +215,7 @@
 
     <h1>2D DCT: Симулятор JPEG</h1>
     <p class="subtitle">
-        1. Клікніть на зображення, щоб вибрати блок 8x8. <br>
-        2. Клікніть на клітинку в таблиці DCT, щоб побачити відповідну хвилю (базис).
+        Аналіз блоків 8x8: Вхід -> Частоти -> Стиснутий вихід
     </p>
 
     <div class="container">
@@ -206,16 +235,6 @@
         </div>
 
         <div class="top-section">
-            <details>
-                <summary>📖 Теорія (Формули)</summary>
-                <div style="padding:15px; color:#ccc; line-height:1.6; font-size:0.9rem;">
-                    <b>2D Базис:</b> Кожен квадратик 8x8 — це сума 64-х простих патернів. Патерн (u,v) утворюється перетином вертикальної хвилі частоти <i>v</i> та горизонтальної хвилі частоти <i>u</i>.<br>
-                    <div style="background:#000; padding:10px; margin:5px 0; font-family:monospace; border-left:3px solid var(--accent);">
-                        Basis(x,y) = Cos(u * x) * Cos(v * y)
-                    </div>
-                </div>
-            </details>
-
             <div class="images-wrapper">
                 <div class="canvas-container" id="containerSrc">
                     <div style="position:absolute; top:0; left:0; background:rgba(0,0,0,0.6); color:white; font-size:0.7rem; padding:2px 5px;">Оригінал</div>
@@ -235,12 +254,12 @@
             
             <div class="panel">
                 <div class="panel-header">
-                    <h3>1. Пікселі (Вхід)</h3>
+                    <h3>1. Вхід (Пікселі)</h3>
                     <span style="font-size:0.7rem; color:#888;">0..255</span>
                 </div>
                 <div id="gridPixels" class="grid-container"></div>
                 <div style="font-size:0.75rem; color:#666; margin-top:10px; text-align:center;">
-                    Значення яскравості обраного блоку 8x8.
+                    Оригінальні значення яскравості.
                 </div>
             </div>
 
@@ -252,90 +271,101 @@
                 <div id="gridDCT" class="grid-container"></div>
                 <div style="font-size:0.75rem; color:#666; margin-top:10px; text-align:center;">
                     <span style="color:var(--accent)">Колір</span> = обрана частота. <br>
-                    Нулі — втрачені деталі.
+                    Значення після квантування.
                 </div>
             </div>
 
             <div class="panel">
                 <div class="panel-header">
-                    <h3>3. Базисна Функція</h3>
+                    <h3>3. Відновлені (Пікселі)</h3>
+                    <span style="font-size:0.7rem; color:var(--warn);">Помилка є!</span>
+                </div>
+                <div id="gridRec" class="grid-container"></div>
+                <div style="font-size:0.75rem; color:#666; margin-top:10px; text-align:center;">
+                    Результат після IDCT.<br>Порівняйте з панеллю №1.
+                </div>
+            </div>
+
+        </div>
+
+        <div class="bottom-section">
+            <div class="panel" style="max-width: 400px; width:100%;">
+                <div class="panel-header">
+                    <h3>4. Базисна Функція (Візуалізація)</h3>
                     <span style="font-size:0.7rem; color:#aaa;">u=<span id="valU">0</span>, v=<span id="valV">0</span></span>
                 </div>
-                <canvas id="cvBasis" width="260" height="260"></canvas>
+                <canvas id="cvBasis" width="280" height="280"></canvas>
                 <div style="font-size:0.75rem; color:#666; margin-top:5px; text-align:center;">
-                    Зверху: Horz Cosine (u)<br>
-                    Зліва: Vert Cosine (v)<br>
-                    Центр: Добуток (Результат)
+                    Хвиля, що відповідає обраному коефіцієнту в таблиці №2.
                 </div>
             </div>
-
         </div>
     </div>
+
 <details>
-        <summary>🎓 Теорія: Математика JPEG та 2D DCT (Натисніть)</summary>
-        <div style="padding: 20px; line-height: 1.6; color: #ddd;">
-            <h3 style="color:white; font-weight:300;">1. Від 1D до 2D</h3>
-            <p>
-                Зображення — це не просто лінія, а сітка (матриця) яскравостей. Щоб обробити її частотно, ми застосовуємо DCT двічі:
-                спочатку для кожного <b>рядка</b> (горизонтальні частоти), а потім для кожного <b>стовпчика</b> (вертикальні частоти).
-            </p>
-            <p>
-                В результаті ми отримуємо матрицю коефіцієнтів <span class="math-var">G</span>, де:
-                <ul>
-                    <li><span class="math-var">G</span><sub>0,0</sub> (верхній лівий) — <b>DC коефіцієнт</b>. Це середня яскравість всього блоку 8x8.</li>
-                    <li><span class="math-var">G</span><sub>7,7</sub> (нижній правий) — найвищі діагональні частоти (дрібний шум).</li>
-                </ul>
-            </p>
+    <summary>🎓 Теоретична довідка: Математика JPEG та DCT</summary>
+    <div class="help-content">
+        <p>
+            Алгоритм стиснення JPEG базується на <strong>Дискретному Косинусному Перетворенні (DCT)</strong>. 
+            Зображення розбивається на блоки <span class="var">8×8</span> пікселів. Кожен блок обробляється окремо, переходячи з 
+            <em>просторової області</em> (значення яскравості пікселів) у <em>частотну область</em> (спектр).
+        </p>
 
-            <h3 style="color:white; font-weight:300;">2. Формула 2D DCT</h3>
-            <p>Пряме перетворення переводить яскравість пікселів <span class="math-var">f(x,y)</span> у частоти <span class="math-var">G(u,v)</span>:</p>
-            
-            <div class="math-block">
-                <span class="math-var">G(u,v)</span> = 
-                <div class="fraction"><span>1</span><span class="bottom">4</span></div>
-                <span class="math-var">α(u)α(v)</span>
-                <span class="sum-symbol">∑</span><sub style="font-size:0.7em">x=0</sub><sup style="font-size:0.7em">7</sup>
-                <span class="sum-symbol">∑</span><sub style="font-size:0.7em">y=0</sub><sup style="font-size:0.7em">7</sup>
-                <span class="math-var">f(x,y)</span> · 
-                cos<span style="font-size:1.2em">[</span>
-                <div class="fraction">
-                    <span>(2x + 1)uπ</span>
-                    <span class="bottom">16</span>
-                </div>
-                <span style="font-size:1.2em">]</span> ·
-                cos<span style="font-size:1.2em">[</span>
-                <div class="fraction">
-                    <span>(2y + 1)vπ</span>
-                    <span class="bottom">16</span>
-                </div>
-                <span style="font-size:1.2em">]</span>
-            </div>
-            
-            <p style="font-size:0.9em; color:#aaa; text-align:center;">
-                Де <span class="math-var">u, v</span> — координати частоти (0..7), а <span class="math-var">α(k)</span> = 1/√2 для k=0, інакше 1.
-            </p>
-
-            <h3 style="color:white; font-weight:300;">3. Квантування (Quantization) — Тут зникає інформація</h3>
-            <p>
-                Саме по собі DCT не стискає зображення (це просто поворот системи координат). Стиснення відбувається тут.
-                Людське око погано бачить дрібні деталі (високі частоти). Тому ми ділимо високочастотні коефіцієнти на великі числа і округлюємо результат.
-            </p>
-            <div class="math-block">
-                <span class="math-var">Quantized(u,v)</span> = 
-                Round<span style="font-size:1.5em">(</span>
-                <div class="fraction">
-                    <span><span class="math-var">G(u,v)</span></span>
-                    <span class="bottom"><span class="math-var">Q(u,v)</span> × <span class="math-var">Scale</span></span>
-                </div>
-                <span style="font-size:1.5em">)</span>
-            </div>
-            <p>
-                <span class="math-var">Q(u,v)</span> — це таблиця квантування JPEG. Для низьких частот (зліва зверху) дільники малі (наприклад, 16), 
-                для високих (справа знизу) — великі (наприклад, 99). Тому права нижня частина матриці часто стає суцільними <b>нулями</b>.
-            </p>
+        <h3>1. Пряме перетворення (Forward DCT)</h3>
+        <p>
+            Перетворення переводить матрицю пікселів <span class="var">f(x,y)</span> у матрицю коефіцієнтів <span class="var">F(u,v)</span>.
+            Коефіцієнт <span class="var">F(0,0)</span> (DC-коефіцієнт) відповідає за середню яскравість блоку, а інші (AC-коефіцієнти) — за деталі.
+        </p>
+        
+        <div class="math-block">
+            <span class="var">F(u,v)</span> = 
+            <div class="fraction"><span>1</span><span class="bottom">4</span></div>
+            <span class="var">C(u)C(v)</span>
+            <span class="sum-symbol">∑</span><sub>x=0</sub><sup>7</sup>
+            <span class="sum-symbol">∑</span><sub>y=0</sub><sup>7</sup>
+            <span class="var">f(x,y)</span>
+            cos<div class="fraction"><span>(2x+1)u&pi;</span><span class="bottom">16</span></div>
+            cos<div class="fraction"><span>(2y+1)v&pi;</span><span class="bottom">16</span></div>
         </div>
-    </details>
 
+        <p>Де <span class="var">u, v</span> — просторові частоти (від 0 до 7), а <span class="var">C(k)</span> — нормалізуючий множник:</p>
+        <div style="margin-left: 20px; font-family: serif; color:#aaa;">
+            • <span class="var">C(k)</span> = 1/√2, якщо <span class="var">k</span> = 0;<br>
+            • <span class="var">C(k)</span> = 1, в інших випадках.
+        </div>
+
+        <h3>2. Квантування (Quantization)</h3>
+        <p>
+            Саме на цьому етапі відбувається втрата інформації. Отримані частоти <span class="var">F(u,v)</span> діляться на таблицю квантування <span class="var">Q(u,v)</span> і округлюються до цілих чисел.
+            Високі частоти (нижній правий кут) діляться на великі числа, через що вони часто перетворюються на нуль.
+        </p>
+        <div class="math-block">
+            <span class="var">F<sub>quant</sub>(u,v)</span> = 
+            round <left>(</left> 
+            <div class="fraction"><span><span class="var">F(u,v)</span></span><span class="bottom"><span class="var">Q(u,v)</span></span></div>
+             <right>)</right>
+        </div>
+
+        <h3>3. Зворотне перетворення (Inverse DCT)</h3>
+        <p>
+            Для відновлення зображення виконується зворотна операція. Ми відновлюємо значення пікселів <span class="var">f'(x,y)</span>, сумуючи всі базисні функції, помножені на їхні коефіцієнти.
+        </p>
+        <div class="math-block">
+            <span class="var">f'(x,y)</span> = 
+            <div class="fraction"><span>1</span><span class="bottom">4</span></div>
+            <span class="sum-symbol">∑</span><sub>u=0</sub><sup>7</sup>
+            <span class="sum-symbol">∑</span><sub>v=0</sub><sup>7</sup>
+            <span class="var">C(u)C(v)</span>
+            <span class="var">F<sub>quant</sub>(u,v)</span>
+            cos<div class="fraction"><span>(2x+1)u&pi;</span><span class="bottom">16</span></div>
+            cos<div class="fraction"><span>(2y+1)v&pi;</span><span class="bottom">16</span></div>
+        </div>
+
+        <p style="margin-top:20px; font-size: 0.9rem; color: #888;">
+            * У цьому симуляторі ми використовуємо стандартну таблицю квантування яскравості JPEG. Повзунок "Якість" масштабує цю матрицю: при 50% використовується оригінальна матриця, при <50% дільники зростають (більше втрат), при >50% — зменшуються (більше точності).
+        </p>
+    </div>
+</details>
 
 <script>
     // --- Config ---
@@ -384,18 +414,14 @@
             let x = (e.clientX - rect.left) * scaleX;
             let y = (e.clientY - rect.top) * scaleY;
 
-            // Snap to grid 8x8
             let bx = Math.floor(x / N) * N;
             let by = Math.floor(y / N) * N;
             
-            // Bounds check
             if (bx >= 0 && bx < cvOrig.width && by >= 0 && by < cvOrig.height) {
                 hoverX = bx; hoverY = by;
-                // Update Hover Box Visual
                 boxHover.style.display = 'block';
-                boxHover.style.width = (N / scaleX) + "px"; // Visual size can vary if canvas scaled via CSS
+                boxHover.style.width = (N / scaleX) + "px"; 
                 boxHover.style.height = (N / scaleY) + "px";
-                // Position needs to be in screen CSS pixels relative to container
                 boxHover.style.left = (bx / scaleX) + 'px';
                 boxHover.style.top = (by / scaleY) + 'px';
             } else {
@@ -404,12 +430,10 @@
         });
 
         container.addEventListener('mousedown', (e) => {
-            // LOCK SELECTION
             if (hoverX >= 0) {
                 selectedX = hoverX;
                 selectedY = hoverY;
                 
-                // Move Selected Box
                 boxSel.style.display = 'block';
                 boxSel.style.left = boxHover.style.left;
                 boxSel.style.top = boxHover.style.top;
@@ -428,43 +452,47 @@
     function initGrids() {
         const pGrid = document.getElementById('gridPixels');
         const dGrid = document.getElementById('gridDCT');
+        const rGrid = document.getElementById('gridRec'); // NEW
+        
         pGrid.innerHTML = '';
         dGrid.innerHTML = '';
+        rGrid.innerHTML = '';
 
         for(let i=0; i<64; i++) {
-            // Pixel Cell
+            // 1. Pixel Cell
             let d = document.createElement('div');
             d.className = 'cell';
             pGrid.appendChild(d);
 
-            // DCT Cell
+            // 2. DCT Cell
             let d2 = document.createElement('div');
             d2.className = 'cell coeff';
             d2.dataset.u = i % 8;
             d2.dataset.v = Math.floor(i / 8);
             d2.onclick = (e) => {
-                // Highlight logic
                 document.querySelectorAll('.cell.coeff').forEach(c => c.classList.remove('active'));
                 e.target.classList.add('active');
                 selectBasis(parseInt(e.target.dataset.u), parseInt(e.target.dataset.v));
             };
             dGrid.appendChild(d2);
+
+            // 3. Rec Cell (NEW)
+            let d3 = document.createElement('div');
+            d3.className = 'cell';
+            rGrid.appendChild(d3);
         }
-        // Select DC by default
         dGrid.children[0].classList.add('active');
         drawBasis(0,0);
     }
 
     // --- Math Core ---
     const COS = [];
-    // Precompute Cosines
     for(let k=0; k<8; k++) {
         for(let n=0; n<8; n++) {
             let a = (k===0) ? 1/Math.sqrt(8) : Math.sqrt(2/8);
             COS.push(a * Math.cos(((2*n+1)*k*Math.PI)/16));
         }
     }
-    // Access: COS[k*8 + n] where k is freq, n is spatial
 
     function dct8x8(block) {
         let res = new Float32Array(64);
@@ -473,7 +501,6 @@
                 let sum = 0;
                 for(let x=0; x<8; x++){
                     for(let y=0; y<8; y++){
-                        // val * Cu(x) * Cv(y)
                         let val = block[y*8+x] - 128;
                         sum += val * COS[u*8+x] * COS[v*8+y];
                     }
@@ -526,36 +553,31 @@
         const S = getScaleFactor();
         const qTable = Q_TABLE.map(v => Math.floor((S*v + 50)/100) || 1);
 
-        // Process in 8x8 blocks
         for(let by=0; by<h; by+=8) {
             for(let bx=0; bx<w; bx+=8) {
-                
                 // 1. Extract Luma
                 let block = new Float32Array(64);
                 for(let y=0; y<8; y++) {
                     for(let x=0; x<8; x++) {
                         if(bx+x < w && by+y < h) {
                             let i = ((by+y)*w + bx+x)*4;
-                            // Simple grayscale
                             block[y*8+x] = 0.299*src[i] + 0.587*src[i+1] + 0.114*src[i+2];
                         }
                     }
                 }
 
-                // 2. DCT
+                // 2. DCT & Quant
                 let dct = dct8x8(block);
-
-                // 3. Quantize
                 let qCoeffs = new Float32Array(64);
                 for(let i=0; i<64; i++) {
                     let qVal = Math.round(dct[i] / qTable[i]);
-                    qCoeffs[i] = qVal * qTable[i]; // Dequantize immediately for preview
+                    qCoeffs[i] = qVal * qTable[i]; 
                 }
 
-                // 4. IDCT
+                // 3. IDCT
                 let rec = idct8x8(qCoeffs);
 
-                // 5. Draw
+                // 4. Draw
                 for(let y=0; y<8; y++) {
                     for(let x=0; x<8; x++) {
                         if(bx+x < w && by+y < h) {
@@ -569,8 +591,6 @@
             }
         }
         ctxDest.putImageData(destImg, 0, 0);
-
-        // If selection exists, update panels
         if(selectedX >= 0) updateAnalysisPanel();
     }
 
@@ -579,18 +599,19 @@
 
         const w = cvOrig.width;
         const src = imgDataSrc.data;
-        
-        // Extract selected block pixels
-        let block = new Float32Array(64);
         const pGrid = document.getElementById('gridPixels');
+        const dGrid = document.getElementById('gridDCT');
+        const rGrid = document.getElementById('gridRec'); // NEW
+
+        let block = new Float32Array(64);
         
+        // 1. Input Block
         for(let y=0; y<8; y++) {
             for(let x=0; x<8; x++) {
                 let idx = ((selectedY+y)*w + (selectedX+x))*4;
                 let val = Math.round(0.299*src[idx] + 0.587*src[idx+1] + 0.114*src[idx+2]);
                 block[y*8+x] = val;
                 
-                // Update Pixel Grid
                 let cell = pGrid.children[y*8+x];
                 cell.innerText = val;
                 cell.style.backgroundColor = `rgb(${val},${val},${val})`;
@@ -598,23 +619,41 @@
             }
         }
 
-        // Compute DCT for this block
+        // 2. DCT & Quantization
         let dct = dct8x8(block);
         const S = getScaleFactor();
-        const dGrid = document.getElementById('gridDCT');
+        let qCoeffs = new Float32Array(64);
 
         for(let i=0; i<64; i++) {
             let qStep = Math.floor((S*Q_TABLE[i] + 50)/100) || 1;
             let val = Math.round(dct[i] / qStep);
             
+            // Store for IDCT
+            qCoeffs[i] = val * qStep;
+
             let cell = dGrid.children[i];
             cell.innerText = val;
-            if(val === 0) cell.style.color = '#555'; // Zero
-            else if(i===0) cell.style.color = '#fff'; // DC
-            else cell.style.color = 'var(--accent)'; // AC
+            if(val === 0) cell.style.color = '#555';
+            else if(i===0) cell.style.color = '#fff';
+            else cell.style.color = 'var(--accent)';
+        }
+
+        // 3. IDCT for Reconstruction Grid (NEW)
+        let recBlock = idct8x8(qCoeffs);
+        
+        for(let y=0; y<8; y++) {
+            for(let x=0; x<8; x++) {
+                let val = Math.round(recBlock[y*8+x]);
+                if(val < 0) val = 0; if(val > 255) val = 255;
+
+                let cell = rGrid.children[y*8+x];
+                cell.innerText = val;
+                cell.style.backgroundColor = `rgb(${val},${val},${val})`;
+                // Contrast text
+                cell.style.color = val > 128 ? '#000' : '#fff';
+            }
         }
         
-        // Refresh basis view (keep current selection u,v)
         drawBasis(selectedU, selectedV);
     }
 
@@ -632,17 +671,15 @@
         selectBasis(0,0);
     }
 
-    // --- Visualization of Basis ---
     function drawBasis(u, v) {
         const cv = document.getElementById('cvBasis');
         const ctx = cv.getContext('2d');
         const W = cv.width;
         const H = cv.height;
 
-        // Layout Config
-        const margin = 40; // Space for 1D plots
-        const plotSize = W - margin; // 220
-        const cellSize = plotSize / 8; // Size of one macro-pixel in visualizer
+        const margin = 40;
+        const plotSize = W - margin;
+        const cellSize = plotSize / 8;
 
         ctx.fillStyle = '#000';
         ctx.fillRect(0,0,W,H);
@@ -650,22 +687,19 @@
         ctx.strokeStyle = '#444';
         ctx.lineWidth = 1;
 
-        // --- 1. Draw Horizontal Cosine (Top Margin) ---
+        // Horz Cosine
         ctx.beginPath();
         ctx.moveTo(margin, margin/2);
-        // Draw Cos(u)
         ctx.strokeStyle = 'var(--accent)';
         for(let x=0; x<plotSize; x++) {
-            // Map x to 0..8
             let logicX = (x / plotSize) * 8;
             let val = Math.cos(((2*logicX+1)*u*Math.PI)/16);
-            // Map val -1..1 to margin height
             let y = (margin/2) - (val * (margin*0.4));
             ctx.lineTo(margin + x, y);
         }
         ctx.stroke();
 
-        // --- 2. Draw Vertical Cosine (Left Margin) ---
+        // Vert Cosine
         ctx.beginPath();
         ctx.moveTo(margin/2, margin);
         for(let y=0; y<plotSize; y++) {
@@ -676,36 +710,28 @@
         }
         ctx.stroke();
 
-        // --- 3. Draw 2D Product (Main Area) ---
-        // We will draw it pixelated (8x8 grid stretched)
+        // 2D Product
         for(let y=0; y<8; y++) {
             for(let x=0; x<8; x++) {
-                // Formula
                 let cu = Math.cos(((2*x+1)*u*Math.PI)/16);
                 let cv = Math.cos(((2*y+1)*v*Math.PI)/16);
-                let prod = cu * cv; // -1 to 1
+                let prod = cu * cv;
 
-                // Map to grayscale 0..255
                 let c = Math.round((prod + 1) * 127.5);
-                
                 ctx.fillStyle = `rgb(${c},${c},${c})`;
                 ctx.fillRect(margin + x*cellSize, margin + y*cellSize, cellSize, cellSize);
             }
         }
 
-        // Overlay Grid
         ctx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
         ctx.beginPath();
         for(let i=0; i<=8; i++) {
             let p = margin + i*cellSize;
-            // Vert
             ctx.moveTo(p, margin); ctx.lineTo(p, H);
-            // Horz
             ctx.moveTo(margin, p); ctx.lineTo(W, p);
         }
         ctx.stroke();
         
-        // Labels
         ctx.fillStyle = '#888';
         ctx.font = '10px monospace';
         ctx.fillText("x →", W-20, margin-5);
@@ -713,13 +739,11 @@
         ctx.fillText("↓", 10, H-20);
     }
 
-    // --- Helpers ---
     function loadPreset(name) {
         width=256; height=256;
         cvOrig.width=width; cvOrig.height=height;
         cvDest.width=width; cvDest.height=height;
         
-        // Clear Selection
         selectedX = -1; 
         boxSel.style.display = 'none';
 
@@ -733,11 +757,9 @@
                     val = ((Math.floor(x/7) + Math.floor(y/17)) % 3 === 0) ? 200 : 50;
                 } else if(name==='text') {
                     val = 255;
-                    // Mock A shape
                     if(Math.abs(x-128) < (y/2) && y>50 && y<200) val=0;
                     if(y>120 && y<140 && Math.abs(x-128)<40) val=0;
                 } else {
-                    // Lenna-ish gradients
                     val = 128 + 60*Math.sin(x/30) + 60*Math.cos(y/20);
                 }
                 let i = (y*width+x)*4;
@@ -747,12 +769,13 @@
         ctxOrig.putImageData(imgData, 0, 0);
         imgDataSrc = imgData;
         processImage();
-        // Select center by default for demo
+        
+        // Auto select center
         hoverX = 128; hoverY = 128;
         selectedX = 128; selectedY = 128;
         boxSel.style.display = 'block';
         boxSel.style.left = '128px'; boxSel.style.top = '128px';
-        boxSel.style.width = '32px'; boxSel.style.height = '32px'; // Default CSS scale assumption
+        boxSel.style.width = '32px'; boxSel.style.height = '32px';
         updateAnalysisPanel();
     }
 
@@ -765,7 +788,7 @@
                     let sc = Math.min(256/img.width, 256/img.height);
                     let w = Math.floor(img.width*sc); 
                     let h = Math.floor(img.height*sc);
-                    w -= w%8; h -= h%8; // Multiple of 8
+                    w -= w%8; h -= h%8;
                     
                     cvOrig.width = w; cvOrig.height = h;
                     cvDest.width = w; cvDest.height = h;
@@ -778,7 +801,6 @@
             r.readAsDataURL(input.files[0]);
         }
     }
-
 </script>
 </body>
 </html>
