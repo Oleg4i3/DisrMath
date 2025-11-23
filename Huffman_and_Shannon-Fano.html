@@ -182,8 +182,17 @@
 
     <h1>Код Хаффмана</h1>
 
-    <div class="controls">
-        <label for="inputText">Введіть фразу:</label>
+<div class="controls">
+        <label for="inputText">Введіть фразу або оберіть приклад:</label>
+        
+        <select id="presetSelect" onchange="document.getElementById('inputText').value = this.value" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;">
+            <option value="">-- Оберіть готовий приклад --</option>
+            <option value="мама мала сала на каравай">мама мала сала на каравай</option>
+            <option value="молоко воно дороге">молоко воно дороге</option>
+            <option value="пилив пилип липу та пиво не пив">пилив пилип липу та пиво не пив</option>
+            <option value="баранка впала на барабан">баранка впала на барабан</option>
+           
+        </select>
         <textarea id="inputText" rows="3">баранка впала на барабан</textarea>
         <button onclick="runSimulation()">Побудувати Симуляцію</button>
         
@@ -192,7 +201,6 @@
             <button id="btnForward" onclick="stepForward()">Вперед ➡️</button>
         </div>
     </div>
-
     <div id="stepDescription">Введіть текст та натисніть "Побудувати Симуляцію".</div>
 
     <div id="simulationArea">
