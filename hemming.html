@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Систематичний Код Хеммінга (7,4)</title>
+    
+    <!-- MathJax -->
+    <script>
+        window.MathJax = {
+            tex: { 
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                packages: {'[+]': ['ams']} 
+            },
+            loader: { load: ['[tex]/ams'] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --bg: #fdfdfd;
+            --panel-bg: #ffffff;
+            --text: #2c3e50;
+            --accent: #2980b9;
+            --data-col: #dff9fb;
+            --parity-col: #ffeaa7;
+            --highlight: #fab1a0;
+            --error: #e74c3c;
+            --success: #27ae60;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 { color: #34495e; margin-bottom: 10px; }
+        
+        /* Controls */
+        .controls {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        input {
+            padding: 8px;
+            font-size: 18px;
+            width: 100px;
+            text-align: center;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            letter-spacing: 2px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+        button:hover { filter: brightness(1.1); }
+        button.secondary { background: #95a5a6; }
+        button.fix { background: var(--success); display: none; }
+
+        /* Simulation Grid */
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        @media (max-width: 900px) { .sim-grid { grid-template-columns: 1fr; } }
+
+        /* Venn Diagram */
+        .venn-container {
+            text-align: center;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        svg { max-width: 100%; height: auto; user-select: none; }
+        
+        .circle { fill-opacity: 0.1; stroke-width: 2; transition: all 0.3s; }
+        .c-red { stroke: #e74c3c; fill: #e74c3c; }
+        .c-blue { stroke: #3498db; fill: #3498db; }
+        .c-green { stroke: #27ae60; fill: #27ae60; }
+        
+        .circle.active-check { stroke-width: 5; fill-opacity: 0.25; }
+
+        .bit-val {
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            fill: #333;
+        }
+        .bit-val:hover { font-size: 30px; fill: var(--accent); }
+        .bit-val.is-error { fill: var(--error); font-weight: 900; font-size: 32px; }
+        .bit-val.is-corrected { fill: var(--success); }
+        .bit-label { font-size: 12px; fill: #7f8c8d; pointer-events: none; }
+
+        /* Matrices */
+        .matrix-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .matrix-wrapper {
+            display: inline-flex;
+            align-items: center;
+            font-family: 'Consolas', monospace;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .matrix-block {
+            display: grid;
+            gap: 2px;
+            margin: 0 5px;
+            border-left: 2px solid #333;
+            border-right: 2px solid #333;
+            border-radius: 4px;
+            padding: 2px;
+        }
+
+        .m-row { display: flex; gap: 2px; }
+        
+        .m-cell {
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background: #f1f2f6;
+        }
+
+        /* Highlighting */
+        .hl-data { background: var(--data-col); }
+        .hl-parity { background: var(--parity-col); }
+        .hl-match { background: var(--error) !important; color: white; font-weight: bold; }
+        
+        .col-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .col-container.active-col { background: #ffeaa7; transform: scale(1.05); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Theory Section */
+        details {
+            margin-top: 40px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        summary {
+            background: #f8f9fa;
+            padding: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        summary::after { content: '+'; font-size: 1.5em; }
+        details[open] summary::after { content: '-'; }
+        
+        .theory-content { padding: 25px; border-top: 1px solid #eee; }
+        
+        .status-box {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Код Хеммінга (7,4)</h1>
+    
+    <div class="controls">
+        <label>Вхідні дані ($d_1 d_2 d_3 d_4$):</label>
+        <input type="text" id="dataInput" value="1010" maxlength="4" placeholder="1010">
+        <button onclick="runEncoding()">1. Закодувати (Генеруюча матриця)</button>
+        <button class="secondary" onclick="reset()">Скинути</button>
+        <span id="mainStatus" style="margin-left: auto; color: #7f8c8d;">Очікування...</span>
+    </div>
+
+    <div class="sim-grid">
+        <!-- VENN DIAGRAM -->
+        <div class="venn-container">
+            <h3>Візуалізація (Діаграма Ейлера-Венна)</h3>
+            <div id="vennStatus" class="status-box" style="background: #f0f3f5;">Дані ще не закодовані</div>
+            
+            <svg viewBox="0 0 500 450" id="vennSvg">
+                <!-- Circles -->
+                <!-- C1 (Red): Checks d1,d2,d4 + p1 -->
+                <circle cx="180" cy="180" r="120" class="circle c-red" id="c1"></circle>
+                <text x="80" y="100" fill="#c0392b" font-weight="bold">Check 1 (P1)</text>
+
+                <!-- C2 (Blue): Checks d1,d3,d4 + p2 -->
+                <circle cx="320" cy="180" r="120" class="circle c-blue" id="c2"></circle>
+                <text x="380" y="100" fill="#2980b9" font-weight="bold">Check 2 (P2)</text>
+
+                <!-- C3 (Green): Checks d2,d3,d4 + p3 -->
+                <circle cx="250" cy="300" r="120" class="circle c-green" id="c3"></circle>
+                <text x="250" y="440" fill="#27ae60" font-weight="bold">Check 3 (P3)</text>
+
+                <!-- Regions Mapping (Systematic)
+                     d1: C1 & C2
+                     d2: C1 & C3
+                     d3: C2 & C3
+                     d4: C1 & C2 & C3 (Center)
+                     p1: Only C1
+                     p2: Only C2
+                     p3: Only C3
+                -->
+
+                <!-- P1 (Idx 4) -->
+                <g onclick="toggleBit(4)" style="cursor: pointer">
+                    <text x="110" y="200" class="bit-val" id="bit-4">0</text>
+                    <text x="110" y="220" class="bit-label">p1</text>
+                </g>
+                 <!-- P2 (Idx 5) -->
+                <g onclick="toggleBit(5)" style="cursor: pointer">
+                    <text x="390" y="200" class="bit-val" id="bit-5">0</text>
+                    <text x="390" y="220" class="bit-label">p2</text>
+                </g>
+                 <!-- P3 (Idx 6) -->
+                <g onclick="toggleBit(6)" style="cursor: pointer">
+                    <text x="250" y="380" class="bit-val" id="bit-6">0</text>
+                    <text x="250" y="400" class="bit-label">p3</text>
+                </g>
+
+                <!-- D1 (Idx 0) - C1 & C2 -->
+                <g onclick="toggleBit(0)" style="cursor: pointer">
+                    <text x="250" y="140" class="bit-val" id="bit-0">0</text>
+                    <text x="250" y="160" class="bit-label">d1</text>
+                </g>
+
+                <!-- D2 (Idx 1) - C1 & C3 -->
+                <g onclick="toggleBit(1)" style="cursor: pointer">
+                    <text x="170" y="280" class="bit-val" id="bit-1">0</text>
+                    <text x="170" y="300" class="bit-label">d2</text>
+                </g>
+
+                <!-- D3 (Idx 2) - C2 & C3 -->
+                <g onclick="toggleBit(2)" style="cursor: pointer">
+                    <text x="330" y="280" class="bit-val" id="bit-2">0</text>
+                    <text x="330" y="300" class="bit-label">d3</text>
+                </g>
+
+                 <!-- D4 (Idx 3) - Center -->
+                <g onclick="toggleBit(3)" style="cursor: pointer">
+                    <text x="250" y="240" class="bit-val" id="bit-3">0</text>
+                    <text x="250" y="260" class="bit-label">d4</text>
+                </g>
+            </svg>
+        </div>
+
+        <!-- MATRIX LOGIC -->
+        <div class="matrix-panel">
+            <h3>Матрична логіка</h3>
+            
+            <!-- Generation Step -->
+            <div id="genSection">
+                <h4>Кодування ($c = d \times G$)</h4>
+                <div class="matrix-wrapper" id="gMatrixDisplay">
+                    <!-- G Matrix filled by JS -->
+                </div>
+                <p style="font-size: 0.9em; color: #555;">
+                    Матриця $G = [I_4 | P]$. Перші 4 стовпці (білі) просто копіюють дані. 
+                    Останні 3 стовпці (жовті) створюють біти парності.
+                </p>
+                <div id="calcEquations" style="background:#f9f9f9; padding:10px; border-radius:5px;"></div>
+            </div>
+
+            <!-- Check Step -->
+            <div id="checkSection" style="display:none; margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 20px;">
+                <button class="fix" onclick="checkSyndrome()" id="btnCheck">2. Перевірити та Виправити</button>
+                
+                <div id="syndromeResult" style="margin-top: 15px;"></div>
+                
+                <div id="hMatrixDisplay" style="margin-top: 15px; overflow-x: auto;"></div>
+                
+                <p style="font-size: 0.9em; color: #555; margin-top: 10px;">
+                    Матриця $H = [P^T | I_3]$. Якщо $S = H \times c^T \neq 0$, стовпчик $H$, що співпадає з $S$, вказує на місце помилки.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- THEORY -->
+    <details>
+        <summary>теоретична довідка(Натисніть тут)</summary>
+        <div class="theory-content">
+            <h3>1. Систематичний код</h3>
+            <p>На відміну від несистематичного (перемішаного) коду, тут вектор повідомлення чітко розділений:</p>
+            <p>$$ \mathbf{c} = [\underbrace{d_1, d_2, d_3, d_4}_{\text{Дані (Informational)}}, \underbrace{p_1, p_2, p_3}_{\text{Парність (Parity)}}] $$</p>
+
+            <h3>2. Генеруюча матриця $G$</h3>
+            <p>Це лінійний блоковий код. Кодове слово утворюється множенням вектора даних $d$ на матрицю $G$ розміром $4 \times 7$.</p>
+            <p>$$ G = [I_4 | P] $$</p>
+            <ul>
+                <li>$I_4$ (Одинична матриця 4x4): Відповідає за копіювання бітів даних без змін.</li>
+                <li>$P$ (Матриця парності 4x3): Визначає правила обчислення $p_1, p_2, p_3$ через XOR.</li>
+            </ul>
+            <p>Формули для додаткових бітів (через $\oplus$):</p>
+            <p>
+                $p_1 = d_1 \oplus d_2 \oplus d_4$<br>
+                $p_2 = d_1 \oplus d_3 \oplus d_4$<br>
+                $p_3 = d_2 \oplus d_3 \oplus d_4$
+            </p>
+
+            <h3>3. Матриця перевірки $H$ та Синдром</h3>
+            <p>Для перевірки використовується матриця $H$, яка ортогональна до $G$ (тобто $G \times H^T = 0$). Для систематичного коду вона будується як:</p>
+            <p>$$ H = [P^T | I_3] $$</p>
+            <p>Ми обчислюємо <strong>Синдром</strong> $S = H \times r^T$, де $r$ — отриманий вектор.</p>
+
+            <h4>Чому синдром вказує на стовпчик?</h4>
+            <p>Уявімо, що переданий вектор $v$ зіпсувався шумом $e$ (вектор помилки з однією одиницею на позиції $i$). Ми отримали $r = v + e$.</p>
+            <p>$$ S = H(v + e)^T = H v^T + H e^T $$</p>
+            <p>Оскільки $v$ — правильне слово, то $H v^T = 0$. Залишається:</p>
+            <p>$$ S = H e^T $$</p>
+            <p>Якщо помилка на $i$-й позиції (наприклад, у векторі $e$ одиниця стоїть другою: $0,1,0,0...$), то множення матриці $H$ на такий вектор-стовпчик просто "вирізає" <strong>$i$-й стовпчик матриці $H$</strong>.</p>
+            <p>Тому, якщо ми бачимо синдром $\begin{pmatrix}1\\0\\1\end{pmatrix}$, ми просто шукаємо такий самий стовпчик у матриці $H$. Його номер і є місцем помилки.</p>
+
+            <h3>4. Класифікація та Властивості</h3>
+            <ul>
+                <li><strong>Блоковий код (7,4):</strong> Дані кодуються блоками фіксованої довжини (n=7 біт, k=4 інформаційних). На відміну від <em>потокових</em> (convolutional) кодів, які працюють безперервно з пам'яттю.</li>
+                <li><strong>Лінійний код:</strong> Сума (XOR) будь-яких двох кодових слів є також кодовим словом. Це дозволяє використовувати матричну алгебру.</li>
+                <li><strong>Відстань Хеммінга ($d_{min}$):</strong> Мінімальна кількість бітів, що відрізняють будь-які два допустимі слова. Для коду (7,4) $d_{min}=3$.</li>
+                <li><strong>Здатність виправлення ($t$):</strong> $t = \lfloor (d_{min}-1)/2 \rfloor = \lfloor 2/2 \rfloor = 1$. Код гарантовано виправляє 1 помилку.</li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+<script>
+    // System State
+    // Order: d1, d2, d3, d4, p1, p2, p3
+    // Indices: 0, 1, 2, 3, 4, 5, 6
+    let vector = [0,0,0,0, 0,0,0];
+    let isEncoded = false;
+
+    // Systematic Generator Matrix G = [I4 | P]
+    // Rows correspond to d1..d4 inputs
+    const G = [
+        [1,0,0,0, 1,1,0], // d1 -> contributes to d1, p1, p2
+        [0,1,0,0, 1,0,1], // d2 -> contributes to d2, p1, p3
+        [0,0,1,0, 0,1,1], // d3 -> contributes to d3, p2, p3
+        [0,0,0,1, 1,1,1]  // d4 -> contributes to d4, p1, p2, p3
+    ];
+
+    // Parity Check Matrix H = [P^T | I3]
+    // 3 rows (checks), 7 columns
+    // Transpose of P part of G:
+    // P row 1 (d1): 1 1 0
+    // P row 2 (d2): 1 0 1
+    // ...
+    // H structure:
+    // Col: d1 d2 d3 d4 p1 p2 p3
+    const H = [
+        [1, 1, 0, 1, 1, 0, 0], // Check 1 (Red)
+        [1, 0, 1, 1, 0, 1, 0], // Check 2 (Blue)
+        [0, 1, 1, 1, 0, 0, 1]  // Check 3 (Green)
+    ];
+
+    // DOM Elements
+    const els = {
+        dataInput: document.getElementById('dataInput'),
+        vennSvg: document.getElementById('vennSvg'),
+        vennStatus: document.getElementById('vennStatus'),
+        mainStatus: document.getElementById('mainStatus'),
+        gDisplay: document.getElementById('gMatrixDisplay'),
+        hDisplay: document.getElementById('hMatrixDisplay'),
+        calcEq: document.getElementById('calcEquations'),
+        checkSec: document.getElementById('checkSection'),
+        syndromeRes: document.getElementById('syndromeResult'),
+        circles: [document.getElementById('c1'), document.getElementById('c2'), document.getElementById('c3')]
+    };
+
+    function runEncoding() {
+        const input = els.dataInput.value;
+        if (!/^[01]{4}$/.test(input)) {
+            alert("Введіть 4 біти (0 або 1)");
+            return;
+        }
+
+        const data = input.split('').map(Number);
+        
+        // Calculate Code Vector
+        // d1..d4 are just copies
+        vector[0] = data[0];
+        vector[1] = data[1];
+        vector[2] = data[2];
+        vector[3] = data[3];
+
+        // p1 = d1 + d2 + d4
+        vector[4] = vector[0] ^ vector[1] ^ vector[3];
+        // p2 = d1 + d3 + d4
+        vector[5] = vector[0] ^ vector[2] ^ vector[3];
+        // p3 = d2 + d3 + d4
+        vector[6] = vector[1] ^ vector[2] ^ vector[3];
+
+        isEncoded = true;
+        
+        updateVisuals();
+        renderGMatrix();
+        
+        // Show Equations
+        els.calcEq.innerHTML = `
+            <strong>Розрахунок:</strong><br>
+            $p_1 = d_1 \\oplus d_2 \\oplus d_4 = ${vector[0]} \\oplus ${vector[1]} \\oplus ${vector[3]} = ${vector[4]}$<br>
+            $p_2 = d_1 \\oplus d_3 \\oplus d_4 = ${vector[0]} \\oplus ${vector[2]} \\oplus ${vector[3]} = ${vector[5]}$<br>
+            $p_3 = d_2 \\oplus d_3 \\oplus d_4 = ${vector[1]} \\oplus ${vector[2]} \\oplus ${vector[3]} = ${vector[6]}$
+        `;
+        MathJax.typesetPromise([els.calcEq]);
+
+        els.vennStatus.innerHTML = "Дані закодовані. <span style='color:#e74c3c'>Клікніть на будь-який біт на діаграмі, щоб створити помилку.</span>";
+        els.mainStatus.innerText = "Готово. Очікування внесення помилки...";
+        els.dataInput.disabled = true;
+        els.checkSec.style.display = "block";
+        document.getElementById('btnCheck').style.display = 'none'; // hide until error
+    }
+
+    function toggleBit(index) {
+        if (!isEncoded) return;
+
+        vector[index] ^= 1; // Flip
+        updateVisuals();
+        
+        // Mark strictly as error visual
+        const textEl = document.getElementById(`bit-${index}`);
+        textEl.classList.add('is-error');
+        
+        els.vennStatus.innerHTML = `Біт ${getBitName(index)} змінено! Натисніть "Перевірити та Виправити".`;
+        document.getElementById('btnCheck').style.display = 'inline-block';
+        
+        // Clear previous checks
+        els.syndromeRes.innerHTML = "";
+        els.hDisplay.innerHTML = "";
+        els.circles.forEach(c => c.classList.remove('active-check'));
+    }
+
+    function getBitName(i) {
+        if (i < 4) return `d${i+1}`;
+        return `p${i-3}`;
+    }
+
+    function updateVisuals() {
+        for(let i=0; i<7; i++) {
+            const el = document.getElementById(`bit-${i}`);
+            el.textContent = vector[i];
+            el.classList.remove('is-error', 'is-corrected');
+        }
+    }
+
+    function renderGMatrix() {
+        // G is 4x7
+        let html = '<div style="margin-right:10px; font-weight:bold; font-size:1.2em;">G = </div>';
+        
+        // Create 7 columns
+        for(let col=0; col<7; col++) {
+            let colHtml = `<div class="col-container">`;
+            // Header
+            colHtml += `<div style="font-size:10px; margin-bottom:2px;">${getBitName(col)}</div>`;
+            colHtml += `<div class="matrix-block ${col<4 ? 'hl-data' : 'hl-parity'}">`;
+            
+            for(let row=0; row<4; row++) {
+                colHtml += `<div class="m-cell">${G[row][col]}</div>`;
+            }
+            colHtml += `</div></div>`;
+            html += colHtml;
+        }
+        els.gDisplay.innerHTML = html;
+    }
+
+    function checkSyndrome() {
+        // Calculate Syndrome S = H * v^T
+        // S has 3 elements
+        let s = [0, 0, 0];
+        
+        // Row 1 of H dot v
+        s[0] = (H[0][0]*vector[0] + H[0][1]*vector[1] + H[0][2]*vector[2] + H[0][3]*vector[3] + 
+                H[0][4]*vector[4] + H[0][5]*vector[5] + H[0][6]*vector[6]) % 2;
+                
+        // Row 2
+        s[1] = (H[1][0]*vector[0] + H[1][1]*vector[1] + H[1][2]*vector[2] + H[1][3]*vector[3] + 
+                H[1][4]*vector[4] + H[1][5]*vector[5] + H[1][6]*vector[6]) % 2;
+
+        // Row 3
+        s[2] = (H[2][0]*vector[0] + H[2][1]*vector[1] + H[2][2]*vector[2] + H[2][3]*vector[3] + 
+                H[2][4]*vector[4] + H[2][5]*vector[5] + H[2][6]*vector[6]) % 2;
+
+        const syndromeStr = s.join('');
+        const hasError = s.some(x => x === 1);
+
+        // Highlight Venn Circles corresponding to syndrome bits 1
+        // s[0] -> Check 1 (Red), s[1] -> Check 2 (Blue), s[2] -> Check 3 (Green)
+        if(s[0]) els.circles[0].classList.add('active-check');
+        if(s[1]) els.circles[1].classList.add('active-check');
+        if(s[2]) els.circles[2].classList.add('active-check');
+
+        // Render H Matrix with highlighting
+        let hHtml = '<div style="display:flex; align-items:center;">';
+        hHtml += '<div style="margin-right:10px; font-weight:bold;">H = </div>';
+        
+        let errorIndex = -1;
+
+        for(let col=0; col<7; col++) {
+            // Extract col vector from H
+            const colVec = [H[0][col], H[1][col], H[2][col]];
+            const colStr = colVec.join('');
+            
+            const isMatch = (colStr === syndromeStr) && hasError;
+            if(isMatch) errorIndex = col;
+
+            let colClass = isMatch ? 'active-col' : '';
+            let cellClass = isMatch ? 'hl-match' : (col < 4 ? 'hl-data' : 'hl-parity');
+
+            hHtml += `<div class="col-container ${colClass}">`;
+            hHtml += `<div style="font-size:10px; margin-bottom:2px;">${getBitName(col)}</div>`;
+            hHtml += `<div class="matrix-block">`;
+            hHtml += `<div class="m-cell ${cellClass}">${H[0][col]}</div>`;
+            hHtml += `<div class="m-cell ${cellClass}">${H[1][col]}</div>`;
+            hHtml += `<div class="m-cell ${cellClass}">${H[2][col]}</div>`;
+            hHtml += `</div></div>`;
+        }
+        
+        // Show Syndrome Vector
+        hHtml += `<div style="margin: 0 15px; font-size:20px;">&times; v<sup>T</sup> = </div>`;
+        hHtml += `<div class="matrix-block" style="border: 2px solid #e74c3c; background:#fff;">`;
+        hHtml += `<div class="m-cell" style="font-weight:bold;">${s[0]}</div>`;
+        hHtml += `<div class="m-cell" style="font-weight:bold;">${s[1]}</div>`;
+        hHtml += `<div class="m-cell" style="font-weight:bold;">${s[2]}</div>`;
+        hHtml += `</div>`; // End Syndrome
+        hHtml += `<div style="margin-left:10px; font-weight:bold;">(Синдром)</div>`;
+        
+        hHtml += '</div>'; // End container
+
+        els.hDisplay.innerHTML = hHtml;
+
+        let msg = '';
+        if (!hasError) {
+            msg = `<span style="color:green">Синдром нульовий. Помилок немає.</span>`;
+        } else {
+            msg = `Синдром <strong>[${s[0]}, ${s[1]}, ${s[2]}]</strong> співпадає зі стовпцем <strong>${getBitName(errorIndex)}</strong>.`;
+            msg += `<br>Виправляю біт...`;
+            
+            setTimeout(() => {
+                vector[errorIndex] ^= 1;
+                updateVisuals();
+                const fixedEl = document.getElementById(`bit-${errorIndex}`);
+                fixedEl.classList.add('is-corrected');
+                els.vennStatus.innerHTML = `Помилку в ${getBitName(errorIndex)} виправлено!`;
+                // Remove Venn Highlights
+                els.circles.forEach(c => c.classList.remove('active-check'));
+            }, 2000);
+        }
+        els.syndromeRes.innerHTML = msg;
+    }
+
+    function reset() {
+        vector = [0,0,0,0,0,0,0];
+        isEncoded = false;
+        els.dataInput.disabled = false;
+        els.dataInput.value = "1010";
+        els.gDisplay.innerHTML = "";
+        els.hDisplay.innerHTML = "";
+        els.calcEq.innerHTML = "";
+        els.syndromeRes.innerHTML = "";
+        els.checkSec.style.display = "none";
+        els.vennStatus.innerText = "Скинуто";
+        els.mainStatus.innerText = "Очікування";
+        els.circles.forEach(c => c.classList.remove('active-check'));
+        updateVisuals();
+    }
+    
+    // Initial draw (zeros)
+    updateVisuals();
+
+</script>
+
+</body>
+</html>
