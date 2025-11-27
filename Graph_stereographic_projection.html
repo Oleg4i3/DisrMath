@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Топологія: Сфера ➔ Площина (з вигнутими ребрами)</title>
+    <title>Топологія: Сфера ➔ Площина</title>
     <style>
         body { margin: 0; background-color: #111; overflow: hidden; }
         canvas { display: block; }
@@ -28,15 +28,10 @@
             background: rgba(0, 0, 0, 0.3);
             border-radius: 8px;
             box-sizing: border-box;
-            
-            /* --- ОНОВЛЕНО: Використовуємо Flexbox для розміщення кнопки --- */
-            display: flex;
-            align-items: center;
         }
         .slider {
             -webkit-appearance: none;
-            /* --- ОНОВЛЕНО: Слайдер тепер займає вільне місце --- */
-            flex-grow: 1; 
+            width: 100%;
             height: 8px;
             background: #444;
             border-radius: 5px;
@@ -63,30 +58,22 @@
             border-radius: 50%;
             cursor: pointer;
         }
-
-        /* --- НОВЕ: Стилі для кнопки Play/Pause --- */
-        #play-pause-button {
-            padding: 8px 12px;
-            margin-right: 10px;
-            background: #00ff00;
-            color: #111;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-family: Arial, sans-serif;
-            min-width: 60px; /* Для однакової ширини 'Play' / 'Pause' */
+        #area-info {
+            position: absolute;
+            top: 40px;
+            width: 100%;
             text-align: center;
-        }
-        #play-pause-button:hover {
-            background: #33ff33;
+            color: #00ff00;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
     <div id="info">Стереографічна проекція: граф куба з ребрами на поверхні</div>
+  
     <div id="slider-container">
-        <button id="play-pause-button">Pause</button>
         <input type="range" min="0" max="1000" value="0" class="slider" id="progress-slider">
     </div>
 
@@ -105,7 +92,7 @@
 
         let scene, camera, renderer, controls;
         let sphereMesh, planeMesh, material;
-        let slider, clock, playPauseButton; // --- ОНОВЛЕНО ---
+        let slider, clock, areaInfo;
 
         let graphGroup, graphVertices = [], graphEdges = [];
         const planarCoords = []; 
@@ -117,31 +104,36 @@
 
         // --- КОНСТАНТИ АНІМАЦІЇ ---
         const initialRadius = 3;       
-        const startingRadius = 1.5; 
-        const finalPlaneRadius = 20;   
+        const startingRadius = 1.5;
         const minTheta = 0.01;         
-        const loopDuration = 10;        
+        const loopDuration = 80;        
         const transitionProgress = 0.995; 
-        const EDGE_SEGMENTS = 20; 
+        const EDGE_SEGMENTS = 20;
+
+        // --- КОНСТАНТИ ДЛЯ СТАЛОЇ ПЛОЩІ ---
+        const TARGET_AREA = 4 * Math.PI * initialRadius * initialRadius; // Площа повної сфери початкового радіуса
+        const FINAL_PLANE_RADIUS = Math.sqrt(TARGET_AREA / Math.PI); // Радіус площини для сталої площі
 
         // --- СТАН АНІМАЦІЇ ---
         let manualControl = false; 
         let lastProgress = 0;      
         let animStartTime = 0;     
-        let isPlaying = true; // --- НОВЕ: Стан Play/Pause ---
 
-        // --- НОВЕ: Тимчасові вектори для оптимізації ---
+        // --- Тимчасові вектори для оптимізації ---
         const v_start_rel = new THREE.Vector3();
         const v_end_rel = new THREE.Vector3();
         const axis = new THREE.Vector3();
         const point_on_arc_rel = new THREE.Vector3();
 
+        // Зберігаємо початкові координати для плоского випадку
+        let finalCoords = [];
+
         function init() {
             clock = new THREE.Clock();
             scene = new THREE.Scene();
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(12, 10, 12);
+            camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);//75
+            camera.position.set(3, 20, 12); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -156,7 +148,8 @@
             directionalLight.position.set(10, 15, 10);
             scene.add(directionalLight);
 
-            const gridHelper = new THREE.GridHelper(finalPlaneRadius * 2, finalPlaneRadius * 2, 0x888888, 0x444444);
+            // Оновлюємо gridHelper з новим радіусом
+            const gridHelper = new THREE.GridHelper(FINAL_PLANE_RADIUS * 2, FINAL_PLANE_RADIUS * 2, 0x888888, 0x444444);
             scene.add(gridHelper);
 
             material = new THREE.MeshStandardMaterial({
@@ -173,62 +166,34 @@
             sphereMesh = new THREE.Mesh(sphereGeo, material);
             scene.add(sphereMesh);
 
-            let planeGeo = new THREE.CircleGeometry(finalPlaneRadius, 64);
+            // Оновлюємо площину з новим радіусом
+            let planeGeo = new THREE.CircleGeometry(FINAL_PLANE_RADIUS, 64);
             planeMesh = new THREE.Mesh(planeGeo, material);
             planeMesh.rotation.x = -Math.PI / 2;
             planeMesh.visible = false;
             scene.add(planeMesh);
 
+            areaInfo = document.getElementById('area-info');
+
             initGraph();
 
             slider = document.getElementById('progress-slider');
-            
-            // --- ОНОВЛЕНО: Обробники слайдера ---
             slider.addEventListener('input', () => {
                 const progress = parseFloat(slider.value) / 1000.0;
                 updateAnimation(progress); 
-                lastProgress = progress; // Оновлюємо lastProgress під час перетягування
             });
             slider.addEventListener('pointerdown', () => {
                 manualControl = true;
-                if (isPlaying) { // Якщо грало, показуємо, що перетягування = пауза
-                    playPauseButton.textContent = 'Play';
-                }
             });
             slider.addEventListener('pointerup', () => {
                 manualControl = false;
                 lastProgress = parseFloat(slider.value) / 1000.0;
                 animStartTime = clock.getElapsedTime();
-                if (isPlaying) { // Якщо грало, повертаємо текст "Pause"
-                    playPauseButton.textContent = 'Pause';
-                }
             });
-
-            // --- НОВЕ: Обробник кнопки Play/Pause ---
-            playPauseButton = document.getElementById('play-pause-button');
-            playPauseButton.addEventListener('click', togglePlayPause);
-            // --- Кінець нового блоку ---
 
             window.addEventListener('resize', onWindowResize, false);
             
             updateAnimation(0);
-        }
-
-        // --- НОВА ФУНКЦІЯ ---
-        function togglePlayPause() {
-            isPlaying = !isPlaying;
-            if (isPlaying) {
-                // Відновлюємо відтворення
-                playPauseButton.textContent = 'Pause';
-                // Синхронізуємо час, щоб продовжити з поточної точки
-                animStartTime = clock.getElapsedTime(); 
-                // lastProgress вже встановлено (або з 'pointerup', або з попередньої паузи)
-            } else {
-                // Ставимо на паузу
-                playPauseButton.textContent = 'Play';
-                // Зберігаємо поточний прогрес, щоб знати, звідки відновити
-                lastProgress = parseFloat(slider.value) / 1000.0; 
-            }
         }
 
         function initGraph() {
@@ -238,10 +203,12 @@
             const vertexGeo = new THREE.SphereGeometry(0.2, 16, 16); 
             const vertexMat = new THREE.MeshStandardMaterial({ color: 0xff0000 }); 
 
-            const inner_s = 5; 
-            const outer_b = 12; 
+            // Оновлюємо координати для нової площини
+            const scaleFactor = FINAL_PLANE_RADIUS / 20; // 20 - старий радіус
+            const inner_s = 5 * scaleFactor; 
+            const outer_b = 12 * scaleFactor; 
             
-            const finalCoords = [
+            finalCoords = [
                 new THREE.Vector2( inner_s,  inner_s), // v0
                 new THREE.Vector2(-inner_s,  inner_s), // v1
                 new THREE.Vector2(-inner_s, -inner_s), // v2
@@ -257,7 +224,7 @@
                 const v = finalCoords[i];
                 const r = v.length();
                 const phi = Math.atan2(v.y, v.x); 
-                const norm_r = r / finalPlaneRadius;
+                const norm_r = r / FINAL_PLANE_RADIUS;
                 
                 planarCoords.push({ phi: phi, norm_r: norm_r });
                 
@@ -280,44 +247,52 @@
             }
         }
 
-        function updateGraph(currentRadius, currentTheta) {
+        function updateGraph(currentRadius, currentTheta, isFlat) {
             if (!graphGroup) return; 
 
+            // Розрахунок зміщення центру сфери
             const sphere_y_offset = -currentRadius * Math.cos(currentTheta);
 
             // 1. Оновлюємо позиції вершин
             for (let i = 0; i < graphVertices.length; i++) {
                 const planar = planarCoords[i];
-                const theta_p = planar.norm_r * currentTheta;
-                const phi_p = planar.phi;                     
+                
+                if (isFlat) {
+                    // Для плоского випадку використовуємо прямі координати
+                    const v = finalCoords[i];
+                    graphVertices[i].position.set(v.x, 0, v.y);
+                } else {
+                    // Сферичний випадок
+                    const theta_p = planar.norm_r * currentTheta;
+                    const phi_p = planar.phi;                     
 
-                const x_s = currentRadius * Math.sin(theta_p) * Math.cos(phi_p);
-                const y_s = currentRadius * Math.cos(theta_p);
-                const z_s = currentRadius * Math.sin(theta_p) * Math.sin(phi_p);
+                    const x_s = currentRadius * Math.sin(theta_p) * Math.cos(phi_p);
+                    const y_s = currentRadius * Math.cos(theta_p);
+                    const z_s = currentRadius * Math.sin(theta_p) * Math.sin(phi_p);
 
-                graphVertices[i].position.set(x_s, y_s + sphere_y_offset, z_s);
+                    graphVertices[i].position.set(x_s, y_s + sphere_y_offset, z_s);
+                }
             }
             
             // 2. Оновлюємо ребра
-            const isFlat = (currentTheta < (minTheta + 0.001)); 
-
             for (let j = 0; j < graphEdges.length; j++) {
                 const edge = graphEdges[j];
                 const indices = edgeIndices[j];
                 const pos = edge.geometry.attributes.position;
                 
+                // Отримуємо світові позиції вершин
                 const v_start_world = graphVertices[indices[0]].position;
                 const v_end_world = graphVertices[indices[1]].position;
 
                 if (isFlat) {
-                    // --- ЛОГІКА ДЛЯ ПЛОЩИНИ: Прямі лінії ---
+                    // Логіка для площини: прямі лінії
                     for (let i = 0; i <= EDGE_SEGMENTS; i++) {
                         const t = i / EDGE_SEGMENTS;
                         point_on_arc_rel.lerpVectors(v_start_world, v_end_world, t);
                         pos.setXYZ(i, point_on_arc_rel.x, point_on_arc_rel.y, point_on_arc_rel.z);
                     }
                 } else {
-                    // --- ЛОГІКА ДЛЯ СФЕРИ: Вигнуті дуги (Great Circle Arc) ---
+                    // Логіка для сфери: вигнуті дуги
                     const planar_start = planarCoords[indices[0]];
                     const planar_end = planarCoords[indices[1]];
 
@@ -337,21 +312,25 @@
                         currentRadius * Math.sin(theta_e) * Math.sin(phi_e)
                     );
 
+                    // Розраховуємо параметри дуги
                     const totalAngle = v_start_rel.angleTo(v_end_rel);
-                    axis.crossVectors(v_start_rel, v_end_rel); 
+                    axis.crossVectors(v_start_rel, v_end_rel);
 
+                    // Заповнюємо BufferAttribute
                     if (totalAngle < 0.001 || axis.lengthSq() < 0.0001) {
+                        // Використовуємо просту інтерполяцію
                         for (let i = 0; i <= EDGE_SEGMENTS; i++) {
                             const t = i / EDGE_SEGMENTS;
                             point_on_arc_rel.lerpVectors(v_start_rel, v_end_rel, t).setLength(currentRadius);
                             pos.setXYZ(
                                 i,
                                 point_on_arc_rel.x,
-                                point_on_arc_rel.y + sphere_y_offset, 
+                                point_on_arc_rel.y + sphere_y_offset,
                                 point_on_arc_rel.z
                             );
                         }
                     } else {
+                        // Стабільний випадок: обертаємо по дузі
                         axis.normalize();
                         for (let i = 0; i <= EDGE_SEGMENTS; i++) {
                             const t = i / EDGE_SEGMENTS;
@@ -359,16 +338,31 @@
                             pos.setXYZ(
                                 i,
                                 point_on_arc_rel.x,
-                                point_on_arc_rel.y + sphere_y_offset, 
+                                point_on_arc_rel.y + sphere_y_offset,
                                 point_on_arc_rel.z
                             );
                         }
                     }
                 }
-                pos.needsUpdate = true; 
+                pos.needsUpdate = true;
             }
         }
 
+        // Функція для обчислення площі сферичного сегмента
+        function calculateSphericalSegmentArea(radius, theta) {
+            // Площа сферичного сегмента: 2πR²(1 - cosθ)
+            return 2 * Math.PI * radius * radius * (1 - Math.cos(theta));
+        }
+
+        // Функція для обчислення радіуса, що зберігає сталу площу
+        function calculateRadiusForConstantArea(theta, targetArea) {
+            // З формули площі сферичного сегмента: A = 2πR²(1 - cosθ)
+            // Виводимо R: R = sqrt(A / (2π(1 - cosθ)))
+            if (theta < minTheta) {
+                return FINAL_PLANE_RADIUS; // Для площини використовуємо обчислений радіус
+            }
+            return Math.sqrt(targetArea / (2 * Math.PI * (1 - Math.cos(theta))));
+        }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -378,35 +372,42 @@
 
         function updateAnimation(progress) {
             let currentRadius, currentTheta;
+            let currentArea = 0;
+            let isFlat = false;
 
             if (progress < 0.5) {
                 // --- ФАЗА 1: Сфера (зростає) -> Півсфера (0.0 -> 0.5) ---
                 sphereMesh.visible = true;
                 planeMesh.visible = false;
+                isFlat = false;
 
                 let p = progress * 2; 
                 currentTheta = THREE.MathUtils.lerp(Math.PI, Math.PI / 2, p);
-                currentRadius = THREE.MathUtils.lerp(startingRadius, initialRadius, p); 
+                
+                // Обчислюємо радіус для сталої площі
+                currentRadius = calculateRadiusForConstantArea(currentTheta, TARGET_AREA);
 
             } else if (progress < transitionProgress) { 
                 // --- ФАЗА 2: Півсфера -> Площина (0.5 -> 0.995) ---
                 sphereMesh.visible = true;
                 planeMesh.visible = false;
+                isFlat = false;
 
                 let p = (progress - 0.5) / (transitionProgress - 0.5); 
                 currentTheta = THREE.MathUtils.lerp(Math.PI / 2, minTheta, p);
-                const targetEdgeRadius = THREE.MathUtils.lerp(initialRadius, finalPlaneRadius, p);
-                currentRadius = targetEdgeRadius / Math.sin(currentTheta);
+                
+                // Обчислюємо радіус для сталої площі
+                currentRadius = calculateRadiusForConstantArea(currentTheta, TARGET_AREA);
 
             } else {
                 // --- ФАЗА 3: Стрибок на площину (0.995 -> 1.0) ---
                 sphereMesh.visible = false;
                 planeMesh.visible = true;
+                isFlat = true;
                 
-                let p = 1.0; 
-                currentTheta = THREE.MathUtils.lerp(Math.PI / 2, minTheta, p);
-                const targetEdgeRadius = THREE.MathUtils.lerp(initialRadius, finalPlaneRadius, p);
-                currentRadius = targetEdgeRadius / Math.sin(currentTheta);
+                currentTheta = minTheta;
+                currentRadius = FINAL_PLANE_RADIUS;
+                currentArea = TARGET_AREA; // Площа площини дорівнює цільовій площі
             }
 
             // Оновлюємо геометрію сфери (якщо вона видима)
@@ -419,17 +420,22 @@
                     0, currentTheta
                 );
                 sphereMesh.position.y = -currentRadius * Math.cos(currentTheta);
+                
+                // Обчислюємо поточну площу
+                currentArea = calculateSphericalSegmentArea(currentRadius, currentTheta);
             }
 
-            // Оновлюємо граф (ЗАВЖДИ)
-            updateGraph(currentRadius, currentTheta);
+            // Оновлюємо інформацію про площу
+          //  areaInfo.textContent = `Площа поверхні: ${currentArea.toFixed(2)} (ціль: ${TARGET_AREA.toFixed(2)})`;
+
+            // Оновлюємо граф
+            updateGraph(currentRadius, currentTheta, isFlat);
         }
 
         function animate() {
             requestAnimationFrame(animate);
 
-            // --- ОНОВЛЕНО: Додано перевірку isPlaying ---
-            if (!manualControl && isPlaying) {
+            if (!manualControl) {
                 const timeSinceResume = clock.getElapsedTime() - animStartTime;
                 const progress = (lastProgress + (timeSinceResume / loopDuration)) % 1.0;
                 
