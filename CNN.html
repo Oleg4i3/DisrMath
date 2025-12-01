@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNN</title>
+    <style>
+        /* --- STYLES FROM PART 1-2 (Scanning & Theory) --- */
+        :root {
+            --primary: #4f46e5;
+            --secondary: #059669; 
+            --accent: #d97706;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1f2937;
+            --border: #e2e8f0;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
+        
+        .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+
+        h1, h2, h3 { margin-top: 0; color: #111827; }
+        h1 { text-align: center; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #6b7280; margin-bottom: 30px; }
+
+        /* SPOILERS */
+        .theory-block { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        details { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s; }
+        details[open] { border-left: 5px solid var(--primary); }
+        summary { padding: 15px; cursor: pointer; font-weight: 600; background: #f1f5f9; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+        summary:hover { background: #e2e8f0; }
+        summary::after { content: "▼"; font-size: 0.8em; color: #64748b; }
+        details[open] summary::after { content: "▲"; }
+        .spoiler-content { padding: 20px; font-size: 0.95rem; color: #374151; background: white; border-top: 1px solid var(--border); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 5px; }
+        .tag-math { background: #fee2e2; color: #991b1b; }
+        .tag-hist { background: #fef3c7; color: #92400e; }
+        .tag-ml { background: #d1fae5; color: #065f46; }
+
+        /* CARDS */
+        .card { background: var(--card); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid var(--border); }
+        .card-header { border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
+        .row { display: flex; gap: 15px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+        
+        /* GRIDS BASE */
+        .grid-container { text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .grid { display: grid; gap: 2px; background: #94a3b8; border: 2px solid #475569; margin: 10px auto; width: fit-content; position: relative; }
+        .cell { width: 40px; height: 40px; background: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; transition: all 0.2s; position: relative; user-select: none; color: #333; }
+        
+        /* INTERACTIVE */
+        .interactive .cell { cursor: pointer; }
+        .interactive .cell:hover { background: #e5e7eb; }
+        .interactive .cell.active { background: #1f2937; color: white; }
+        
+        .val-pos { background-color: #d1fae5; color: #065f46; }
+        .val-neg { background-color: #fee2e2; color: #991b1b; }
+
+        /* SCANNING VISUALS */
+        .cell.scanning { box-shadow: inset 0 0 0 3px var(--primary); z-index: 10; }
+        .cell.best-match-border { box-shadow: inset 0 0 0 4px var(--secondary) !important; z-index: 20; }
+
+        .kernel-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; color: var(--primary); font-weight: bold;
+            background: rgba(255, 255, 255, 0.7); pointer-events: none;
+        }
+        .cell.active .kernel-overlay { color: #fbbf24; background: rgba(31, 41, 55, 0.7); }
+
+        /* HEATMAP OUTPUT */
+        .out-cell { font-size: 0.8rem; color: #9ca3af; }
+        .hm-cold { background: #dbeafe; color: #1e40af; } 
+        .hm-neu { background: #f3f4f6; color: #9ca3af; }
+        .hm-hot-1 { background: #fef9c3; color: #854d0e; }
+        .hm-hot-2 { background: #fed7aa; color: #9a3412; }
+        .hm-hot-3 { background: #fca5a5; color: #7f1d1d; font-weight: 900; transform: scale(1.1); }
+
+        /* UI */
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: 0.2s; }
+        button:hover { background: #4338ca; opacity: 0.9; transform: translateY(-1px); }
+        button:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+        .btn-reset { background: #64748b; font-size: 0.8rem; padding: 5px 10px; }
+        .arrow-box { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100px; max-width: 150px; text-align: center; font-size: 0.9rem; color: #6b7280; }
+        .big-arrow { font-size: 2rem; color: #cbd5e1; margin: 5px 0; }
+
+        /* LAYERS STACK */
+        .layer-stack { display: flex; align-items: center; justify-content: space-around; margin-top: 20px; background: #f0fdf4; padding: 20px; border-radius: 8px; border: 1px dashed #86efac; }
+        .layer-node { text-align: center; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); width: 120px;}
+        .layer-img { width: 50px; height: 50px; margin: 0 auto 5px; border: 1px solid #ddd; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #eee; }
+        .l-pixel { background: white; }
+
+        /* --- STYLES FROM PART 3 (Deep Logic) --- */
+        /* Overrides or Additions */
+        
+        /* KERNEL / FILTER STYLES (Small Grids) */
+        .kernel-display { margin-bottom: 5px; transform: scale(1); border: 2px solid var(--primary); cursor: pointer; }
+        .kernel-display .cell { font-size: 0; width: 25px; height: 25px; }
+        .kernel-display:hover { border-color: #4338ca; box-shadow: 0 0 5px rgba(79, 70, 229, 0.5); }
+        .k-pos { background: #1f2937 !important; } 
+        
+        /* OUTPUT MAPS BASE */
+        .map-cell { width: 38px; height: 38px; background: #f1f5f9; border: 1px solid #cbd5e1; color: transparent; transition: background 0.3s ease; }
+        .map-cell.show-score { color: #555; } /* Visible numbers in heatmap mode */
+        
+        /* --- HEATMAP COLORS (PART 3) --- */
+
+        /* Filter 1 (Blue Scale) */
+        .hm-blue-1 { background-color: #dbeafe !important; color: #1e40af !important; }
+        .hm-blue-2 { background-color: #93c5fd !important; color: #1e3a8a !important; font-weight:bold;}
+        .hm-blue-3 { background-color: #2563eb !important; color: white !important; font-weight:bold; border-color: #1e40af;}
+
+        /* Filter 2 (Red Scale) */
+        .hm-red-1 { background-color: #fee2e2 !important; color: #991b1b !important; }
+        .hm-red-2 { background-color: #fca5a5 !important; color: #7f1d1d !important; font-weight:bold;}
+        .hm-red-3 { background-color: #dc2626 !important; color: white !important; font-weight:bold; border-color: #991b1b;}
+
+        /* Mixed Layer 2 (Fire Scale) */
+        .hm-mix-1 { background-color: #fff7ed !important; color: #9a3412 !important; }
+        .hm-mix-2 { background-color: #fed7aa !important; }
+        .hm-mix-3 { background-color: #fbbf24 !important; }
+        .hm-mix-4 { background-color: #f97316 !important; color: white !important;}
+        .hm-mix-5 { background-color: #ea580c !important; color: white !important; font-weight:bold;}
+        .hm-mix-6 { background-color: #7c2d12 !important; color: white !important; font-weight:bold; transform: scale(1.1); box-shadow: 0 0 8px rgba(234, 88, 12, 0.6);}
+
+        /* --- BINARY MODE COLORS (Solid) --- */
+        .bin-blue { background-color: #3b82f6 !important; border-color: #2563eb; }
+        .bin-red  { background-color: #ef4444 !important; border-color: #dc2626; }
+        .bin-mix  { background-color: #8b5cf6 !important; border-color: #7c3aed; transform: scale(1.1); box-shadow: 0 0 8px #8b5cf6; }
+
+        /* UI ELEMENTS PART 3 */
+        .btn-group { margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .btn-sm { font-size: 0.8rem; padding: 4px 8px; background: #e2e8f0; color: #333; }
+        .btn-sm:hover { background: #cbd5e1; }
+        .btn-sm.active { background: #333; color: white; }
+
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; width: 100%; margin-bottom: 5px; cursor: pointer;}
+        
+        .arrow { font-size: 1.5rem; color: #ccc; margin-top: 100px; }
+        .column { display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
+        .status { font-weight: bold; height: 30px; color: var(--secondary); margin-top: 15px; font-size: 1.1rem;}
+
+        .filter-box { border: 1px dashed #cbd5e1; padding: 10px; border-radius: 8px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; min-width: 120px; }
+        
+        /* Toggle Switch Style */
+        .toggle-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; background: #f1f5f9; padding: 10px; border-radius: 30px; border: 1px solid #e2e8f0; width: fit-content; margin: 0 auto 20px auto; }
+        .toggle-label { font-size: 0.9rem; font-weight: bold; color: #4b5563; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        hr.divider { margin: 40px 0; border: none; border-top: 2px dashed #e2e8f0; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Згорткові нейромережі (CNN) </h1>
+        
+    </header>
+
+    <div class="theory-block">
+        <details>
+            <summary><div><span class="tag tag-ml">ML</span> Типи навчання: Вчитель vs Підкріплення vs Без вчителя</div></summary>
+            <div class="spoiler-content">
+                <p>Нейромережі вчаться по-різному. В цьому симуляторі ми використовуємо <strong>Навчання з вчителем (Supervised Learning)</strong>.</p>
+                <ul>
+                    <li><strong>Supervised Learning (Наш випадок):</strong> У нас є "Вчитель", який каже: "Це цифра 5" (Target). Мережа порівнює свою відповідь з відповіддю вчителя, бачить помилку і виправляється.</li>
+                    <li><strong>Unsupervised Learning:</strong> Вчителя немає. Мережу кидають у купу даних, і вона сама шукає закономірності (кластеризація). Наприклад: "Ці фотографії схожі між собою".</li>
+                    <li><strong>Reinforcement Learning (Підкріплення):</strong> Схоже на дресирування. Зробив добре — отримав винагороду (reward), зробив погано — штраф.</li>
+                </ul>
+            </div>
+        </details>
+        <details>
+            <summary><div><span class="tag tag-hist">History</span> Еволюція: Від Віоли-Джонса до CNN</div></summary>
+            <div class="spoiler-content">
+                <p>До ери Deep Learning (початок 2000-х), інженери вручну придумували фільтри.</p>
+                <p><strong>Метод Віоли-Джонса (2001):</strong> Використовувався в цифрових камерах для пошуку облич. Він базувався на "ознаках Хаара" (Haar features) — простих чорно-білих прямокутниках. Це була, по суті, примітивна згортка, але фільтри були жорстко задані програмістами (наприклад, "очі темніші за щоки").</p>
+                <p><strong>Сучасні CNN:</strong> Головна відмінність — ми більше не придумуємо фільтри. Мережа сама їх "вирощує" в процесі навчання.</p>
+            </div>
+        </details>
+        <details>
+            <summary><div><span class="tag tag-math">Math</span> Увага: Згортка vs Кореляція</div></summary>
+            <div class="spoiler-content">
+                <p>Математично, операція згортки f * g вимагає <strong>перевертання</strong> ядра на 180°. Те, що роблять PyTorch/TensorFlow (і цей симулятор), називається <strong>Взаємна кореляція (Cross-correlation)</strong> — накладання без перевороту.</p>
+                <p>Чому це називають згорткою? Бо ваги ядра вчаться. Якщо математиці потрібен перевернутий фільтр, мережа просто вивчить його вже перевернутим. Зайва операція flip видалена для швидкості.</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>1. Навчання з вчителем (Supervised Learning)</h2>
+            <p>Тут ми показуємо мережі "правильну відповідь" (Target), і вона підлаштовує свої ваги.</p>
+        </div>
+        <div class="row">
+            <div class="grid-container">
+                <h4>🎯 Target (Вчитель)</h4>
+                <div id="targetGrid" class="grid interactive"></div>
+                <small>Намалюйте бажаний патерн</small>
+            </div>
+            <div class="arrow-box">
+                <div class="big-arrow">➡</div>
+                <div>Error = Target - Kernel</div>
+                <div>Weight += Error * LearningRate</div>
+            </div>
+            <div class="grid-container">
+                <h4>🧠 Kernel (Ядро)</h4>
+                <div id="trainKernel" class="grid"></div>
+                <small>Ваги адаптуються</small>
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="trainEpoch()">🔄 Виконати крок навчання (Backprop)</button>
+            <button class="btn-reset" onclick="resetWeights()">Скинути ваги (Random)</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>2. Згортка (Візуалізація сканування)</h2>
+            <p>Використаємо навчений вище фільтр. Спостерігайте, як ядро "ковзає" по зображенню.</p>
+        </div>
+        <div class="row">
+            <div class="grid-container">
+                <h4>Вхідне зображення</h4>
+                <div id="inputGrid" class="grid interactive"></div>
+                <button class="btn-reset" onclick="clearInput()" style="margin-top: 5px;">Очистити</button>
+            </div>
+            <div class="arrow-box">
+                <div class="big-arrow">➡</div>
+                <button onclick="runScan()" id="scanBtn">▶ ЗАПУСТИТИ СКАНУВАННЯ</button>
+            </div>
+            <div class="grid-container">
+                <h4>Результат (Теплова мапа)</h4>
+                <div id="outputGrid" class="grid"></div>
+            </div>
+        </div>
+        <div id="scanLog" style="margin-top: 15px; font-family: monospace; font-size: 0.9rem; color: #4b5563; height: 1.5em; text-align: center; font-weight: bold;"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>3. Навіщо потрібна багатошаровість (Deep Learning)?</h2>
+            <p>Ієрархія ознак: від простого до складного.</p>
+        </div>
+        <div class="layer-stack">
+            <div class="layer-node">
+                <div class="layer-img" style="grid-template-columns: 1fr;"><div style="background:#ddd;"></div></div>
+                <strong>Input</strong><br><small>Пікселі</small>
+            </div>
+            <div class="big-arrow">➡</div>
+            <div class="layer-node">
+                <div class="layer-img">
+                    <div class="l-pixel" style="background:#333"></div><div class="l-pixel"></div>
+                    <div class="l-pixel" style="background:#333"></div><div class="l-pixel"></div>
+                </div>
+                <strong>Шар 1</strong><br><small>Лінії</small>
+            </div>
+            <div class="big-arrow">➡</div>
+            <div class="layer-node">
+                <div class="layer-img">
+                    <div class="l-pixel" style="background:#333"></div><div class="l-pixel" style="background:#333"></div>
+                    <div class="l-pixel" style="background:#333"></div><div class="l-pixel"></div>
+                </div>
+                <strong>Шар 2</strong><br><small>Кути</small>
+            </div>
+            <div class="big-arrow">➡</div>
+            <div class="layer-node">
+                <div class="layer-img" style="border-radius: 50%; background: #333;"></div>
+                <strong>Шар 3+</strong><br><small>Об'єкти</small>
+            </div>
+        </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="card">
+        <header>
+            <h2>4. Глибокий аналіз з штрафами (CNN Lab Part 3)</h2>
+            <div class="subtitle">Враховано штраф (-0.5) за "чорне на білому" для уникнення хибних спрацювань</div>
+        </header>
+
+        <div class="toggle-container">
+            <span class="toggle-label">Бінарний вигляд</span>
+            <label class="switch">
+                <input type="checkbox" id="checkHeatmap" onchange="updateViewMode()" checked>
+                <span class="slider"></span>
+            </label>
+            <span class="toggle-label" style="color:var(--primary)">Теплова карта (Heatmap)</span>
+        </div>
+
+        <div style="text-align:center; margin-bottom:15px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+            <strong>Крок 1: Вхідний сигнал</strong><br>
+            <div class="btn-group">
+                <button class="btn-sm" onclick="loadInputPreset('cross')">Хрестик</button>
+                <button class="btn-sm" onclick="loadInputPreset('L')">Кут (L)</button>
+                <button class="btn-sm" onclick="loadInputPreset('checker')">Шахівниця</button>
+                <button class="btn-sm" onclick="loadInputPreset('full_black')">Чорний квадрат</button>
+                <button class="btn-sm" onclick="clearDeepInput()" style="background:#fee2e2; color:#991b1b;">Очистити</button>
+            </div>
+        </div>
+
+        <div class="row">
+            
+            <div class="column">
+                <strong>Вхід (5x5)</strong>
+                <div id="deepInput" class="grid interactive" style="grid-template-columns: repeat(5, 1fr);"></div>
+                <small>Малюйте тут</small>
+            </div>
+
+            <div class="arrow">➡</div>
+
+            <div class="column">
+                <strong>Шар 1: Розпізнавання</strong>
+                <div style="display:flex; gap: 15px;">
+                    
+                    <div class="filter-box">
+                        <small style="color:#1e40af; font-weight:bold;">Фільтр 1</small>
+                        <select id="selFilter1" onchange="loadFilterPreset(1, this.value)">
+                            <option value="vert">Вертикаль (|)</option>
+                            <option value="horz">Горизонталь (-)</option>
+                            <option value="checker">Шахівниця</option>
+                            <option value="custom">Свій (малюйте)</option>
+                        </select>
+                        <div id="visFilter1" class="grid kernel-display" style="grid-template-columns: repeat(3, 1fr);"></div>
+                        <div style="font-size:1.5rem; line-height:1; color:#ccc;">⬇</div>
+                        <div id="map1" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                    </div>
+
+                    <div class="filter-box">
+                        <small style="color:#991b1b; font-weight:bold;">Фільтр 2</small>
+                        <select id="selFilter2" onchange="loadFilterPreset(2, this.value)">
+                            <option value="vert">Вертикаль (|)</option>
+                            <option value="horz" selected>Горизонталь (-)</option>
+                            <option value="checker">Шахівниця</option>
+                            <option value="custom">Свій (малюйте)</option>
+                        </select>
+                        <div id="visFilter2" class="grid kernel-display" style="grid-template-columns: repeat(3, 1fr);"></div>
+                        <div style="font-size:1.5rem; line-height:1; color:#ccc;">⬇</div>
+                        <div id="map2" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="arrow">➡</div>
+
+            <div class="column">
+                <strong>Шар 2: Синтез</strong>
+                <div class="filter-box" style="border-color: #8b5cf6; background: #f5f3ff; min-width: 140px;">
+                    <small style="color:#6b21a8">Сума сигналів</small>
+                    
+                    <div id="visCombined" class="grid" style="grid-template-columns: repeat(3, 1fr); border: none; background: transparent; gap: 4px; pointer-events: none;"></div>
+                    
+                    <div style="font-size:1.5rem; line-height:1; color:#ccc;">⬇</div>
+                    
+                    <div id="mapMix" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+            <button onclick="runDeepCalc()" id="btnRun" style="padding: 12px 30px; font-size:1rem;">🚀 ЗАПУСТИТИ ОБРОБКУ</button>
+            <div id="statusMsg" class="status"></div>
+            <div id="debugInfo" style="font-size:0.85rem; color:#666; margin-top:5px;"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    /* =========================================
+       SCRIPT PART 1 & 2 (Scanning & Theory)
+       ========================================= */
+    
+    /* --- CONFIG --- */
+    const INPUT_SIZE = 6;
+    const KERNEL_SIZE = 3;
+    const OUTPUT_SIZE = INPUT_SIZE - KERNEL_SIZE + 1;
+    
+    let inputData = createMatrixPart1(INPUT_SIZE);
+    // Default target: Vertical Line
+    let targetData = [[1, -1, 1], [1, 1, -1], [1, -1, 1]];
+    let kernelWeights = createRandomMatrix(KERNEL_SIZE);
+
+    /* --- INIT --- */
+    function initScan() {
+        renderInputGrid();
+        renderTargetGrid();
+        renderKernelGrid();
+        createGridDiv(document.getElementById('outputGrid'), OUTPUT_SIZE, 'out-cell');
+        drawDemoLine();
+    }
+
+    /* --- RENDERERS (Part 1 & Base Grids) --- */
+    function renderInputGrid() {
+        const div = document.getElementById('inputGrid');
+        div.innerHTML = '';
+        div.style.gridTemplateColumns = `repeat(${INPUT_SIZE}, 1fr)`;
+        inputData.forEach((row, r) => {
+            row.forEach((val, c) => {
+                let cell = document.createElement('div');
+                cell.className = 'cell ' + (val === 1 ? 'active' : '');
+                // Prevent clicking during animation if needed, but simple toggle is fine
+                cell.onclick = () => { if(!document.getElementById('scanBtn').disabled) {
+                    inputData[r][c] = inputData[r][c] === 1 ? 0 : 1; renderInputGrid(); 
+                }};
+                div.appendChild(cell);
+            });
+        });
+    }
+
+    function renderTargetGrid() {
+        const div = document.getElementById('targetGrid');
+        div.innerHTML = '';
+        div.style.gridTemplateColumns = `repeat(${KERNEL_SIZE}, 1fr)`;
+        targetData.forEach((row, r) => {
+            row.forEach((val, c) => {
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                if(val === 1) cell.style.background = '#1f2937';
+                else if(val === -1) { cell.style.background = '#fff'; cell.style.border = '1px solid red'; cell.style.color='red'; cell.textContent='-';}
+                else { cell.style.background = '#e5e7eb'; }
+                cell.onclick = () => {
+                    if(val === 0) targetData[r][c] = 1; else if(val === 1) targetData[r][c] = -1; else targetData[r][c] = 0;
+                    renderTargetGrid();
+                };
+                div.appendChild(cell);
+            });
+        });
+    }
+
+    function renderKernelGrid() {
+        const div = document.getElementById('trainKernel');
+        div.innerHTML = '';
+        div.style.gridTemplateColumns = `repeat(${KERNEL_SIZE}, 1fr)`;
+        kernelWeights.forEach((row, r) => {
+            row.forEach((val, c) => {
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.textContent = val.toFixed(1);
+                if(val > 0.1) cell.classList.add('val-pos'); else if(val < -0.1) cell.classList.add('val-neg');
+                cell.style.opacity = 0.3 + Math.min(Math.abs(val), 1) * 0.7;
+                div.appendChild(cell);
+            });
+        });
+    }
+
+    function createGridDiv(container, size, cellClass) {
+        container.innerHTML = '';
+        container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        for(let i=0; i<size*size; i++) {
+            let c = document.createElement('div'); c.className = 'cell ' + cellClass; container.appendChild(c);
+        }
+    }
+
+    /* --- LOGIC PART 1: TRAINING --- */
+    function trainEpoch() {
+        const learningRate = 0.2;
+        for(let i=0; i<KERNEL_SIZE; i++) {
+            for(let j=0; j<KERNEL_SIZE; j++) {
+                kernelWeights[i][j] += (targetData[i][j] - kernelWeights[i][j]) * learningRate;
+            }
+        }
+        renderKernelGrid();
+    }
+
+    function resetWeights() { kernelWeights = createRandomMatrix(KERNEL_SIZE); renderKernelGrid(); }
+
+    /* --- LOGIC PART 2: SCANNING (Updated) --- */
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    async function runScan() {
+        const btn = document.getElementById('scanBtn');
+        const log = document.getElementById('scanLog');
+        const outDiv = document.getElementById('outputGrid');
+        const inputDiv = document.getElementById('inputGrid');
+        
+        btn.disabled = true;
+        log.textContent = "Сканування розпочато...";
+        // Reset output visuals
+        Array.from(outDiv.children).forEach(c => { c.textContent = ''; c.className = 'cell out-cell hm-neu'; });
+        // Reset input best match borders
+        Array.from(inputDiv.children).forEach(c => c.classList.remove('best-match-border'));
+
+        let maxActivation = -Infinity;
+        let bestCoordinates = [];
+
+        for(let i=0; i<OUTPUT_SIZE; i++) {
+            for(let j=0; j<OUTPUT_SIZE; j++) {
+                
+                // 1. Highlight window AND show sliding kernel weights overlay
+                highlightInputWithOverlay(i, j, true);
+                
+                // 2. Math
+                let sum = 0;
+                for(let ki=0; ki<KERNEL_SIZE; ki++) {
+                    for(let kj=0; kj<KERNEL_SIZE; kj++) {
+                        sum += inputData[i+ki][j+kj] * kernelWeights[ki][kj];
+                    }
+                }
+                
+                // Track best match
+                if(sum > maxActivation) {
+                    maxActivation = sum;
+                    bestCoordinates = [{r:i, c:j}];
+                } else if (sum === maxActivation && sum > 0) {
+                    bestCoordinates.push({r:i, c:j});
+                }
+
+                // 3. Visualization (Heatmap)
+                let cellIdx = i*OUTPUT_SIZE + j;
+                let cell = outDiv.children[cellIdx];
+                let valStr = sum.toFixed(1);
+                cell.textContent = valStr;
+                
+                // Apply Heatmap classes based on thresholds
+                cell.className = 'cell out-cell'; // reset
+                if (sum < -0.5) cell.classList.add('hm-cold');
+                else if (sum >= -0.5 && sum <= 0.5) cell.classList.add('hm-neu');
+                else if (sum > 0.5 && sum <= 2.5) cell.classList.add('hm-hot-1');
+                else if (sum > 2.5 && sum <= 5.5) cell.classList.add('hm-hot-2');
+                else if (sum > 5.5) cell.classList.add('hm-hot-3');
+
+                log.textContent = `Вікно [${i},${j}]: Активація = ${valStr}`;
+
+                await sleep(200); // Slower animation to see weights
+                highlightInputWithOverlay(i, j, false);
+            }
+        }
+
+        // Final Step: Highlight best matches on INPUT grid
+        if(maxActivation > 1.0 && bestCoordinates.length > 0) {
+            log.textContent = `Сканування завершено. Найкращий збіг виділено зеленим (Активація: ${maxActivation.toFixed(1)})`;
+            bestCoordinates.forEach(coord => {
+                 drawBestMatchBorder(coord.r, coord.c);
+            });
+        } else {
+             log.textContent = "Сканування завершено. Сильних збігів не знайдено.";
+        }
+        
+        btn.disabled = false;
+    }
+
+    /* --- HELPERS (Updated) --- */
+    function createMatrixPart1(size) { return Array(size).fill().map(() => Array(size).fill(0)); }
+    function createRandomMatrix(size) { return Array(size).fill().map(() => Array(size).fill().map(() => Math.random() - 0.5)); }
+    function drawDemoLine() { clearInput(); for(let i=0; i<INPUT_SIZE; i++) inputData[i][2] = 1; inputData[1][1] = 1; inputData[4][3] = 1;inputData[3][4] = 1; inputData[5][4] = 1; renderInputGrid(); }
+    function clearInput() { inputData = createMatrixPart1(INPUT_SIZE); renderInputGrid(); }
+
+    // New helper for PART 2 visuals
+    function highlightInputWithOverlay(r, c, active) {
+        const div = document.getElementById('inputGrid');
+        for(let i=0; i<KERNEL_SIZE; i++){
+            for(let j=0; j<KERNEL_SIZE; j++){
+                let idx = (r+i)*INPUT_SIZE + (c+j);
+                let cell = div.children[idx];
+                
+                if(active) {
+                    cell.classList.add('scanning');
+                    // Create overlay with kernel weight value
+                    let overlay = document.createElement('div');
+                    overlay.className = 'kernel-overlay';
+                    overlay.textContent = kernelWeights[i][j].toFixed(1);
+                    cell.appendChild(overlay);
+                } else {
+                    cell.classList.remove('scanning');
+                    // Remove overlay
+                    let overlay = cell.querySelector('.kernel-overlay');
+                    if(overlay) cell.removeChild(overlay);
+                }
+            }
+        }
+    }
+
+    // New helper to draw final green border
+    function drawBestMatchBorder(startR, startC) {
+        const div = document.getElementById('inputGrid');
+        for(let i=0; i<KERNEL_SIZE; i++){
+            for(let j=0; j<KERNEL_SIZE; j++){
+                let idx = (startR+i)*INPUT_SIZE + (startC+j);
+                div.children[idx].classList.add('best-match-border');
+            }
+        }
+    }
+</script>
+
+<script>
+    /* =========================================
+       SCRIPT PART 3 (Deep Logic)
+       ========================================= */
+    
+    // --- CONFIG ---
+    const SIZE_IN = 5;
+    const SIZE_K = 3;
+    const SIZE_OUT = 3;
+
+    // --- STATE ---
+    let deepInput = createMatrixDeep(SIZE_IN);
+    let kernel1 = createMatrixDeep(SIZE_K);
+    let kernel2 = createMatrixDeep(SIZE_K);
+    
+    // Store calculated scores to switch views instantly
+    let scores1 = createMatrixDeep(SIZE_OUT);
+    let scores2 = createMatrixDeep(SIZE_OUT);
+    let scoresMix = createMatrixDeep(SIZE_OUT);
+    let hasRun = false;
+
+    // Filters (1 = Black/Match, 0 = White/Ignore)
+    const FILTERS = {
+        'vert': [[0, 1, 0], [0, 1, 0], [0, 1, 0]],
+        'horz': [[0, 0, 0], [1, 1, 1], [0, 0, 0]],
+        'checker': [[1, 0, 1], [0, 1, 0], [1, 0, 1]], 
+        'custom': [[0,0,0], [0,0,0], [0,0,0]]
+    };
+
+    function initDeep() {
+        createGrid('deepInput', SIZE_IN, true, 'cell', toggleDeepInput);
+        
+        createGrid('visFilter1', SIZE_K, true, 'cell', (r,c,el) => toggleKernelPixel(1, r, c, el));
+        createGrid('visFilter2', SIZE_K, true, 'cell', (r,c,el) => toggleKernelPixel(2, r, c, el));
+        
+        // Combined visualization grid
+        const combinedDiv = document.getElementById('visCombined');
+        combinedDiv.innerHTML = '';
+        for(let i=0; i<9; i++) {
+            let d = document.createElement('div');
+            d.style.width = '15px'; d.style.height = '15px'; d.style.background='#ccc'; d.style.borderRadius='2px';
+            combinedDiv.appendChild(d);
+        }
+
+        // Outputs
+        createGrid('map1', SIZE_OUT, false, 'cell map-cell');
+        createGrid('map2', SIZE_OUT, false, 'cell map-cell');
+        createGrid('mapMix', SIZE_OUT, false, 'cell map-cell');
+        
+        // Defaults
+        loadInputPreset('cross');
+        loadFilterPreset(1, 'vert');
+        loadFilterPreset(2, 'horz');
+    }
+
+    // --- LOGIC ---
+
+    function createMatrixDeep(size) { return Array(size).fill().map(() => Array(size).fill(0)); }
+
+    function createGrid(id, size, interactive, cellClass, clickHandler) {
+        const div = document.getElementById(id);
+        div.innerHTML = '';
+        for(let r=0; r<size; r++) {
+            for(let c=0; c<size; c++) {
+                let el = document.createElement('div');
+                el.className = cellClass;
+                el.dataset.r = r;
+                el.dataset.c = c;
+                if(interactive && clickHandler) el.onclick = () => clickHandler(r, c, el);
+                div.appendChild(el);
+            }
+        }
+    }
+
+    function toggleDeepInput(r, c, el) {
+        deepInput[r][c] = deepInput[r][c] === 1 ? 0 : 1;
+        updateGridDisplay('deepInput', deepInput);
+        clearResults();
+    }
+
+    function toggleKernelPixel(filterNum, r, c, el) {
+        let k = (filterNum === 1) ? kernel1 : kernel2;
+        k[r][c] = k[r][c] === 1 ? 0 : 1;
+        document.getElementById(`selFilter${filterNum}`).value = 'custom';
+        updateKernelDisplay(filterNum);
+        updateCombinedView();
+        clearResults();
+    }
+
+    function clearDeepInput() {
+        deepInput = createMatrixDeep(SIZE_IN);
+        updateGridDisplay('deepInput', deepInput);
+        clearResults();
+    }
+
+    function loadInputPreset(type) {
+        deepInput = createMatrixDeep(SIZE_IN);
+        if(type === 'cross') {
+            for(let i=0; i<5; i++) { deepInput[2][i] = 1; deepInput[i][2] = 1; }
+        } else if(type === 'L') {
+            for(let i=0; i<5; i++) deepInput[i][1] = 1;
+            for(let i=1; i<5; i++) deepInput[4][i] = 1;
+        } else if(type === 'checker') {
+            for(let i=0; i<5; i++) for(let j=0; j<5; j++) if((i+j)%2===0) deepInput[i][j] = 1;
+        } else if(type === 'full_black') {
+            for(let i=0; i<5; i++) for(let j=0; j<5; j++) deepInput[i][j] = 1;
+        }
+        updateGridDisplay('deepInput', deepInput);
+        clearResults();
+    }
+
+    function loadFilterPreset(filterNum, type) {
+        let data = JSON.parse(JSON.stringify(FILTERS[type] || FILTERS['custom']));
+        if (filterNum === 1) kernel1 = data; else kernel2 = data;
+        if(type === 'custom') { 
+            if(filterNum===1) kernel1 = createMatrixDeep(SIZE_K); else kernel2 = createMatrixDeep(SIZE_K);
+        }
+        updateKernelDisplay(filterNum);
+        updateCombinedView();
+        clearResults();
+    }
+
+    function updateGridDisplay(id, matrix) {
+        const div = document.getElementById(id);
+        Array.from(div.children).forEach(cell => {
+            let r = cell.dataset.r, c = cell.dataset.c;
+            cell.classList.remove('active');
+            if(matrix[r][c] === 1) cell.classList.add('active');
+        });
+    }
+
+    function updateKernelDisplay(filterNum) {
+        let k = (filterNum === 1) ? kernel1 : kernel2;
+        let id = `visFilter${filterNum}`;
+        const div = document.getElementById(id);
+        Array.from(div.children).forEach(cell => {
+            let r = cell.dataset.r, c = cell.dataset.c;
+            cell.className = 'cell'; 
+            if(k[r][c] === 1) cell.classList.add('k-pos');
+        });
+    }
+
+    function updateCombinedView() {
+        const div = document.getElementById('visCombined');
+        Array.from(div.children).forEach((cell, i) => {
+            let r = Math.floor(i/3), c = i%3;
+            cell.style.background = '#e5e7eb'; // default
+            let v1 = kernel1[r][c];
+            let v2 = kernel2[r][c];
+            
+            if (v1 && v2) cell.style.background = '#8b5cf6'; // Mix (Purple)
+            else if (v1) cell.style.background = '#3b82f6'; // Blue
+            else if (v2) cell.style.background = '#ef4444'; // Red
+        });
+    }
+
+    function clearResults() {
+        ['map1', 'map2', 'mapMix'].forEach(id => {
+            Array.from(document.getElementById(id).children).forEach(c => {
+                c.className = 'cell map-cell'; c.textContent = '';
+            });
+        });
+        document.getElementById('statusMsg').textContent = "";
+        document.getElementById('debugInfo').textContent = "";
+        hasRun = false;
+    }
+
+    // --- CALCULATION CORE ---
+    function runDeepCalc() {
+        const btn = document.getElementById('btnRun');
+        btn.disabled = true;
+        
+        // 1. Calculate Scores
+        scores1 = conv(deepInput, kernel1);
+        scores2 = conv(deepInput, kernel2);
+        
+        // 2. Mix Layer
+        for(let r=0; r<SIZE_OUT; r++) {
+            for(let c=0; c<SIZE_OUT; c++) {
+                scoresMix[r][c] = scores1[r][c] + scores2[r][c];
+            }
+        }
+
+        hasRun = true;
+        updateViewMode();
+        setTimeout(() => btn.disabled = false, 300);
+    }
+
+    // IMPROVED LOGIC: Match = +1, Mismatch (Input 1 where Kernel 0) = -0.5
+    function conv(input, kernel) {
+        let result = createMatrixDeep(SIZE_OUT);
+        for(let r=0; r<SIZE_OUT; r++) {
+            for(let c=0; c<SIZE_OUT; c++) {
+                let sum = 0;
+                for(let i=0; i<SIZE_K; i++) {
+                    for(let j=0; j<SIZE_K; j++) {
+                        let inVal = input[r+i][c+j];
+                        let kVal = kernel[i][j];
+
+                        if (inVal === 1 && kVal === 1) {
+                            sum += 1; // Full Match
+                        } else if (inVal === 1 && kVal === 0) {
+                            sum -= 0.5; // Soft Penalty: Noise in empty space
+                        }
+                    }
+                }
+                result[r][c] = sum;
+            }
+        }
+        return result;
+    }
+
+    // --- RENDERING ---
+    function updateViewMode() {
+        if(!hasRun) return;
+
+        const isHeatmap = document.getElementById('checkHeatmap').checked;
+        const status = document.getElementById('statusMsg');
+        const debug = document.getElementById('debugInfo');
+
+        // Render Maps 1 & 2
+        renderMap('map1', scores1, isHeatmap, 'blue');
+        renderMap('map2', scores2, isHeatmap, 'red');
+        
+        // Render Mix Map
+        let maxScore = -99;
+        const divMix = document.getElementById('mapMix');
+        let foundMix = false;
+
+        for(let r=0; r<SIZE_OUT; r++) {
+            for(let c=0; c<SIZE_OUT; c++) {
+                let idx = r*SIZE_OUT + c;
+                let cell = divMix.children[idx];
+                let s = scoresMix[r][c];
+                if(s > maxScore) maxScore = s;
+
+                cell.className = 'cell map-cell'; // reset
+                cell.textContent = isHeatmap ? s.toFixed(1).replace('.0','') : '';
+                if(isHeatmap && s > 0) cell.classList.add('show-score');
+
+                if(isHeatmap) {
+                    if(s > 0) cell.classList.add('hm-mix-' + Math.min(Math.ceil(s), 6));
+                } else {
+                    // Binary Logic:
+                    // Need score > 2.0 to filter out weak intersections
+                    // For Cross: 3 (vert) - 1 (noise) = 2.0. So use >= 2
+                    if (s >= 2) {
+                        cell.classList.add('bin-mix');
+                        foundMix = true;
+                    }
+                }
+            }
+        }
+        
+        // Status Logic
+        if(isHeatmap) {
+            status.textContent = `Макс. сила сигналу: ${maxScore.toFixed(1)}`;
+            status.style.color = "#4b5563";
+            debug.textContent = "Бали: +1 за збіг, -0.5 за шум (чорне там, де має бути біле).";
+        } else {
+            status.textContent = foundMix ? "✅ Паттерн знайдено!" : "❌ Паттерн не знайдено";
+            status.style.color = foundMix ? "#059669" : "#dc2626";
+            debug.textContent = "Поріг спрацювання: ≥ 2.0 балів сумарно.";
+        }
+    }
+
+    function renderMap(id, data, isHeatmap, colorTheme) {
+        const div = document.getElementById(id);
+        for(let i=0; i<div.children.length; i++) {
+            let r = Math.floor(i/SIZE_OUT), c = i%SIZE_OUT;
+            let val = data[r][c];
+            let cell = div.children[i];
+            
+            cell.className = 'cell map-cell';
+            cell.textContent = isHeatmap ? val.toFixed(1).replace('.0','') : '';
+            if(isHeatmap && val > 0) cell.classList.add('show-score');
+
+            if(isHeatmap) {
+                if(val > 0) cell.classList.add(`hm-${colorTheme}-${Math.min(Math.ceil(val), 3)}`);
+            } else {
+                // Threshold for Layer 1
+                if(val >= 1.5) cell.classList.add(`bin-${colorTheme}`);
+            }
+        }
+    }
+
+    // INITIALIZE BOTH PARTS
+    initScan();
+    initDeep();
+</script>
+
+</body>
+</html>
