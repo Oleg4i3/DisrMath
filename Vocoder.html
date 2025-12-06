@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACELP Vocoder</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      startup: {
+        typeset: false // Ми будемо викликати рендер вручну після оновлення DOM
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --panel: #ffffff; --text: #334155; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 1100px; width: 100%; display: grid; grid-template-columns: 1fr; gap: 20px; }
+        
+        /* Panel Styles */
+        .control-panel { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        
+        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; transition: 0.2s; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+        button:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+        button.reset { background: #dc2626; }
+        
+        /* Theory Box Styles */
+        .theory-box { background: #fff; border-left: 6px solid var(--primary); padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 250px; line-height: 1.7; font-size: 1.05em; }
+        h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; color: #0f172a; }
+        h3 { color: #1e40af; margin-top: 20px; margin-bottom: 5px; font-size: 1.1em; }
+        
+        /* LaTeX Container */
+        .math-block { 
+            background: #f1f5f9; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            overflow-x: auto; /* Важливо для довгих формул */
+            border: 1px solid #e2e8f0;
+            font-size: 1.1em;
+        }
+        
+        /* Highlight concept */
+        .concept { background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #1e40af; }
+
+        /* Sliders & Visuals */
+        .slider-section { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; display: none; margin-top: 15px; }
+        .chart-wrapper { background: white; padding: 15px; border-radius: 12px; height: 350px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="text-align: center;">Вокодер та Лінійне Передбачення</h1>
+    
+    <div class="control-panel">
+        <div class="btn-group">
+            <button id="btnRecord" onclick="startRecording()">🎤 Записати (Скажіть слово)</button>
+            <button id="btnStep" onclick="nextStep()" disabled>▶ Крок Вперед</button>
+            <button id="btnReset" onclick="location.reload()" class="reset" style="display:none;">↺ Скинути</button>
+            <span id="status" style="align-self:center; font-weight:bold; color:#64748b; margin-left:10px;">Очікування запису...</span>
+        </div>
+
+        <div id="vocoderControls" class="slider-section">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <strong>Ступінь стиснення (Якість залишку)</strong>
+                <span id="compLabel">100% (Lossless)</span>
+            </div>
+            <input type="range" id="compSlider" min="0" max="100" value="100" style="width:100%" oninput="updateSlider(this.value)">
+            <p style="font-size:0.9em; color:#475569; margin-top:10px;">
+                <strong>100%:</strong> Передаємо оригінальний сигнал помилки (як FLAC/WAV). <br>
+                <strong>0% (Pure Vocoder):</strong> Сигнал помилки викидається. Замість нього синтезується ідеальний "гул" (Buzz) на частоті тону. Це максимальне стиснення (як у військових раціях).
+            </p>
+            <button onclick="playAudioResult()" style="background:#16a34a; width:100%;">▶ Слухати Результат</button>
+        </div>
+    </div>
+
+    <div class="theory-box" id="theoryContent">
+        <h2>Вступ: Як стиснути голос у 100+ разів?</h2>
+        <p>Існує два підходи до передачі аудіо:</p>
+        <ol>
+            <li><strong>Хвильове кодування (Waveform Coding):</strong> Ми намагаємось зберегти форму хвилі (MP3, AAC). Це як зробити фотографію тексту. Вимагає багато пам'яті.</li>
+            <li><strong>Параметричне кодування (Vocoder/LPC):</strong> Ми не передаємо звук. Ми передаємо <em>інструкцію</em>, як його синтезувати. Це як надіслати сам текст (ASCII) замість його фотографії.</li>
+        </ol>
+        <p>Кодек <span class="concept">ACELP</span> (основа мобільного зв'язку) використовує <strong>Лінійне Передбачення (LPC)</strong>. Ми знаходимо математичну модель вашого голосового тракту (фільтр) і передаємо тільки її параметри.</p>
+        
+	
+
+		<details class="theory-box" style="margin-top: 15px; min-height: auto; padding: 15px; border-left-color: #8b5cf6;">
+    <summary style="cursor: pointer; font-weight: bold; color: #7c3aed; font-size: 1.1em;">
+        🎓 Довідка: Що таке Z-перетворення?
+    </summary>
+    
+    <div style="margin-top: 15px; line-height: 1.6;">
+        <p>Сигнал - це масив чисел <code>x[0], x[1], x[2]...</code>. <strong>Z-перетворення</strong> — це спосіб записати цей масив як один довгий поліном:</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>X</i>(<i>z</i>) = <i>x</i>[0] + <i>x</i>[1]<i>z</i><sup>-1</sup> + <i>x</i>[2]<i>z</i><sup>-2</sup> + ...
+        </div>
+        
+        <h3>1. Навіщо це потрібно? </h3>
+        <p>У DSP найголовніша операція — це взяти "минуле значення" (<code>x[n-1]</code>). У Z-області <strong>затримка на 1 такт — це просто множення на <i>z</i><sup>-1</sup></strong>.</p>
+        <p>Це перетворює складні цикли на просту алгебру.</p>
+
+        <h3>2. Приклад: Звідки береться H(z)?</h3>
+        <p>Уявіть простий рекурсивний фільтр: <br>
+        <em>"Поточне = Вхід + 0.5 * Минуле"</em></p>
+        <p>У коді: <code>y[n] = x[n] + 0.5 * y[n-1]</code></p>
+        
+        <p>Застосуємо Z-перетворення (замінимо <code>y[n-1]</code> на <i>z</i><sup>-1</sup><i>Y</i>(<i>z</i>)):</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>Y</i>(<i>z</i>) = <i>X</i>(<i>z</i>) + 0.5 · <i>z</i><sup>-1</sup> · <i>Y</i>(<i>z</i>)
+        </div>
+        
+        <p>Перенесемо <i>Y</i>(<i>z</i>) вліво:</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>Y</i>(<i>z</i>) · (1 - 0.5<i>z</i><sup>-1</sup>) = <i>X</i>(<i>z</i>)
+        </div>
+        
+        <p>Знайдемо <strong>Передатну Функцію</strong> (Вихід / Вхід):</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>H</i>(<i>z</i>) = 
+            <span style="display: inline-block; vertical-align: middle; text-align: center;">
+                <div style="border-bottom: 1px solid black; padding-bottom: 2px;">1</div>
+                <div style="padding-top: 2px;">1 - 0.5<i>z</i><sup>-1</sup></div>
+            </span>
+        </div>
+        
+        <h3>3. Полюси та Резонанс</h3>
+        <p>Подивіться на знаменник дробу. Коли (1 - 0.5<i>z</i><sup>-1</sup>) наближається до нуля, значення <i>H</i>(<i>z</i>) стрімко зростає.</p>
+        <p>
+            <span style="background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #1e40af;">Висновок:</span> 
+            Фільтр <i>A</i>(<i>z</i>) — це сума, він стабільний. 
+            Фільтр 1/<i>A</i>(<i>z</i>) — це дріб, його знаменник створює резонанси (форманти), імітуючи голос.
+        </p>
+    </div>
+</details>
+		
+		
+		<p><em>Натисніть "Записати", щоб побачити математику цього процесу.</em></p>
+    </div>
+
+    <div class="chart-wrapper">
+        <canvas id="mainChart"></canvas>
+    </div>
+    <div class="chart-wrapper" id="chart2Container" style="display:none;">
+        <canvas id="secChart"></canvas>
+    </div>
+</div>
+
+<script>
+    // --- КОНФІГУРАЦІЯ ---
+    const FRAME_SIZE = 512; // ~11ms
+    const LPC_ORDER = 10;   // Порядок фільтра (p)
+    const MAX_LAG = 150;    // Для пошуку Pitch
+    
+    let audioCtx;
+    let fullBuffer = null;
+    let displayFrame = null;
+    let r_coeffs = [];
+    let lpc_coeffs = [];
+    let currentStep = 0;
+    
+    let chart1 = null;
+    let chart2 = null;
+
+    // --- КРОКИ СИМУЛЯЦІЇ ---
+    const steps = [
+        {
+            title: "Крок 1: Фреймінг та Вікно",
+            html: `
+                <p>Ми розбили сигнал на короткі відрізки (фрейми) по $N=${FRAME_SIZE}$ семплів. Щоб уникнути артефактів на краях ("клацання" математики), ми множимо сигнал на <strong>вікно Хеммінга</strong> $w[n]$:</p>
+                <div class="math-block">
+                $$ x_w[n] = x[n] \\cdot \\left( 0.54 - 0.46 \\cos\\left(\\frac{2\\pi n}{N-1}\\right) \\right) $$
+                </div>
+                <p>Тепер сигнал плавно затухає до нуля на краях, що дозволяє коректно аналізувати його спектр.</p>
+            `,
+            action: () => {
+                const wData = applyHamming(displayFrame);
+                drawWaveform(wData, "Сигнал після вікна");
+                displayFrame = wData;
+            }
+        },
+        {
+            title: "Крок 2: Автокореляція (Pitch Detection)",
+            html: `
+                <p>Щоб передбачити майбутнє сигналу, треба знати його минуле. Автокореляція $R(k)$ показує залежність між сигналом та його копією, зсунутою на $k$ кроків:</p>
+                <div class="math-block">
+                $$ R(k) = \\sum_{n=k}^{N-1} x_w[n] \\cdot x_w[n-k] $$
+                </div>
+                <p>Графік показує два важливі факти:</p>
+                <ul>
+                    <li><strong>Максимум при $k=0$:</strong> Це повна енергія сигналу.</li>
+                    <li><strong>Другий пік:</strong> Це період основного тону (Pitch). Відстань до нього показує, як швидко вібрують ваші голосові зв'язки.</li>
+                </ul>
+            `,
+            action: () => {
+                r_coeffs = autocorrelate(displayFrame, MAX_LAG);
+                drawAutocorr(r_coeffs);
+            }
+        },
+       {
+            title: "Крок 3: Рівняння Юла-Уокера",
+            html: `
+                <p>Для знаходження оптимальних коефіцієнтів $a_k$? використовується <strong>Метод найменших квадратів</strong>.</p>
+                
+                <p>1. Визначимо енергію помилки передбачення $\\mathcal{E}$ як суму квадратів різниць між реальним сигналом та передбаченим:</p>
+                <div class="math-block">
+                $$ \\mathcal{E} = \\sum_{n} (e[n])^2 = \\sum_{n} \\left( x[n] + \\sum_{k=1}^{p} a_k x[n-k] \\right)^2 $$
+                </div>
+
+                <p>2. Щоб помилка була мінімальною, ми беремо частинну похідну по кожному коефіцієнту $a_i$ (де $1 \\le i \\le p$) і прирівнюємо її до нуля:</p>
+                <div class="math-block">
+                $$ \\frac{\\partial \\mathcal{E}}{\\partial a_i} = 2 \\sum_{n} \\underbrace{\\left( x[n] + \\sum_{k=1}^{p} a_k x[n-k] \\right)}_{e[n]} \\cdot (x[n-i]) = 0 $$
+                </div>
+                
+                <p>3. Це рівняння означає, що <em>помилка має бути ортогональною до минулих значень сигналу</em>. Якщо розкрити дужки і згадати, що $\\sum x[n]x[n-i]$ — це автокореляція $R(i)$, ми отримуємо:</p>
+                <div class="math-block">
+                $$ R(i) + \\sum_{k=1}^{p} a_k R(i-k) = 0 $$
+                </div>
+                
+                <p>Це і є система <strong>Юла-Уокера</strong>. У матричному вигляді вона виглядає так (для $p=${LPC_ORDER}):</p>
+                <div class="math-block">
+                $$ 
+                \\begin{bmatrix} 
+                R(0) & R(1) & \\cdots & R(p-1) \\\\ 
+                R(1) & R(0) & \\cdots & R(p-2) \\\\ 
+                \\vdots & \\vdots & \\ddots & \\vdots \\\\ 
+                R(p-1) & R(p-2) & \\cdots & R(0) 
+                \\end{bmatrix} 
+                \\begin{bmatrix} a_1 \\\\ a_2 \\\\ \\vdots \\\\ a_p \\end{bmatrix} = 
+                -\\begin{bmatrix} R(1) \\\\ R(2) \\\\ \\vdots \\\\ R(p) \\end{bmatrix} 
+                $$
+                </div>
+                <p>Розв'язавши цю систему, ми отримуємо "зліпок" форми вашого голосового тракту.</p>
+            `,
+            action: () => {
+                // Візуально нічого не міняємо
+            }
+        },
+        {
+            title: "Крок 4: LPC Спектр (Розв'язок)",
+            html: `
+                <p>Ми розв'язали систему і знайшли коефіцієнти $a_k$. Вони формують фільтр $A(z) = 1 + \\sum a_k z^{-k}$.</p>
+                <p>Якщо побудувати частотну характеристику $H(z) = \\frac{1}{A(z)}$ (червона лінія), ми побачимо, що вона огинає спектр реального голосу.</p>
+					
+                <p>Ці "горби" називаються <strong>формантами</strong>. Це резонансні частоти вашого голосового тракту (горла, ротової порожнини). Ми стиснули складну форму спектра всього у ${LPC_ORDER}$ чисел!</p>
+         
+				<div class="concept-block">
+    <h3>Аналіз vs Синтез:</h3>
+    <p>Математика LPC працює у два боки</p>
+    <ul>
+        <li><strong>Аналіз (Кодування):</strong> Ми беремо складний голос і "відфільтровуємо" з нього форманти фільтром $A(z)$. На виході — простий шум (залишок). Це як <em>видалення надлишковості</em>.</li>
+        <li><strong>Синтез (Декодування):</strong> Ми беремо простий шум і пропускаємо через обернений фільтр $H(z) = 1/A(z)$. Він діє як резонатор, повертаючи форманти на місце. Це <em>відновлення звуку</em>.</li>
+    </ul>
+</div>
+				
+			   `,
+            action: () => {
+                const sol = levinsonDurbin(r_coeffs, LPC_ORDER);
+                lpc_coeffs = sol.a;
+                drawLPCSpectrum(displayFrame, lpc_coeffs);
+            }
+        },
+  
+
+{
+            title: "Крок 5: Формування сигналу",
+            html: `
+                <p>Розкладемо процес формування звуку на окремі складові. Замість накладання, подивимось на кожен етап окремо.</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="background:#f8fafc; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                        <strong>1. Адаптивна книга (Pitch)</strong>
+                        <p style="font-size:0.9em; margin:5px 0;">"Луна" з минулого ($g_p v[n]$). Формує основу тону.</p>
+                        <div style="height:120px;"><canvas id="chartPitch"></canvas></div>
+                    </div>
+
+                    <div style="background:#f8fafc; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                        <strong>2. Алгебраїчний код (Code)</strong>
+                        <p style="font-size:0.9em; margin:5px 0;">"Інновація" ($g_c c[n]$). Рідкісні імпульси для корекції.</p>
+                        <div style="height:120px;"><canvas id="chartCode"></canvas></div>
+                    </div>
+                </div>
+
+                <div style="margin-top:15px; background:#fff1f2; padding:15px; border:1px solid #fecaca; border-radius:8px;">
+                    <strong>3. Відгук фільтра на код</strong>
+                    <p>Що буде, якщо пропустити через голосовий тракт (фільтр $1/A(z)$) <em>тільки</em> червоні імпульси -коди? 
+                    Фільтр перетворює їх, перетворюючи короткі імпульси на плавні коливання-відгуки. Це називають імпульсною характеристикою фільтра (Impulse response)</p>
+                    <div style="height:150px;"><canvas id="chartCodeSynth"></canvas></div>
+                </div>
+
+              
+            `,
+            action: () => {
+                // 1. Підготовка даних (Target)
+                const targetRes = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                
+                // 2. Симуляція PITCH (v[n])
+                let bestLag = 20; let maxCorr = -Infinity;
+                for(let L=20; L<140; L++) {
+                    let c = 0; for(let i=0; i<targetRes.length-L; i++) c+=targetRes[i]*targetRes[i+L];
+                    if(c>maxCorr){ maxCorr=c; bestLag=L; }
+                }
+                let v_n = new Float32Array(targetRes.length);
+                for(let i=0; i<targetRes.length; i++) v_n[i] = targetRes[Math.abs(i-bestLag)%targetRes.length];
+                let g_p = 0.75; // Фіксований gain для демонстрації
+
+                // 3. Симуляція CODE (c[n]) - Matching Pursuit
+                let error = new Float32Array(targetRes.length);
+                for(let i=0; i<targetRes.length; i++) error[i] = targetRes[i] - (g_p * v_n[i]);
+                
+                let c_n = new Float32Array(targetRes.length).fill(0);
+                let tempErr = [...error];
+                // Шукаємо 6 імпульсів
+                for(let k=0; k<6; k++) {
+                    let m=0, midx=0;
+                    for(let i=0; i<tempErr.length; i++) if(Math.abs(tempErr[i])>m){m=Math.abs(tempErr[i]); midx=i;}
+                    c_n[midx] = tempErr[midx] > 0 ? 1 : -1;
+                    tempErr[midx] = 0; // Прибрати пік
+                }
+                // Gain коду (середня енергія помилки в піках)
+                let g_c = 0; let cnt=0;
+                for(let i=0; i<c_n.length; i++) if(c_n[i]!=0) { g_c += Math.abs(error[i]); cnt++; }
+                g_c = (g_c/ (cnt||1));
+
+                // 4. Синтез відгуку на код (Code Synthesis)
+                // Пропускаємо ТІЛЬКИ код через фільтр 1/A(z)
+                // Для цього нам потрібна пам'ять фільтра (нульова для чистоти експерименту)
+                let codeSignal = c_n.map(x => x * g_c);
+                let codeSynth = filterIIR(codeSignal, [1, ...lpc_coeffs], new Float32Array(LPC_ORDER).fill(0));
+
+                // 5. Повна сума збудження
+                let u_n = new Float32Array(targetRes.length);
+                for(let i=0; i<u_n.length; i++) u_n[i] = (g_p * v_n[i]) + (g_c * c_n[i]);
+
+                // --- МАЛЮВАННЯ ---
+                
+                // Helper для міні-графіків
+                const drawMini = (id, data, color, type='line') => {
+                    new Chart(document.getElementById(id).getContext('2d'), {
+                        type: type,
+                        data: { labels: [...Array(data.length).keys()], datasets: [{data: [...data], borderColor:color, backgroundColor:color, borderWidth:1.5, pointRadius:0, barThickness:3}] },
+                        options: { 
+                            responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+                            scales:{x:{display:false}, y:{display:false}} 
+                        }
+                    });
+                };
+
+                // Графік 1: Pitch
+                drawMini('chartPitch', v_n.map(x=>x*g_p), '#2563eb');
+                
+                // Графік 2: Code (Bar chart)
+                drawMini('chartCode', c_n.map(x=>x*g_c), '#dc2626', 'bar');
+
+                // Графік 3: Code Synthesis (Response)
+                // Тут цікаво показати і імпульси (блідо) і результат (яскраво)
+                new Chart(document.getElementById('chartCodeSynth').getContext('2d'), {
+                    type: 'line',
+                    data: { 
+                        labels: [...Array(codeSynth.length).keys()], 
+                        datasets: [
+                            { label: 'Імпульси', data: c_n.map(x=>x*g_c*3), type:'bar', backgroundColor:'rgba(220, 38, 38, 0.2)', barThickness:2, order:2 },
+                            { label: 'Відгук фільтра', data: [...codeSynth], borderColor:'#be123c', borderWidth:2, pointRadius:0, order:1 }
+                        ] 
+                    },
+                    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false}} }
+                });
+
+                // Головний графік (порівняння залишків)
+                drawDualChart(targetRes, u_n, "Оригінальний залишок", "Відновлений (Pitch + Code)");
+            }
+        },
+
+
+  {
+            title: "Крок 6: ACELP",
+            html: `
+                <p>Формула $u[n] = g_p v[n] + g_c c[n]$ — це інструкція "зборки" звуку з двох компонентів. Відтворюємо у два етапи:</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div style="background:#eff6ff; padding:15px; border-radius:8px; border:1px solid #bfdbfe;">
+                        <h4 style="margin-top:0; color:#1e40af;">1. Шар "Пам'ять" ($g_p v[n]$)</h4>
+                        <p><strong>v[n] (Вектор адаптивної книги):</strong> Це "луна" з минулого. Беремо шматок звуку, який був $T$ семплів тому. Це відповідає за <em>основний тон (Pitch)</em>.</p>
+                        <p><strong>g_p (Gain Pitch):</strong> Гучність цієї "луни".</p>
+                    </div>
+                    <div style="background:#fef2f2; padding:15px; border-radius:8px; border:1px solid #fecaca;">
+                        <h4 style="margin-top:0; color:#991b1b;">2. Шар "Інновація" ($g_c c[n]$)</h4>
+                        <p><strong>c[n] (Вектор фіксованої книги):</strong> Це те, чого не було в минулому. Це набір з лише 4-х імпульсів (+1 або -1) на 40 семплів. Це додає чіткість і деталі.</p>
+                        <p><strong>g_c (Gain Code):</strong> Гучність цих імпульсів.</p>
+                    </div>
+                </div>
+
+                <p>ACELP алгоритм:</p>
+                <ol>
+                    <li><strong>Крок 1:</strong> Знаходимо найкращий шматок з минулого ($v[n]$), щоб повторити форму хвилі. Віднімаємо його.</li>
+                    <li><strong>Крок 2:</strong> Те, що залишилось (помилка), ми намагаємося заповнити кількома імпульсами ($c[n]$).</li>
+                </ol>
+                <div class="math-block">
+                $$ \\text{Загальне збудження } u[n] = \\underbrace{g_p v[n]}_{\\text{Минуле}} + \\underbrace{g_c c[n]}_{\\text{Нові імпульси}} $$
+                </div>
+                <p>На графіку нижче: <br>
+                <span style="color:#2563eb; font-weight:bold;">Синя лінія</span> — це внесок минулого (Pitch).<br>
+                <span style="color:#dc2626; font-weight:bold;">Червоні стовпчики</span> — це алгебраїчний код (Code).<br>
+                <span style="color:#16a34a; font-weight:bold;">Зелена лінія</span> — сума ($u[n]$), яка йде на синтез.</p>
+				
+				 <p>Далі формується пакет даних для передачі.</p>
+
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:15px; border-radius:8px; margin-bottom:15px;">
+                    <h3 style="margin-top:0;">В мережу передається (Всього ~150 біт):</h3>
+                    <div style="display:flex; gap:5px; font-family:monospace; font-size:0.9em; flex-wrap:wrap;">
+                        <div style="background:#fee2e2; padding:5px 10px; border-radius:4px; border:1px solid #fecaca;">
+                            <strong>LPC Coeffs</strong><br>Фільтр (Рот)<br>~40 bits
+                        </div>
+                        <div style="background:#dbeafe; padding:5px 10px; border-radius:4px; border:1px solid #bfdbfe;">
+                            <strong>Pitch Lag (T)</strong><br>Період тону<br>~8 bits
+                        </div>
+                        <div style="background:#dbeafe; padding:5px 10px; border-radius:4px; border:1px solid #bfdbfe;">
+                            <strong>Pitch Gain</strong><br>Гучність тону<br>~4 bits
+                        </div>
+                        <div style="background:#dcfce7; padding:5px 10px; border-radius:4px; border:1px solid #bbf7d0;">
+                            <strong>Code Index</strong><br>Позиції імпульсів<br>~35 bits
+                        </div>
+                        <div style="background:#dcfce7; padding:5px 10px; border-radius:4px; border:1px solid #bbf7d0;">
+                            <strong>Code Gain</strong><br>Гучність коду<br>~5 bits
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Знаходження кодів</h3>
+                <p>Перебрати всі варіанти довго ($40^4$ комбінацій). ACELP використовує <strong>"треки" (Interleaved Tracks)</strong>:</p>
+                <ul>
+                    <li>Імпульс 1 ставиться тільки на позиції: 0, 5, 10, 15...</li>
+                    <li>Імпульс 2 ставиться тільки на позиції: 1, 6, 11, 16...</li>
+                </ul>
+                <p>Кодер перебирає комбінації в цих межах, кожного разу пропускаючи варіант через <strong>Фільтр Синтезу (Step 4)</strong> і порівнюючи з оригіналом (Analysis-by-Synthesis). Обирається той код, який дає найменшу помилку <em>для вуха</em>.</p>
+                
+				
+				
+            `,
+            action: () => {
+                // 1. Отримуємо ідеальний залишок (Target)
+                const targetRes = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                
+                // 2. СИМУЛЯЦІЯ ACELP ПОШУКУ (Спрощена)
+                
+                // А) Знаходимо Pitch (v[n])
+                // Шукаємо затримку (Lag), яка дає кращу кореляцію
+                let bestLag = 20;
+                let maxCorr = -Infinity;
+                // Простий пошук пітча в межах 20..140
+                for(let L=20; L<140; L++) {
+                    let corr = 0;
+                    // Порівнюємо поточний залишок з його ж версією, зсунутою на L (імітація буфера)
+                    // (Тут для спрощення беремо автокореляцію вікони)
+                    for(let i=0; i<targetRes.length-L; i++) corr += targetRes[i] * targetRes[i+L];
+                    if(corr > maxCorr) { maxCorr = corr; bestLag = L; }
+                }
+
+                // Створюємо вектор v[n] (Pitch contribution)
+                // У реальному кодеку це береться з "adaptive codebook" (минулого синтезу)
+                // Тут ми зімітуємо це, взявши сигнал зсунутий на bestLag
+                let v_n = new Float32Array(targetRes.length);
+                // Заповнюємо "з минулого" (циклічно, якщо lag короткий)
+                for(let i=0; i<targetRes.length; i++) {
+                    let pastIdx = i - bestLag;
+                    if (pastIdx < 0) pastIdx += bestLag; // груба імітація кільцевого буфера
+                    // Або просто візьмемо синусоїду на частоті пітча для краси картинки, 
+                    // бо справжній буфер у нас тут не збережений
+                     v_n[i] = targetRes[ Math.abs(i - bestLag) % targetRes.length ] * 0.8; 
+                }
+                
+                // Знаходимо g_p (Gain) - наскільки "сильний" пітч
+                // Просто припустимо 0.8 для демо або порахуємо проекцію
+                let g_p = 0.8; 
+
+                // Б) Знаходимо Code (c[n]) - Matching Pursuit
+                // Віднімаємо пітч від оригіналу, отримуємо помилку, яку треба закрити кодом
+                let error = new Float32Array(targetRes.length);
+                for(let i=0; i<targetRes.length; i++) error[i] = targetRes[i] - (g_p * v_n[i]);
+
+                // Знаходимо піки (Pulse Search) -
+                let c_n = new Float32Array(targetRes.length).fill(0);
+                
+                // Знайдемо 5 найсильніших піків (MP iteration)
+                let tempErr = [...error];
+                for(let k=0; k<8; k++) {
+                    let maxVal = 0; let maxIdx = 0;
+                    for(let i=0; i<tempErr.length; i++) {
+                        if(Math.abs(tempErr[i]) > maxVal) { maxVal = Math.abs(tempErr[i]); maxIdx = i; }
+                    }
+                    // Ставимо імпульс
+                    let sign = tempErr[maxIdx] > 0 ? 1 : -1;
+                    c_n[maxIdx] = sign; 
+                    
+                    // "Віднімаємо" цей пік (Matching Pursuit)
+                    tempErr[maxIdx] = 0; // Спрощено занулюємо
+                }
+                
+                // g_c - амплітуда піків
+                let g_c = 0;
+                // Оцінимо середню амплітуду помилки в місцях піків
+                let peaksCount = 0;
+                for(let i=0; i<c_n.length; i++) {
+                    if(c_n[i] !== 0) { g_c += Math.abs(error[i]); peaksCount++; }
+                }
+                g_c = (g_c / (peaksCount || 1));
+
+                // В) Фінальна сума
+                let u_n = new Float32Array(targetRes.length);
+                for(let i=0; i<u_n.length; i++) {
+                    u_n[i] = (g_p * v_n[i]) + (g_c * c_n[i]);
+                }
+
+                // ГРАФІК
+                // Малюємо три складові
+                document.getElementById('chart2Container').style.display = 'block';
+                const ctx = document.getElementById('secChart').getContext('2d');
+                if(chart2) chart2.destroy();
+                
+                chart2 = new Chart(ctx, {
+                    type: 'line',
+                    data: { 
+                        labels: [...Array(targetRes.length).keys()], 
+                        datasets: [
+                            {
+                                label: "1. Pitch (Минуле) g_p*v[n]", 
+                                data: [...v_n].map(x => x * g_p), 
+                                borderColor: '#2563eb', 
+                                borderWidth: 2, 
+                                pointRadius: 0,
+                                borderDash: [5, 5], // Пунктир
+                                order: 2
+                            },
+                            {
+                                label: "2. Code (Імпульси) g_c*c[n]", 
+                                data: [...c_n].map(x => x * g_c), 
+                                type: 'bar', // Стовпчики для імпульсів
+                                backgroundColor: '#dc2626',
+                                barThickness: 3,
+                                order: 1
+                            },
+                            {
+                                label: "3. Сума (u[n])", 
+                                data: [...u_n], 
+                                borderColor: '#16a34a', 
+                                borderWidth: 2, 
+                                pointRadius: 0,
+                                order: 0
+                            }
+                        ] 
+                    },
+                    options: { 
+                        responsive:true, 
+                        maintainAspectRatio:false, 
+                        animation: { duration: 2000 }, // Анімація щоб було видно як будується
+                        interaction: { mode: 'index', intersect: false }
+                    }
+                });
+                
+                // Верхній графік - оригінал для порівняння
+                drawWaveform(targetRes, "Оригінальний Залишок (Ціль)");
+            }
+        },
+     
+	 //////-----------
+	 
+	 {
+            title: "Крок 7: Баланс якості та стиснення",
+            html: `
+                <p>В реальних кодеках ми обмежені швидкістю інтернету (бітрейтом). Ми не можемо передати ідеальний залишок.</p>
+                <p>Ми змушені вибирати лише декілька найважливіших імпульсів. Це називається <strong>Sparse Coding (Розріджене кодування)</strong>.</p>
+                
+                <div class="theory-box" style="padding: 15px; border-left-color: #f59e0b; background: #fffbeb;">
+                    <strong>Спробуйте самі:</strong> Рухайте слайдер, щоб додати більше імпульсів коду ($c[n]$) до сигналу.
+                    <ul style="margin-bottom:0;">
+                        <li><strong>0 імпульсів:</strong> Чути тільки "роботизований" гул (працює лише Pitch).</li>
+                        <li><strong>4-10 імпульсів:</strong> Стандарт мобільного зв'язку (GSM/ACELP).</li>
+                        <li><strong>40+ імпульсів:</strong> Висока якість, майже оригінал.</li>
+                    </ul>
+                </div>
+
+                <div class="slider-section" style="display:block; margin-top:20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <strong>Кількість імпульсів (деталізація):</strong>
+                        <span id="pulseCountLabel" style="font-weight:bold; color:#2563eb; font-size:1.2em;">0</span>
+                    </div>
+                    <input type="range" id="pulseDemoSlider" min="0" max="64" value="0" step="1" style="width:100%" oninput="updatePulseDemo(this.value)">
+                    <div style="display:flex; justify-content:space-between; font-size:0.8em; color:#64748b; margin-top:5px;">
+                        <span>Тільки Тон (Pitch)</span>
+                        <span>Стандарт ACELP (~4)</span>
+                        <span>Висока якість</span>
+                    </div>
+                </div>
+
+                <p style="font-size: 0.9em; margin-top: 15px;">
+                    <span style="color:#2563eb">🟦 Синя лінія</span>: Оригінальний голос.<br>
+                    <span style="color:#dc2626">🟥 Червона лінія</span>: Синтезований голос. Зверніть увагу, як червона лінія "прилипає" до синьої при збільшенні кількості імпульсів.
+                </p>
+            `,
+            action: () => {
+                // 1. Підготовка даних (Кешування для слайдера)
+                // Робимо аналіз один раз при вході в крок
+                
+                // а) Знаходимо ідеальний залишок
+                const targetRes = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                
+                // б) Знаходимо Pitch компонент (як в попередніх кроках)
+                let bestLag = 20; let maxCorr = -Infinity;
+                for(let L=20; L<140; L++) {
+                    let c = 0; for(let i=0; i<targetRes.length-L; i++) c+=targetRes[i]*targetRes[i+L];
+                    if(c>maxCorr){ maxCorr=c; bestLag=L; }
+                }
+                
+                let v_n = new Float32Array(targetRes.length);
+                for(let i=0; i<targetRes.length; i++) v_n[i] = targetRes[Math.abs(i-bestLag)%targetRes.length];
+                
+                // Оцінка Gain Pitch (проста проекція)
+                let num=0, den=0;
+                for(let i=0; i<targetRes.length; i++) { num += targetRes[i]*v_n[i]; den += v_n[i]*v_n[i]; }
+                let g_p = (den > 0.001) ? num/den : 0;
+                if(g_p > 1.2) g_p = 1.2; // Limiter
+
+                // в) Зберігаємо в глобальний об'єкт для доступу з функції слайдера
+                window.step7Cache = {
+                    targetRes: targetRes,
+                    v_n: v_n,
+                    g_p: g_p,
+                    lpc: [1, ...lpc_coeffs],
+                    origSignal: displayFrame
+                };
+
+                // 2. Ініціалізація графіка (0 імпульсів)
+                document.getElementById('pulseDemoSlider').value = 0;
+                updatePulseDemo(0);
+            }
+        },
+	 
+//////-----------
+	  {
+            title: "Фінал: Вокодер",
+            html: `
+                <p>Тепер ми маємо все для відновлення голосу:</p>
+                <ol>
+                    <li>Фільтр $1/A(z)$ (форма ротової порожнини і горла).</li>
+                    <li>Джерело збудження коди-імпульси (голосові зв'язки).</li>
+                </ol>
+                 `,
+            action: () => {
+                document.getElementById('vocoderControls').style.display = 'block';
+                // Demo
+                const res = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                const synth = filterIIR(res, [1, ...lpc_coeffs]);
+                drawDualChart(displayFrame, synth, "Оригінал", "Синтез");
+            }
+        }
+    ];
+
+    // --- ЛОГІКА ІНТЕРФЕЙСУ ---
+
+    async function startRecording() {
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            await audioCtx.resume();
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+            
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = async () => {
+                const blob = new Blob(chunks);
+                const buf = await blob.arrayBuffer();
+                const decoded = await audioCtx.decodeAudioData(buf);
+                fullBuffer = decoded.getChannelData(0);
+                
+                // Pre-emphasis (High-pass filter)
+                for(let i=fullBuffer.length-1; i>0; i--) fullBuffer[i] -= 0.95 * fullBuffer[i-1];
+
+                // Знайти гучний фрагмент
+                let maxE = 0, idx = 0;
+                for(let i=1000; i<fullBuffer.length-FRAME_SIZE-1000; i+=200) {
+                    let e = 0; 
+                    for(let j=0; j<FRAME_SIZE; j++) e += Math.abs(fullBuffer[i+j]);
+                    if(e > maxE) { maxE = e; idx = i; }
+                }
+                displayFrame = fullBuffer.slice(idx, idx+FRAME_SIZE);
+
+                document.getElementById('status').innerText = "Записано!";
+                document.getElementById('btnRecord').disabled = true;
+                document.getElementById('btnStep').disabled = false;
+                document.getElementById('btnReset').style.display = 'inline-block';
+                nextStep();
+            };
+            
+            recorder.start();
+            document.getElementById('status').innerText = "Скажіть слово";
+            setTimeout(() => recorder.stop(), 1500);
+            
+        } catch (e) { alert("Помилка мікрофона: " + e); }
+    }
+
+    function nextStep() {
+        if(currentStep < steps.length) {
+            const s = steps[currentStep];
+            const container = document.getElementById('theoryContent');
+            
+            // 1. Оновлюємо HTML
+            container.innerHTML = `<h2>${s.title}</h2>` + s.html;
+            
+            // 2. Викликаємо MathJax рендер (Promise-based)
+            MathJax.typesetPromise([container]).then(() => {
+                // 3. Виконуємо графічні дії після рендеру
+                s.action();
+            });
+
+            currentStep++;
+            if(currentStep >= steps.length) document.getElementById('btnStep').disabled = true;
+        }
+    }
+
+    // --- АУДІО ДВИГУН (PIPELINE) ---
+
+    function processAudio(ratio) {
+        // ratio: 0 (Buzz) -> 1 (Original Residual)
+        const blockSize = 512;
+        const out = new Float32Array(fullBuffer.length);
+        const synthesisMem = new Float32Array(LPC_ORDER).fill(0);
+        
+        for(let i=0; i < fullBuffer.length - blockSize; i+=blockSize) {
+            let frame = fullBuffer.slice(i, i+blockSize);
+            
+            // Analysis
+            let wFrame = applyHamming(frame);
+            let r = autocorrelate(wFrame, LPC_ORDER);
+            if (r[0] < 0.00001) continue; 
+            
+            let lpc = levinsonDurbin(r, LPC_ORDER).a;
+            
+            // Pitch Detection (Simplified)
+            let r_pitch = autocorrelate(wFrame, 150);
+            let lag = 50; let maxV = -Infinity;
+            for(let k=20; k<145; k++) {
+                 if(r_pitch[k]>maxV && r_pitch[k]>r_pitch[k-1] && r_pitch[k]>r_pitch[k+1]) { maxV=r_pitch[k]; lag=k; }
+            }
+            
+            // Residual
+            let res = filterFIR(frame, [1, ...lpc]);
+            
+            // Modification (Vocoder)
+            let modRes = new Float32Array(res.length);
+            
+            // Generate Synthetic Buzz
+            let buzz = new Float32Array(res.length);
+            let energy = 0; for(let v of res) energy += v*v;
+            let rms = Math.sqrt(energy/res.length);
+            
+            for(let n=0; n<res.length; n++) {
+                if(n % lag === 0) buzz[n] = rms * Math.sqrt(lag); // Pulse
+            }
+            
+            // Mix
+            for(let n=0; n<res.length; n++) {
+                modRes[n] = (ratio * res[n]) + ((1-ratio) * buzz[n]);
+            }
+            
+            // Synthesis
+            let synth = filterIIR(modRes, [1, ...lpc], synthesisMem);
+            out.set(synth, i);
+        }
+        
+        // De-emphasis
+        for(let i=0; i<out.length-1; i++) out[i+1] += 0.95 * out[i];
+        
+        // Normalize
+        let maxVal = 0; for(let v of out) if(Math.abs(v)>maxVal) maxVal = Math.abs(v);
+        if(maxVal>0) for(let i=0; i<out.length; i++) out[i] = (out[i]/maxVal)*0.8;
+        
+        return out;
+    }
+
+    function playAudioResult() {
+        if(!audioCtx) return;
+        const val = document.getElementById('compSlider').value / 100;
+        document.getElementById('status').innerText = "Обробка...";
+        
+        setTimeout(() => {
+            const data = processAudio(val);
+            const buf = audioCtx.createBuffer(1, data.length, audioCtx.sampleRate);
+            buf.getChannelData(0).set(data);
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            src.connect(audioCtx.destination);
+            src.start();
+            document.getElementById('status').innerText = "Відтворення...";
+        }, 50);
+    }
+
+    function updateSlider(v) {
+        let txt = v + "%";
+        if(v==100) txt += " (Оригінал)";
+        else if(v==0) txt += " (Робот/Buzz)";
+        document.getElementById('compLabel').innerText = txt;
+    }
+
+    // --- МАТЕМАТИКА ---
+
+    function applyHamming(d) {
+        return d.map((v,i) => v * (0.54 - 0.46 * Math.cos(2*Math.PI*i/(d.length-1))));
+    }
+    
+    function autocorrelate(x, maxLag) {
+        let res = [];
+        for(let k=0; k<=maxLag; k++) {
+            let s = 0;
+            for(let n=0; n<x.length-k; n++) s += x[n]*x[n+k];
+            res.push(s);
+        }
+        return res;
+    }
+    
+    function levinsonDurbin(r, p) {
+        let a = []; let e = r[0];
+        for(let i=1; i<=p; i++) {
+            let acc = 0; for(let j=1; j<i; j++) acc += a[j-1]*r[i-j];
+            let k = -(r[i] + acc)/e;
+            let new_a = new Array(i);
+            new_a[i-1] = k;
+            for(let j=1; j<i; j++) new_a[j-1] = a[j-1] + k*a[i-1-j];
+            a = new_a;
+            e *= (1 - k*k);
+        }
+        return {a};
+    }
+    
+    function filterFIR(x, a) {
+        let y = new Float32Array(x.length);
+        for(let n=0; n<x.length; n++) {
+            let s = x[n];
+            for(let k=1; k<a.length; k++) if(n>=k) s += a[k]*x[n-k];
+            y[n] = s;
+        }
+        return y;
+    }
+    
+    function filterIIR(x, a, mem) {
+        let y = new Float32Array(x.length);
+        let ord = a.length-1;
+        for(let n=0; n<x.length; n++) {
+            let s = x[n];
+            for(let k=1; k<=ord; k++) {
+                let val = (n>=k) ? y[n-k] : mem[ord-k];
+                s -= a[k]*val;
+            }
+            // Clamp for stability
+            if(s>4) s=4; if(s<-4) s=-4;
+            y[n] = s;
+        }
+        for(let i=0; i<ord; i++) mem[i] = y[y.length-1-i];
+        return y;
+    }
+
+    // --- ГРАФІКИ ---
+    
+    function drawWaveform(d, lbl) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [...Array(d.length).keys()], datasets: [{label: lbl, data: [...d], borderColor:'#2563eb', borderWidth:1, pointRadius:0}] },
+            options: { responsive:true, maintainAspectRatio:false, animation:false }
+        });
+    }
+    
+    function drawAutocorr(d) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        const max = Math.max(...d);
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [...Array(d.length).keys()], datasets: [{label: "Autocorrelation", data: d.map(v=>v/max), borderColor:'#0f172a', borderWidth:2, pointRadius:0}] },
+            options: { responsive:true, maintainAspectRatio:false }
+        });
+    }
+
+    function drawLPCSpectrum(sig, lpc) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        
+        // FFT (Naive)
+        let fft = []; let N = sig.length;
+        for(let k=0; k<N/2; k+=2) {
+            let re=0, im=0;
+            for(let n=0; n<N; n++) { let phi=-2*Math.PI*k*n/N; re+=sig[n]*Math.cos(phi); im+=sig[n]*Math.sin(phi); }
+            fft.push(20*Math.log10(Math.sqrt(re*re+im*im)+1e-6));
+        }
+        
+        // LPC Response
+        let lresp = [];
+        for(let k=0; k<N/2; k+=2) {
+            let w = Math.PI*k/(N/2);
+            let re=1, im=0;
+            for(let m=0; m<lpc.length; m++) { let phi=-(m+1)*w; re+=lpc[m]*Math.cos(phi); im+=lpc[m]*Math.sin(phi); }
+            lresp.push(20*Math.log10(1/(Math.sqrt(re*re+im*im)+1e-6)));
+        }
+        
+        let off = Math.max(...fft) - Math.max(...lresp);
+        
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [...Array(fft.length).keys()], 
+                datasets: [
+                    {label: "FFT (Реальний)", data: fft, borderColor:'#cbd5e1', borderWidth:1},
+                    {label: "LPC (Модель)", data: lresp.map(v=>v+off), borderColor:'#dc2626', borderWidth:2}
+                ] 
+            },
+            options: { responsive:true, maintainAspectRatio:false }
+        });
+    }
+    
+    function drawDualChart(d1, d2, l1, l2) {
+        drawWaveform(d1, l1);
+        document.getElementById('chart2Container').style.display = 'block';
+        const ctx = document.getElementById('secChart').getContext('2d');
+        if(chart2) chart2.destroy();
+        chart2 = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [...Array(d2.length).keys()], datasets: [{label: l2, data: [...d2], borderColor:'#16a34a', borderWidth:1, pointRadius:0}] },
+            options: { responsive:true, maintainAspectRatio:false, animation:false }
+        });
+    }
+	
+	
+	// --- ФУНКЦІЯ ДЛЯ КРОКУ 7 (ДИНАМІЧНИЙ СИНТЕЗ) ---
+    
+  /*  function updatePulseDemo(pulseCount) {
+        pulseCount = parseInt(pulseCount);
+        document.getElementById('pulseCountLabel').innerText = pulseCount + (pulseCount === 0 ? " (Тільки Pitch)" : " імпульсів");
+        
+        const cache = window.step7Cache;
+        if(!cache) return;
+
+        const N = cache.targetRes.length;
+        
+        // 1. Починаємо з Pitch вкладу
+        // error - це те, що залишилось виправити кодами
+        let currentRes = new Float32Array(N); // Тут буде накопичуватись u[n]
+        let error = new Float32Array(N);      // Поточна помилка
+        
+        // Додаємо Pitch (v[n] * g_p)
+        for(let i=0; i<N; i++) {
+            let pitchVal = cache.v_n[i] * cache.g_p;
+            currentRes[i] = pitchVal;
+            error[i] = cache.targetRes[i] - pitchVal; 
+        }
+
+        // 2. Додаємо N імпульсів (Matching Pursuit)
+        // Це спрощена імітація ACELP (жадібний алгоритм)
+        let c_n = new Float32Array(N).fill(0);
+        let tempError = Float32Array.from(error); // Копія для пошуку
+
+        for(let k=0; k<pulseCount; k++) {
+            // Знаходимо максимум абсолютної помилки
+            let maxVal = -1; 
+            let maxIdx = -1;
+            
+            for(let i=0; i<N; i++) {
+                if(Math.abs(tempError[i]) > maxVal) {
+                    maxVal = Math.abs(tempError[i]);
+                    maxIdx = i;
+                }
+            }
+
+            if(maxIdx !== -1) {
+                // Ставимо імпульс
+                let sign = tempError[maxIdx] > 0 ? 1.0 : -1.0;
+                // У справжньому ACELP gain (g_c) спільний, тут для демо
+                // ми просто беремо амплітуду помилки як вагу імпульсу
+                let gain = maxVal; 
+                
+                c_n[maxIdx] += sign * gain;
+                
+                // Видаляємо цей пік з помилки (імітація віднімання)
+                tempError[maxIdx] = 0; 
+                // В ідеалі треба віднімати impulse response, але для демо достатньо занулення
+            }
+        }
+
+        // 3. Сумуємо Pitch + Code
+        for(let i=0; i<N; i++) {
+            currentRes[i] += c_n[i];
+        }
+
+        // 4. СИНТЕЗ (Пропускаємо через фільтр 1/A(z))
+        // Використовуємо filterIIR з нульовою пам'яттю для чистоти експерименту
+        const synthesizedParams = filterIIR(currentRes, cache.lpc, new Float32Array(LPC_ORDER).fill(0));
+
+        // 5. Малюємо
+        // Використовуємо drawDualChart, але змінимо трохи кольори
+        // Оригінал (синій) vs Синтез (червоний)
+        
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [...Array(N).keys()], 
+                datasets: [
+                    {
+                        label: "Оригінал (Recorded)", 
+                        data: [...cache.origSignal], 
+                        borderColor: '#2563eb', // Синій
+                        borderWidth: 2, 
+                        pointRadius: 0,
+                        order: 1
+                    },
+                    {
+                        label: `Синтез (${pulseCount} pulses)`, 
+                        data: [...synthesizedParams], 
+                        borderColor: '#dc2626', // Червоний
+                        borderWidth: 1.5, 
+                        pointRadius: 0,
+                        order: 0
+                    }
+                ] 
+            },
+            options: { 
+                responsive:true, 
+                maintainAspectRatio:false, 
+                animation: false, // Вимикаємо анімацію для швидкого слайдера
+                interaction: { mode: 'index', intersect: false }
+            }
+        });
+
+        // Ховаємо другий графік, він тут не потрібен
+        document.getElementById('chart2Container').style.display = 'none';
+    }*/
+	///old
+	
+	function updatePulseDemo(pulseCount) {
+        pulseCount = parseInt(pulseCount);
+        document.getElementById('pulseCountLabel').innerText = pulseCount + (pulseCount === 0 ? " (Тільки Pitch)" : " імпульсів");
+        
+        const cache = window.step7Cache;
+        if(!cache) return;
+
+        const N = cache.targetRes.length;
+        
+        // 1. Починаємо з Pitch вкладу
+        let currentRes = new Float32Array(N); 
+        let error = new Float32Array(N);      
+        
+        // Додаємо Pitch (v[n] * g_p)
+        for(let i=0; i<N; i++) {
+            let pitchVal = cache.v_n[i] * cache.g_p;
+            currentRes[i] = pitchVal;
+            error[i] = cache.targetRes[i] - pitchVal; 
+        }
+
+        // 2. Додаємо N імпульсів (Matching Pursuit)
+        let c_n = new Float32Array(N).fill(0); // Масив чисто для імпульсів (для візуалізації)
+        let tempError = Float32Array.from(error); 
+
+        for(let k=0; k<pulseCount; k++) {
+            // Знаходимо максимум абсолютної помилки
+            let maxVal = -1; 
+            let maxIdx = -1;
+            
+            for(let i=0; i<N; i++) {
+                if(Math.abs(tempError[i]) > maxVal) {
+                    maxVal = Math.abs(tempError[i]);
+                    maxIdx = i;
+                }
+            }
+
+            if(maxIdx !== -1) {
+                let sign = tempError[maxIdx] > 0 ? 1.0 : -1.0;
+                let gain = maxVal; 
+                
+                // Додаємо імпульс в загальний сигнал збудження
+                let pulseVal = sign * gain;
+                c_n[maxIdx] += pulseVal;       // Зберігаємо окремо для графіку
+                currentRes[maxIdx] += pulseVal; // Додаємо до збудження
+                
+                // Зануляємо помилку в цьому місці
+                tempError[maxIdx] = 0; 
+            }
+        }
+
+        // 3. СИНТЕЗ
+        const synthesizedParams = filterIIR(currentRes, cache.lpc, new Float32Array(LPC_ORDER).fill(0));
+
+        // 4. Малюємо (Комбінований графік)
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        
+        chart1 = new Chart(ctx, {
+            data: { 
+                labels: [...Array(N).keys()], 
+                datasets: [
+                    {
+                        type: 'line',
+                        label: "Оригінал", 
+                        data: [...cache.origSignal], 
+                        borderColor: '#2563eb', // Синій
+                        borderWidth: 2, 
+                        pointRadius: 0,
+                        order: 2,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'line',
+                        label: "Синтез", 
+                        data: [...synthesizedParams], 
+                        borderColor: '#000000', // Червоний
+                        borderWidth: 2, 
+                        pointRadius: 0,
+                        order: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: "Імпульси (Code)", 
+                        data: [...c_n], 
+                        backgroundColor: '#ff0011', // 
+                        barThickness: 4, // Товщина "голок"
+                        order: 3,
+                        yAxisID: 'y1' // Прив'язуємо до правої осі
+                    }
+                ] 
+            },
+            options: { 
+                responsive:true, 
+                maintainAspectRatio:false, 
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Амплітуда голосу' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false }, // Щоб сітка не накладалась
+                        title: { display: true, text: 'Амплітуда імпульсів' },
+                        suggestedMin: -0.015, // Трохи повітря для графіку імпульсів
+                        suggestedMax: 0.015
+                    }
+                }
+            }
+        });
+
+        document.getElementById('chart2Container').style.display = 'none';
+    }
+
+</script>
+</body>
+</html>
