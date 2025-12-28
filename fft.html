@@ -356,15 +356,15 @@
                 <button class="btn" onclick="generateNewSignal()">🎲 Новий сигнал</button>
                 
                 <div class="control-group">
-                    <label>1. Частота (k): <span id="freqVal" class="val-display">0</span></label>
-                    <input type="range" id="freqSlider" min="0" max="7" step="1" value="0">
+                    <label>1. Частота (k): <span id="freqVal" class="val-display">1</span></label>
+                    <input type="range" id="freqSlider" min="0" max="7" step="1" value="1">
                     <small style="color:#888;">Номер гармоніки (кількість хвиль)</small>
                 </div>
 
                 <div class="control-group">
                     <label>2. Зсув (n): <span id="shiftVal" class="val-display">0</span> <span id="shiftLimit" style="color:#666; font-size:0.8em"></span></label>
                     <input type="range" id="phaseSlider" min="0" max="31" step="1" value="0">
-                    <small style="color:#888;">Зсув вправо (обмежено періодом)</small>
+                    <small style="color:#888;">Підберіть такий зсув (фазу), щоб гармноіка була максимально схожа з сигналом. </small>
                 </div>
 
                 <div class="control-group" style="text-align: center;">
@@ -465,7 +465,7 @@
     let groundTruthSpectrum = []; 
     
     // UI State
-    let currentK = 0;
+    let currentK = 1;
     let currentShift = 0;
     let activeTabId = 'intuitive';
     let advK = 1; 
@@ -584,8 +584,8 @@
     }
 
     function resetControls() {
-        freqSlider.value = 0;
-        currentK = 0;
+        freqSlider.value = 1;
+        currentK = 1;
         updateSliderLimits(0);
         
         phaseSlider.value = 0;
