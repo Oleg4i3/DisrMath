@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DFT</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e2e;
+            --text-color: #e0e0e0;
+            --accent-color: #4cc9f0;
+            --success-color: #4caf50;
+            --target-color: #ffffff;
+            --probe-color: #4361ee; /* CHANGED to Blue */
+            --sin-color: #ff006e; 
+            --cos-color: #3a86ff; 
+            --vector-color: #ffd60a;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 { margin: 0 0 15px 0; font-size: 1.5rem; color: var(--accent-color); }
+
+        /* TABS NAVIGATION */
+        .tabs-nav {
+            display: flex;
+            background: var(--panel-bg);
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+            margin-bottom: 0;
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 15px;
+            color: #888;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn:hover { background: rgba(255,255,255,0.05); }
+        .tab-btn.active {
+            color: var(--accent-color);
+            background: rgba(76, 201, 240, 0.1);
+            border-bottom: 3px solid var(--accent-color);
+        }
+
+        .tab-content {
+            display: none;
+            width: 100%;
+            max-width: 1100px;
+            animation: fadeIn 0.3s;
+        }
+        .tab-content.active { display: grid; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Main Layout */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            background: #181825;
+            padding: 20px;
+            border-radius: 0 0 12px 12px;
+            border: 1px solid #333;
+            border-top: none;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem; }
+        
+        input[type="range"] { width: 100%; cursor: pointer; margin-bottom: 5px; }
+        
+        .val-display { font-family: monospace; color: var(--accent-color); float: right; }
+
+        .btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn:hover { background: #444; }
+        
+        .btn-record {
+            background: #2a2a4e;
+            border: 2px solid #3f3f6e;
+            margin-top: auto;
+        }
+        
+        .btn-record.highlight {
+            background: var(--success-color);
+            box-shadow: 0 0 15px var(--success-color);
+            border-color: #fff;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        /* Visualization Panel */
+        .vis-panel {
+            background: #000;
+            border-radius: 12px;
+            border: 1px solid #333;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+        }
+
+        canvas { width: 100%; height: 100%; display: block; }
+
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            border: 1px solid #444;
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* Bottom Section */
+        .bottom-workspace {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1100px;
+            height: 280px;
+            margin-top: 20px;
+        }
+
+        .bottom-panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid #333;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-title {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .status-msg {
+            text-align: center;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+            color: var(--probe-color);
+            margin-top: 10px;
+        }
+
+        /* ADVANCED TAB STYLES */
+        .adv-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr 1fr;
+            gap: 20px;
+            background: #181825;
+            padding: 20px;
+            border-radius: 0 0 12px 12px;
+            border: 1px solid #333;
+            border-top: none;
+            min-height: 500px;
+        }
+
+        .adv-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .mini-chart-container {
+            background: #000;
+            border: 1px solid #444;
+            border-radius: 8px;
+            height: 150px;
+            position: relative;
+        }
+        
+        .vector-container {
+            background: #101015;
+            border: 1px solid #444;
+            border-radius: 12px;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .math-box {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .complex-note {
+            margin-top: 15px;
+            padding: 10px;
+            border-left: 3px solid var(--accent-color);
+            background: rgba(76, 201, 240, 0.1);
+            font-size: 0.9rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<details style="background: #1e1e2e; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; padding: 10px;">
+    <summary style="cursor: pointer; font-weight: bold; color: var(--accent-color); padding: 5px;">
+        📚 Теоретична довідка
+    </summary>
+    <div style="padding: 15px; color: #ccc; line-height: 1.6;">
+
+        <h3 style="color:white; border-bottom: 1px solid #444; padding-bottom:5px;">Ідея перетворення Фур'є</h3>
+        <p>У цьому симуляторі ми розглядаємо два підходи до розкладання сигналу на спектральні (гармонічні) компоненти.</p>
+        <ul>
+            <li><strong>Вкладка 1 (Інтуїтивна):</strong> Це метод "грубої сили" або <em>згортки</em>. Ми беремо еталонну синусоїду і "тягаємо" її вліво-вправо (змінюємо фазу), поки вона не дасть максимальну кореляцію (схожесть) із сигналом. Це зрозуміло, але обчислювально дорого.</li>
+            <li><strong>Вкладка 2 (Векторна/Автоматична):</strong> Це метод <em>Ортогональних проекцій</em> (справжній ДПФ). Замість того, щоб перебирати багато варіантів зсуву, ми робимо лише два виміри: наскільки сигнал схожий на <strong>Косинус</strong> (парна функція) і наскільки на <strong>Синус</strong> (непарна функція). Цього достатньо, щоб миттєво знайти і амплітуду, і фазу.</li>
+        </ul>
+
+        <h3 style="color:white; border-bottom: 1px solid #444; padding-bottom:5px;">Фізичний зміст та застосування</h3>
+        <p><strong>Дискретне Перетворення Фур'є (ДПФ)</strong> — це математична призма, яка розкладає складний сигнал (звук, радіохвилі, зображення) на набір простих компонентів — гармонік.</p>
+               <ul>
+            <li><strong>Музика:</strong> Звукорижесери оанлізують і фільтрують різні спектральні діапазони (низьки частоти - баси, середні - вокал, інструменти, високі - свит, дзвін тощо).</li>
+            <li><strong>Медицина:</strong> На основі спектральних характеристик аалізують біологічні сигнали (пулсограми, ЕЕГ тощо)</li>
+            <li><strong>Shazam:</strong> Розпізнавання пісень за їх спектральним "відбитком".</li>
+            <li><strong>Wi-Fi / 5G:</strong> Модуляція OFDM базується на оберненому ДПФ.</li>
+        </ul>
+
+        <h3 style="color:white; border-bottom: 1px solid #444; padding-bottom:5px;">Тригонометрія і Вектори</h3>
+        <p>Головна ідея базується на тригонометричній тотожності. Будь-яку зміщену синусоїду можна представити як суму "чистого" косинуса і "чистого" синуса:</p>
+        
+        $$ A_{res} \cdot \cos(\omega t - \varphi) = \underbrace{a}_{\text{Re}} \cdot \cos(\omega t) + \underbrace{b}_{\text{Im}} \cdot \sin(\omega t) $$
+
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin: 20px 0;">
+            <div style="background: #121212; padding: 10px; border-radius: 8px; border: 1px solid #444;">
+                <svg width="200" height="200" viewBox="-20 -20 240 240">
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+                          <path d="M0,0 L0,6 L9,3 z" fill="#888" />
+                        </marker>
+                    </defs>
+                    <line x1="20" y1="180" x2="220" y2="180" stroke="#888" stroke-width="2" marker-end="url(#arrow)"/>
+                    <text x="200" y="170" fill="#888" font-size="12">Re (Cos)</text>
+                    <line x1="20" y1="180" x2="20" y2="20" stroke="#888" stroke-width="2" marker-end="url(#arrow)"/>
+                    <text x="30" y="30" fill="#888" font-size="12">Im (Sin)</text>
+                    
+                    <line x1="20" y1="180" x2="160" y2="180" stroke="#3a86ff" stroke-width="3" /> <text x="90" y="200" fill="#3a86ff" font-weight="bold">a (Cos)</text>
+
+                    <line x1="160" y1="180" x2="160" y2="80" stroke="#ff006e" stroke-width="3" stroke-dasharray="4"/> <text x="170" y="130" fill="#ff006e" font-weight="bold">b (Sin)</text>
+
+                    <line x1="20" y1="180" x2="160" y2="80" stroke="#ffd60a" stroke-width="4" />
+                    <circle cx="160" cy="80" r="4" fill="#ffd60a"/>
+                    
+                    <path d="M 60 180 A 40 40 0 0 0 55 155" stroke="white" fill="none"/>
+                    <text x="65" y="165" fill="white">φ</text>
+
+                    <text x="100" y="70" fill="#ffd60a" font-weight="bold">Вектор (Амплітуда)</text>
+                </svg>
+            </div>
+            
+            <div style="max-width: 400px;">
+                <p>Ми шукаємо проекції (кореляції):</p>
+                <ul>
+                    <li style="color:#3a86ff">$$ a = \sum x[n] \cdot \cos(2\pi kn/N) $$</li>
+                    <li style="color:#ff006e">$$ b = \sum x[n] \cdot \sin(2\pi kn/N) $$</li>
+                </ul>
+                <p>Тоді параметри знайденої хвилі:</p>
+                <p><strong>Амплітуда:</strong> $$ |M| = \sqrt{a^2 + b^2} $$</p>
+                <p><strong>Фаза:</strong> $$ \varphi = \arctan(b/a) $$</p>
+            </div>
+        </div>
+
+        <h3 style="color:white; border-bottom: 1px solid #444; padding-bottom:5px;">Представлення комплексними числами</h3>
+        <p>Комплексне число — це просто зручний "контейнер", щоб носити два числа ($a$ і $b$) разом.</p>
+        <p>Основна формула ДПФ виглядає так:</p>
+        $$ X[k] = \sum_{n=0}^{N-1} x[n] \cdot e^{-i 2\pi k n / N} $$
+        <p>За формулою Ейлера $$ e^{-ix} = \cos(x) - i\sin(x) $$ Це означає, що  ДПФ просто <em>"рахує кореляцію з косинусом і записує в дійсну частину, а кореляцію з мінус синусом — в уявну</em>.</p>
+    </div>
+</details>
+
+    <div class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('intuitive')">Інтуїтивний режим (кореляія)</button>
+        <button class="tab-btn" onclick="switchTab('advanced')">Автоматичний режим (Вектори)</button>
+    </div>
+
+    <div id="tab-intuitive" class="tab-content active">
+        <div class="workspace-grid">
+            <div class="controls-panel">
+                <button class="btn" onclick="generateNewSignal()">🎲 Новий сигнал</button>
+                
+                <div class="control-group">
+                    <label>1. Частота (k): <span id="freqVal" class="val-display">0</span></label>
+                    <input type="range" id="freqSlider" min="0" max="7" step="1" value="0">
+                    <small style="color:#888;">Номер гармоніки (кількість хвиль)</small>
+                </div>
+
+                <div class="control-group">
+                    <label>2. Зсув (n): <span id="shiftVal" class="val-display">0</span> <span id="shiftLimit" style="color:#666; font-size:0.8em"></span></label>
+                    <input type="range" id="phaseSlider" min="0" max="31" step="1" value="0">
+                    <small style="color:#888;">Зсув вправо (обмежено періодом)</small>
+                </div>
+
+                <div class="control-group" style="text-align: center;">
+                    <div style="font-size:2rem; font-weight:bold;" id="corrVal">0.00</div>
+                    <div style="font-size:0.8rem; color:#aaa;">Поточна кореляція (схожість)</div>
+                </div>
+
+                <button id="recordBtn" class="btn btn-record" onclick="recordHarmonic()">💾 Записати у спектр</button>
+                <div id="statusMsg" class="status-msg"></div>
+            </div>
+
+            <div class="vis-panel">
+                <div class="legend">
+                    <div class="legend-item"><div class="dot" style="background:var(--target-color)"></div>Вхідний сигнал</div>
+                    <div class="legend-item"><div class="dot" style="background:var(--probe-color)"></div>Пробна функція (Blue)</div>
+                    <div class="legend-item"><div class="dot" style="background:rgba(75, 255, 75, 0.5)"></div>Добуток (+)</div>
+                    <div class="legend-item"><div class="dot" style="background:rgba(255, 75, 75, 0.5)"></div>Добуток (-)</div>
+                </div>
+                <canvas id="mainCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="bottom-workspace">
+            <div class="bottom-panel">
+                <div class="panel-title">📊 Обчислений Спектр (Амплітуди та Фази)</div>
+                <canvas id="spectrumCanvas"></canvas>
+            </div>
+            <div class="bottom-panel">
+                <div class="panel-title">〰️ Реконструкція (Сума записаних гармонік)</div>
+                <canvas id="reconCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-advanced" class="tab-content">
+        <div class="adv-grid">
+            <div class="adv-column">
+                <h3>Вибір гармоніки</h3>
+                <div class="control-group">
+                    <label>Частота (k): <span id="advFreqVal" class="val-display">1</span></label>
+                    <input type="range" id="advFreqSlider" min="0" max="7" step="1" value="1">
+                </div>
+                
+                <div class="math-box">
+                    <p>Замість ручного підбору зсуву, ми обчислюємо дві кореляції:</p>
+                    <p style="color:var(--cos-color)">A = Кореляція з Cos</p>
+                    <p style="color:var(--sin-color)">B = Кореляція з Sin</p>
+                </div>
+
+                <div class="complex-note">
+                    <strong>Комплексні числа:</strong><br>
+                    Це "пакування" вектора.<br>
+                    Число = A + iB<br>
+                    Амплітуда = Довжина<br>
+                    Фаза = Кут
+                </div>
+            </div>
+
+            <div class="adv-column">
+                <div style="text-align:center; font-weight:bold; color:var(--cos-color)">Проекція на COS</div>
+                <div class="mini-chart-container">
+                    <canvas id="advCosCanvas"></canvas>
+                </div>
+                <div style="text-align:center;">Кореляція A = <span id="valA">0.00</span></div>
+
+                <hr style="border-color:#333; width:100%;">
+
+                <div style="text-align:center; font-weight:bold; color:var(--sin-color)">Проекція на SIN</div>
+                <div class="mini-chart-container">
+                    <canvas id="advSinCanvas"></canvas>
+                </div>
+                <div style="text-align:center;">Кореляція B = <span id="valB">0.00</span></div>
+            </div>
+
+            <div class="adv-column">
+                <div style="text-align:center; font-weight:bold; color:var(--vector-color)">Векторна сума</div>
+                <div class="vector-container">
+                    <canvas id="vectorCanvas"></canvas>
+                </div>
+                <div class="math-box" style="text-align:center;">
+                    Амплітуда = <span id="vecAmp" style="color:var(--vector-color)">0.00</span><br>
+                    Фаза = <span id="vecPhase">0</span>°
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- CONFIG ---
+    const N = 32; // Discrete points
+    const NUM_HARMONICS = 8; // k = 0..7
+    const HIGH_RES = 300; // For smooth envelopes
+    
+    // --- STATE ---
+    let targetSignal = new Float32Array(N);
+    let signalComposition = []; 
+    let recordedSpectrum = new Array(NUM_HARMONICS).fill(null).map(() => ({ amp: 0, shift: 0, recorded: false }));
+    let groundTruthSpectrum = []; 
+    
+    // UI State
+    let currentK = 0;
+    let currentShift = 0;
+    let activeTabId = 'intuitive';
+    let advK = 1; 
+
+    // Elements
+    const mainCanvas = document.getElementById('mainCanvas');
+    const spectrumCanvas = document.getElementById('spectrumCanvas');
+    const reconCanvas = document.getElementById('reconCanvas');
+    
+    // Adv Elements
+    const advCosCanvas = document.getElementById('advCosCanvas');
+    const advSinCanvas = document.getElementById('advSinCanvas');
+    const vectorCanvas = document.getElementById('vectorCanvas');
+    const advFreqSlider = document.getElementById('advFreqSlider');
+    const advFreqVal = document.getElementById('advFreqVal');
+    const valA_el = document.getElementById('valA');
+    const valB_el = document.getElementById('valB');
+    const vecAmp_el = document.getElementById('vecAmp');
+    const vecPhase_el = document.getElementById('vecPhase');
+
+    // Controls
+    const freqSlider = document.getElementById('freqSlider');
+    const phaseSlider = document.getElementById('phaseSlider');
+    const shiftLimitSpan = document.getElementById('shiftLimit');
+    const recordBtn = document.getElementById('recordBtn');
+    const statusMsg = document.getElementById('statusMsg');
+
+    // Contexts
+    const ctxMain = mainCanvas.getContext('2d');
+    const ctxSpec = spectrumCanvas.getContext('2d');
+    const ctxRecon = reconCanvas.getContext('2d');
+    const ctxAdvCos = advCosCanvas.getContext('2d');
+    const ctxAdvSin = advSinCanvas.getContext('2d');
+    const ctxVector = vectorCanvas.getContext('2d');
+
+    // --- INIT ---
+    function resize() {
+        const canvases = [mainCanvas, spectrumCanvas, reconCanvas, advCosCanvas, advSinCanvas, vectorCanvas];
+        canvases.forEach(c => {
+            if(c.offsetParent) {
+                c.width = c.clientWidth;
+                c.height = c.clientHeight;
+            }
+        });
+        if(activeTabId === 'intuitive') drawAll();
+        else updateAdvancedTab();
+    }
+    window.addEventListener('resize', resize);
+
+    function switchTab(mode) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        if(mode === 'intuitive') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('tab-intuitive').classList.add('active');
+            activeTabId = 'intuitive';
+            resize();
+            drawAll();
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('tab-advanced').classList.add('active');
+            activeTabId = 'advanced';
+            resize();
+            updateAdvancedTab();
+        }
+    }
+
+    function generateNewSignal() {
+        recordedSpectrum = new Array(NUM_HARMONICS).fill(null).map(() => ({ amp: 0, shift: 0, recorded: false }));
+        groundTruthSpectrum = [];
+        signalComposition = [];
+        
+        for(let k=0; k<NUM_HARMONICS; k++) {
+            let amp = 0;
+            if (Math.random() > 0.6 || k===1) { 
+                amp = parseFloat((Math.random() * 0.8 + 0.2).toFixed(2));
+            }
+            if (k===0) amp = 0; 
+            
+            // Random shift, but kept within one period for logical consistency in generation
+            let period = (k===0) ? N : Math.ceil(N/k);
+            let shift = Math.floor(Math.random() * period); 
+
+            groundTruthSpectrum.push({ amp, shift });
+            if(amp > 0) signalComposition.push({k, amp, shift});
+        }
+
+        // Build discrete signal
+        for(let n=0; n<N; n++) {
+            targetSignal[n] = getContinuousValue(signalComposition, n);
+        }
+        
+        resetControls();
+        if(activeTabId === 'intuitive') drawAll();
+        else updateAdvancedTab();
+        statusMsg.innerText = "Згенеровано новий сигнал!";
+    }
+
+    function updateSliderLimits(k) {
+        // Calculate limit based on period
+        // T = N / k
+        // We want user to be able to shift up to approx one period
+        let maxShift = (k === 0) ? N - 1 : Math.ceil(N / k);
+        // Clamp maxShift to N-1
+        if (maxShift >= N) maxShift = N - 1;
+        
+        phaseSlider.max = maxShift;
+        shiftLimitSpan.innerText = `(max: ${maxShift})`;
+
+        // Clamp current value
+        if (parseInt(phaseSlider.value) > maxShift) {
+            phaseSlider.value = 0;
+            currentShift = 0;
+        }
+    }
+
+    function resetControls() {
+        freqSlider.value = 0;
+        currentK = 0;
+        updateSliderLimits(0);
+        
+        phaseSlider.value = 0;
+        currentShift = 0;
+        updateUIValues();
+    }
+
+    // --- MATH HELPERS ---
+
+    function getContinuousValue(composition, t) {
+        let sum = 0;
+        for(let comp of composition) {
+            sum += comp.amp * Math.cos(2 * Math.PI * comp.k * (t - comp.shift) / N);
+        }
+        return sum;
+    }
+
+    function getBasis(k, shift, n) {
+        return Math.cos(2 * Math.PI * k * (n - shift) / N);
+    }
+
+    function getBasisContinuous(k, shift, t) {
+        return Math.cos(2 * Math.PI * k * (t - shift) / N);
+    }
+
+    function calculateCorrelation(k, shift, useSin=false) {
+        let sum = 0;
+        for(let n=0; n<N; n++) {
+            let b;
+            if(!useSin) {
+                b = getBasis(k, shift, n);
+            } else {
+                b = Math.sin(2 * Math.PI * k * n / N);
+            }
+            sum += targetSignal[n] * b;
+        }
+        let normFactor = (k === 0) ? (1/N) : (2/N);
+        return sum * normFactor;
+    }
+
+    // --- DRAWING ---
+
+    function drawStems(ctx, data, color, width, height, isBar = false, secondaryData = null, 
+                       compositionForEnvelope = null, forceK = -1, forceShift = -1) {
+        
+        const stepX = width / N;
+        const centerY = height / 2;
+        const scaleY = height / 3.5;
+
+        // Grid
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(width, centerY);
+        ctx.stroke();
+
+        // Correlation bars
+        if (secondaryData) {
+            for (let i = 0; i < N; i++) {
+                let product = data[i] * secondaryData[i];
+                let x = i * stepX;
+                let barW = stepX - 2;
+                let hBar = product * scaleY;
+
+                if (product > 0.01) ctx.fillStyle = "rgba(75, 255, 75, 0.4)";
+                else if (product < -0.01) ctx.fillStyle = "rgba(255, 75, 75, 0.4)";
+                else ctx.fillStyle = "transparent";
+
+                ctx.fillRect(x + 1, centerY, barW, -hBar);
+            }
+        }
+
+        // --- DRAW SMOOTH ENVELOPE ---
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.5;
+
+        // Alignment Fix:
+        // Visual area [0, width] maps to time [0, N].
+        // Stems are drawn at centers: i*stepX + stepX/2.
+        // For N=32, stepX = W/32. First stem at W/64.
+        // Time represented by first stem center is t = 0.5.
+        // But in DFT math, sample n=0 usually implies t=0.
+        // If we want the line to pass through the dots:
+        // The dot at index i is mathematically at time t=i.
+        // But visually it is at x = (i+0.5)*stepX.
+        // So for a given visual x, the mathematical time t is:
+        // t = (x / width) * N - 0.5;
+
+        for(let i=0; i<=HIGH_RES; i++) {
+            let x = (i / HIGH_RES) * width;
+            // Calculate corresponding time t for this pixel x
+            let t = (x / width) * N - 0.5;
+            
+            let val = 0;
+            if(compositionForEnvelope) {
+                val = getContinuousValue(compositionForEnvelope, t);
+            } else if (forceK !== -1) {
+                val = getBasisContinuous(forceK, forceShift, t);
+            } else {
+                continue; // Should not happen for envelopes
+            }
+
+            let y = centerY - val * scaleY;
+            if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+
+        // --- DRAW STEMS (Discrete) ---
+        ctx.lineWidth = 1;
+        for (let i = 0; i < N; i++) {
+            let x = i * stepX + stepX/2;
+            let y = centerY - data[i] * scaleY;
+
+            ctx.beginPath();
+            ctx.moveTo(x, centerY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = color;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI*2);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+    }
+
+    function drawSpectrum() {
+        const w = spectrumCanvas.width;
+        const h = spectrumCanvas.height;
+        ctxSpec.clearRect(0,0,w,h);
+        
+        const barWidth = (w / NUM_HARMONICS) * 0.8;
+        const step = w / NUM_HARMONICS;
+        const scaleY = (h - 40) / 1.5;
+
+        for(let k=0; k<NUM_HARMONICS; k++) {
+            let item = recordedSpectrum[k];
+            let amp = item.recorded ? item.amp : 0;
+            let x = k * step + step/2 - barWidth/2;
+            let barH = amp * scaleY;
+            
+            ctxSpec.fillStyle = item.recorded ? "#4cc9f0" : "#333";
+            ctxSpec.fillRect(x, h - barH - 40, barWidth, barH);
+            
+            ctxSpec.fillStyle = "#888";
+            ctxSpec.font = "12px monospace";
+            ctxSpec.textAlign = "center";
+            ctxSpec.fillText(`k=${k}`, x + barWidth/2, h - 25);
+
+            if(item.recorded) {
+                ctxSpec.fillStyle = "#ffd60a";
+                ctxSpec.font = "bold 11px monospace";
+                ctxSpec.fillText(`φ:${item.shift}`, x + barWidth/2, h - 10);
+            }
+        }
+    }
+
+    function drawReconstruction() {
+        const w = reconCanvas.width;
+        const h = reconCanvas.height;
+        ctxRecon.clearRect(0,0,w,h);
+
+        let reconData = new Float32Array(N).fill(0);
+        let activeComps = [];
+
+        for(let k=0; k<NUM_HARMONICS; k++) {
+            if (recordedSpectrum[k].recorded) {
+                activeComps.push({k: k, amp: recordedSpectrum[k].amp, shift: recordedSpectrum[k].shift});
+            }
+        }
+        
+        for(let n=0; n<N; n++) {
+             reconData[n] = getContinuousValue(activeComps, n);
+        }
+
+        drawStems(ctxRecon, targetSignal, "rgba(255,255,255,0.2)", w, h, false, null, signalComposition);
+        drawStems(ctxRecon, reconData, "#ffd60a", w, h, false, null, activeComps);
+    }
+
+    function drawAll() {
+        const w = mainCanvas.width;
+        const h = mainCanvas.height;
+        ctxMain.clearRect(0, 0, w, h);
+
+        let probeData = new Float32Array(N);
+        for(let n=0; n<N; n++) {
+            probeData[n] = getBasis(currentK, currentShift, n);
+        }
+
+        // Draw Target Signal (White)
+        drawStems(ctxMain, targetSignal, "#ffffff", w, h, false, probeData, signalComposition);
+
+        // Draw Probe Signal (Blue)
+        // Note: Using var(--probe-color) hex code for canvas: #4361ee
+        drawStems(ctxMain, probeData, "#4361ee", w, h, false, null, null, currentK, currentShift);
+
+        drawSpectrum();
+        drawReconstruction();
+
+        let corr = calculateCorrelation(currentK, currentShift);
+        document.getElementById('corrVal').innerText = corr.toFixed(2);
+
+        checkWinCondition(corr);
+    }
+
+    // --- ADVANCED TAB ---
+    function updateAdvancedTab() {
+        let cosBasis = new Float32Array(N);
+        for(let n=0; n<N; n++) cosBasis[n] = Math.cos(2*Math.PI*advK*n/N);
+        let A = calculateCorrelation(advK, 0);
+
+        let sinBasis = new Float32Array(N);
+        for(let n=0; n<N; n++) sinBasis[n] = Math.sin(2*Math.PI*advK*n/N);
+        // Calc B manually
+        let sumSin = 0;
+        for(let n=0; n<N; n++) sumSin += targetSignal[n] * sinBasis[n];
+        let B = sumSin * ((advK===0)?1/N:2/N);
+
+        valA_el.innerText = A.toFixed(2);
+        valB_el.innerText = B.toFixed(2);
+
+        const w = advCosCanvas.width;
+        const h = advCosCanvas.height;
+        
+        ctxAdvCos.clearRect(0,0,w,h);
+        drawStems(ctxAdvCos, targetSignal, "#888", w, h, false, cosBasis, signalComposition); 
+        drawSimpleCurve(ctxAdvCos, t => Math.cos(2*Math.PI*advK*t/N), "#3a86ff");
+
+        ctxAdvSin.clearRect(0,0,w,h);
+        drawStems(ctxAdvSin, targetSignal, "#888", w, h, false, sinBasis, signalComposition);
+        drawSimpleCurve(ctxAdvSin, t => Math.sin(2*Math.PI*advK*t/N), "#ff006e");
+
+        drawVector(A, B);
+    }
+
+    function drawSimpleCurve(ctx, func, color) {
+        const w = ctx.canvas.width; 
+        const h = ctx.canvas.height;
+        const cy = h/2;
+        const sy = h/3.5;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        for(let i=0; i<=HIGH_RES; i++) {
+            let x = (i/HIGH_RES)*w;
+            // Apply alignment correction: t = (x/w)*N - 0.5
+            let t = (x/w)*N - 0.5;
+            let val = func(t);
+            let y = cy - val*sy;
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    }
+
+    function drawVector(A, B) {
+        const ctx = ctxVector;
+        const w = vectorCanvas.width;
+        const h = vectorCanvas.height;
+        const cx = w/2;
+        const cy = h/2;
+        const scale = Math.min(w,h)/2.5;
+
+        ctx.clearRect(0,0,w,h);
+
+        // Grid
+        ctx.strokeStyle = "#444";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+        ctx.strokeStyle = "#333";
+        ctx.beginPath(); ctx.arc(cx, cy, scale, 0, Math.PI*2); ctx.stroke();
+
+        let mag = Math.sqrt(A*A + B*B);
+        let angle = Math.atan2(B, A); 
+        
+        // A (Cos)
+        ctx.strokeStyle = "#3a86ff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5,5]);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + A*scale, cy); ctx.stroke();
+
+        // B (Sin)
+        ctx.strokeStyle = "#ff006e";
+        ctx.beginPath(); ctx.moveTo(cx + A*scale, cy); ctx.lineTo(cx + A*scale, cy - B*scale); 
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Result
+        ctx.strokeStyle = "#ffd60a";
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + A*scale, cy - B*scale); ctx.stroke();
+
+        let ex = cx + A*scale;
+        let ey = cy - B*scale;
+        ctx.fillStyle = "#ffd60a";
+        ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI*2); ctx.fill();
+
+        vecAmp_el.innerText = mag.toFixed(2);
+        let deg = (angle * 180 / Math.PI).toFixed(1);
+        vecPhase_el.innerText = deg;
+    }
+
+    function checkWinCondition(currentCorr) {
+        let trueAmp = groundTruthSpectrum[currentK].amp;
+        // Check if shift is correct (or close enough in phase space)
+        // Simple logic: if correlation is very close to max amplitude
+        if (currentCorr > trueAmp * 0.95 && trueAmp > 0.05) {
+            recordBtn.classList.add('highlight');
+            statusMsg.innerText = "Максимум знайдено! Натисніть 'Записати'";
+            statusMsg.style.color = "#4caf50";
+        } else if (recordedSpectrum[currentK].recorded) {
+            recordBtn.classList.remove('highlight');
+            statusMsg.innerText = "Гармоніка вже записана.";
+            statusMsg.style.color = "#888";
+        } else {
+            recordBtn.classList.remove('highlight');
+            statusMsg.innerText = "";
+        }
+    }
+
+    function recordHarmonic() {
+        let corr = parseFloat(document.getElementById('corrVal').innerText);
+        if (Math.abs(corr) < 0.01) {
+             statusMsg.innerText = "Кореляція занадто мала (шум).";
+             statusMsg.style.color = "red";
+             return;
+        }
+        recordedSpectrum[currentK] = {
+            amp: corr,
+            shift: currentShift,
+            recorded: true
+        };
+        statusMsg.innerText = `Гармоніка k=${currentK} записана!`;
+        statusMsg.style.color = "#4cc9f0";
+        drawAll();
+    }
+
+    function updateUIValues() {
+        document.getElementById('freqVal').innerText = currentK;
+        document.getElementById('shiftVal').innerText = currentShift;
+    }
+
+    // Events
+    freqSlider.addEventListener('input', (e) => {
+        currentK = parseInt(e.target.value);
+        // Recalculate slider limits based on new K
+        updateSliderLimits(currentK);
+        updateUIValues();
+        drawAll();
+    });
+
+    phaseSlider.addEventListener('input', (e) => {
+        currentShift = parseInt(e.target.value);
+        updateUIValues();
+        drawAll();
+    });
+
+    advFreqSlider.addEventListener('input', (e) => {
+        advK = parseInt(e.target.value);
+        advFreqVal.innerText = advK;
+        updateAdvancedTab();
+    });
+
+    // Start
+    setTimeout(() => {
+        resize();
+        generateNewSignal();
+    }, 100);
+
+</script>
+</body>
+</html>
