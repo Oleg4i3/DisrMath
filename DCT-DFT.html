@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCT vs DFT</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
+        h1 { text-align: center; color: #333; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 20px; }
+        
+        .controls { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; margin-bottom: 20px; }
+        .control-group { display: flex; flex-direction: column; align-items: center; min-width: 150px; }
+        label { font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #555; }
+        button { padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; transition: background 0.2s; margin-bottom: 5px; width: 100%; }
+        button:hover { background-color: #0056b3; }
+        button.record { background-color: #dc3545; }
+        button.record.recording { animation: pulse 1.5s infinite; background-color: #a71d2a; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        .info { font-size: 0.85em; color: #666; margin-top: 2px; text-align: center; }
+        
+        .charts-container { display: flex; flex-direction: column; gap: 20px; }
+        .chart-box { background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
+        h2 { margin: 5px 0 10px 0; font-size: 1.1rem; text-align: center; }
+        
+        /* Layout Fixes for Chart Stability */
+        .stability-wrapper { display: flex; gap: 10px; margin-top: 10px; }
+        .chart-wrapper-fixed { position: relative; height: 160px; width: 100%; }
+        .chart-wrapper-small { position: relative; height: 120px; width: 100%; }
+
+        .highlight-box { border: 2px solid #ff9800; }
+        
+        .checkbox-container { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; width: 100%; }
+        .checkbox-container input { width: auto; cursor: pointer; transform: scale(1.2); }
+
+        .energy-display {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            background: #eee;
+            padding: 5px;
+            border-radius: 4px;
+            margin-top: 5px;
+            text-align: center;
+            color: #333;
+            font-weight: bold;
+        }
+        .match-ok { color: green; }
+        .match-fail { color: red; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+<details style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em; color: #007bff; padding: 5px;">
+        📚 Теоретична довідка
+    </summary>
+    <div style="padding: 10px 20px; color: #444; line-height: 1.6;">
+
+        <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">0. Математичний апарат: Звідки 1/N?</h3>
+        <p>Для дискретного сигналу \( x[n] \) довжиною \( N \):</p>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-around; background: #f9f9f9; padding: 15px; border-radius: 5px;">
+            <div style="text-align: center; width: 45%;">
+                <strong>DFT (Фур'є)</strong>
+                $$ X[k] = \sum_{n=0}^{N-1} x[n] e^{-j\frac{2\pi}{N}kn} $$
+               
+            </div>
+            <div style="text-align: center; width: 45%;">
+                <strong>DCT-II (Косинус)</strong>
+                $$ X[k] = \sum_{n=0}^{N-1} x[n] \cos\left[\frac{\pi}{N}\left(n+\frac{1}{2}\right)k\right] $$
+                
+            </div>
+        </div>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px dashed #ccc;">
+
+        <h3>Перетворення Фур'є — стабільність для аналізу</h3>
+        <p>
+            DFT використовує комплексні експоненти, які мають поняття <strong>фази</strong>. Зсув сигналу в часі призводить лише до повороту фази кожного коефіцієнта, але його модуль (енергія) залишається незмінним. 
+            $$ |e^{-j\phi} \cdot X[k]| = |X[k]| $$
+            Тому спектрограма (модуль DFT) "стоїть на місці", навіть якщо хвиля рухається. DCT — це проекція тільки на дійсні косинуси, тому зсув хвилі ламає структуру коефіцієнтів (енергія перетікає між сусідніми частотами).
+        </p>
+
+        <h3>Вікна та згортка</h3>
+        <p>
+            Миттєве обривання сигналу (прямокутне вікно) = множення на "сходинку" в часі. 
+            У частотній області це <strong>згортка</strong> спектра сигналу зі спектром вікна.
+            $$ \mathcal{F}\{Signal \cdot Window\} = Spectrum * Sinc $$
+            Функція \( sinc(x) \) має великі бічні пелюстки, які створюють "бруд" у спектрі. Вікно Хеннінга гладке, його спектр компактний, тому воно менше "розмазує" сусідні частоти.
+        </p>
+
+        <h3>Артефакти на стиках: Парність проти Періодичності</h3>
+        <p>
+            Це найважливіша відмінність для стиснення. Як перетворення "бачать" сигнал за межами вашого блоку?
+        </p>
+        <ul>
+            <li><strong>DFT (Періодичність):</strong> Вважає, що блок повторюється копі-пейстом. Кінець з'єднується з початком. Якщо рівні різні — виникає розрив (сходинка). Сходинка дає нескінченний спектр (шум).</li>
+            <li><strong>DCT (Парна симетрія):</strong> Вважає, що блок <strong>віддзеркалюється</strong>. Кінець плавно переходить у свій зворотний бік. Це формує безперервну хвилю (парну функцію), схожу на косинус.</li>
+        </ul>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <svg width="100%" height="240" viewBox="0 0 600 240" style="background: #fff; border: 1px solid #eee;">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:rgb(255,240,240);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:white;stop-opacity:1" />
+                    </linearGradient>
+                     <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:rgb(240,248,255);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:white;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+
+                <g transform="translate(20, 20)">
+                    <text x="130" y="0" font-family="Arial" font-weight="bold" font-size="14" text-anchor="middle" fill="#d32f2f">DFT: Періодичне (Стрибок)</text>
+                    
+                    <rect x="0" y="20" width="100" height="120" fill="url(#grad1)" stroke="#ddd"/>
+                    
+                    <path d="M 0 120 Q 40 120, 100 40" stroke="#d32f2f" stroke-width="3" fill="none"/>
+                    
+                    <g transform="translate(100, 0)">
+                        <rect x="0" y="20" width="100" height="120" fill="#fff" stroke="#eee" stroke-dasharray="4"/>
+                        <path d="M 0 120 Q 40 120, 100 40" stroke="#d32f2f" stroke-width="2" stroke-dasharray="5,5" fill="none" opacity="0.5"/>
+                    </g>
+
+                    <line x1="100" y1="40" x2="100" y2="120" stroke="red" stroke-width="2" marker-end="url(#arrow)" />
+                    <circle cx="100" cy="40" r="4" fill="red" />
+                    <circle cx="100" cy="120" r="4" fill="red" />
+                    
+                    <text x="100" y="165" font-family="Arial" font-size="12" fill="red" text-anchor="middle" font-weight="bold">⚠️ РОЗРИВ ФУНКЦІЇ</text>
+                     <text x="100" y="185" font-family="Arial" font-size="11" fill="#555" text-anchor="middle">Потрібно багато ВЧ,</text>
+                     <text x="100" y="200" font-family="Arial" font-size="11" fill="#555" text-anchor="middle">щоб описати цей стрибок</text>
+                </g>
+
+                <g transform="translate(320, 20)">
+                    <text x="130" y="0" font-family="Arial" font-weight="bold" font-size="14" text-anchor="middle" fill="#1976d2">DCT: Дзеркальне (Парне)</text>
+                    
+                    <rect x="0" y="20" width="100" height="120" fill="url(#grad2)" stroke="#ddd"/>
+                    
+                    <path d="M 0 120 Q 40 120, 100 40" stroke="#1976d2" stroke-width="3" fill="none"/>
+
+                    <g transform="translate(100, 0)">
+                        <rect x="0" y="20" width="100" height="120" fill="#fff" stroke="#eee" stroke-dasharray="4"/>
+                        <path d="M 0 40 Q 60 120, 100 120" stroke="#1976d2" stroke-width="2" stroke-dasharray="5,5" fill="none" opacity="0.6"/>
+                    </g>
+                    
+                    <circle cx="100" cy="40" r="4" fill="green" />
+                    <text x="100" y="165" font-family="Arial" font-size="12" fill="green" text-anchor="middle" font-weight="bold">✅ ПЛАВНИЙ ПЕРЕГИН</text>
+                    <text x="100" y="185" font-family="Arial" font-size="11" fill="#555" text-anchor="middle">Сигнал став схожий на косинус.</text>
+                    <text x="100" y="200" font-family="Arial" font-size="11" fill="#555" text-anchor="middle">Мінімум ВЧ гармонік.</text>
+                </g>
+            </svg>
+        </div>
+
+        <h3>Концентрація енергії (Energy Compaction)</h3>
+    <p>
+            Завдяки "дзеркальній" природі (див. вище), сигнал для DCT завжди виглядає більш плавним, ніж для DFT. Плавний сигнал = більше низьких частот.
+        </p>
+        <p>
+            <strong>Наслідок:</strong> У DCT майже вся енергія сигналу збирається в перших декількох коефіцієнтах (ліва частина спектру). 
+            У DFT енергія часто розмазана через спроби описати "стрибки" на краях.
+        </p>
+      <p style="background: #e8f5e9; padding: 10px; border-left: 5px solid green;">
+            Саме тому <strong>JPEG та MP3</strong> використовують DCT. Ми можемо просто викинути праву половину коефіцієнтів (ВЧ), і при відновленні сигнал залишиться плавним і красивим. Якщо зробити те саме з DFT, на стиках блоків з'являться клацання та артефакти.
+        </p>
+    </div>
+</details>
+
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+   
+        <div class="chart-box highlight-box">
+        <h2 style="color:#d35400"> Тест на зсув та вплив вікна</h2>
+      
+        <div class="chart-wrapper-small">
+             <canvas id="visualSignalChart"></canvas>
+        </div>
+        
+        <div id="demoEnergyVals" class="energy-display">
+            E_Time: 0.00 | E_DCT: 0.00 | E_DFT: 0.00
+        </div>
+	 <div style="display:flex; justify-content:center; gap:20px; margin-bottom:10px; flex-wrap: wrap;">
+        <div class="stability-wrapper">
+			<div style="text-align:center; width: 35%; min-width: 150px;">
+                <label>Позиція вікна:</label>
+                <input type="range" id="shiftSlider" min="0" max="200" value="0" style="width:100%" oninput="updateStabilityDemo()">
+            </div>
+            <div style="text-align:center; width: 35%; min-width: 150px;">
+                <label>Ширина вікна (N):</label>
+                <input type="range" id="stabWindowSize" min="32" max="96" step="8" value="32" style="width:100%" oninput="updateStabilityDemo()">
+                <span id="stabWinVal" class="info">32</span>
+            </div>
+			 <div class="checkbox-container">
+                <input type="checkbox" id="useHanningCheck" onchange="updateStabilityDemo()">
+                <label for="useHanningCheck" style="margin:0; cursor:pointer;">Вікно Хеннінга (застосувати до обох)</label>
+            </div>
+		</div>	
+			
+            <div style="flex:1; text-align:center;">
+                <strong>DCT Energy</strong> <span class="info" style="font-size:0.8em">(Coeff²)</span>
+                <p class="info" style="color:red">Хаос при зсуві фази</p>
+                <div class="chart-wrapper-fixed">
+                    <canvas id="dctStabChart"></canvas>
+                </div>
+            </div>
+            <div style="flex:1; text-align:center;">
+                <strong>DFT Energy</strong> <span class="info" style="font-size:0.8em">((Re²+Im²)/N)</span>
+                <p class="info" style="color:green">Стабільна форма спектру</p>
+                <div class="chart-wrapper-fixed">
+                    <canvas id="dftStabChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;">
+
+   
+
+    <div class="charts-container">
+        <div class="chart-box">
+            <h2>Сигнал у часі (Реконструкція)</h2>
+            <div class="chart-wrapper-small" style="height: 250px;">
+                <canvas id="waveChart"></canvas>
+            </div>
+        </div>
+
+		<div class="controls">
+        <div class="control-group">
+            <label>Джерело:</label>
+            <button onclick="generateRandomSynth()">🎹 Випадковий Синтез</button>
+            <button class="record" id="micBtn" onclick="toggleMic()">🎤 Мікрофон (Авто-gain)</button>
+        </div>
+
+        <div class="control-group">
+            <label for="blockSize">Розмір вікна (N):</label>
+            <input type="range" id="blockSize" min="24" max="128" step="16" value="32" oninput="updateVisualization()">
+            <span class="info" id="blockSizeVal">32 відліки</span>
+        </div>
+
+        <div class="control-group">
+            <label for="compression">Стиснення (Відкидання ВЧ):</label>
+            <input type="range" id="compression" min="0" max="95" value="0" oninput="updateVisualization()">
+            <span class="info" id="compVal">Всі коефіцієнти (Оригінал)</span>
+        </div>
+
+        <div class="control-group">
+            <label for="overlap">Перекриття (Overlap):</label>
+            <input type="range" id="overlap" min="0" max="50" value="0" step="10" oninput="updateVisualization()">
+            <span class="info" id="overlapVal">0% (Стик у стик)</span>
+        </div>
+
+    </div>
+	
+        <div class="chart-box">
+            <h2>Спектральна Енергія </h2>
+            <div id="mainEnergyVals" class="energy-display" style="margin-bottom: 5px;">
+                 Check: ...
+            </div>
+            <div class="chart-wrapper-small" style="height: 350px;">
+                <canvas id="spectrumChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Config ---
+        const TOTAL_POINTS = 512;
+        let signalData = new Array(TOTAL_POINTS).fill(0);
+        
+        // Chart Instances
+        let waveChartInstance = null;
+        let spectrumChartInstance = null;
+        let visualSignalInstance = null;
+        let dctStabInstance = null;
+        let dftStabInstance = null;
+        
+        // --- Demo Signal Generation ---
+        const STAB_SIGNAL_LEN = 300;
+        const stabSignal = new Array(STAB_SIGNAL_LEN).fill(0).map((_, i) => {
+            return Math.sin(i * 0.45) + 0.8 * Math.sin(i * 0.75 + 1.0);
+        });
+
+        let isRecording = false;
+        let mediaStream = null;
+        let audioCtx = null;
+
+        // --- Math Kernels (Strictly Orthonormal / Normalized) ---
+
+        function dct(signal) {
+            const N = signal.length;
+            const coeffs = new Array(N).fill(0);
+            const factor = Math.PI / N;
+            const sqrt1N = Math.sqrt(1/N);
+            const sqrt2N = Math.sqrt(2/N);
+            for (let k = 0; k < N; k++) {
+                let sum = 0;
+                for (let n = 0; n < N; n++) {
+                    sum += signal[n] * Math.cos(k * (n + 0.5) * factor);
+                }
+                coeffs[k] = sum * (k === 0 ? sqrt1N : sqrt2N);
+            }
+            return coeffs;
+        }
+
+        function idct(coeffs) {
+            const N = coeffs.length;
+            const signal = new Array(N).fill(0);
+            const factor = Math.PI / N;
+            const sqrt1N = Math.sqrt(1/N);
+            const sqrt2N = Math.sqrt(2/N);
+            for (let n = 0; n < N; n++) {
+                let sum = coeffs[0] * sqrt1N;
+                for (let k = 1; k < N; k++) {
+                    sum += coeffs[k] * sqrt2N * Math.cos(k * (n + 0.5) * factor);
+                }
+                signal[n] = sum;
+            }
+            return signal;
+        }
+
+        function dft(signal) {
+            const N = signal.length;
+            const output = [];
+            for (let k = 0; k < N; k++) {
+                let re = 0, im = 0;
+                for (let n = 0; n < N; n++) {
+                    const angle = (2 * Math.PI * k * n) / N;
+                    re += signal[n] * Math.cos(angle);
+                    im -= signal[n] * Math.sin(angle);
+                }
+                output.push({ re, im });
+            }
+            return output;
+        }
+
+        function idft(coeffs) {
+            const N = coeffs.length;
+            const signal = new Array(N).fill(0);
+            for (let n = 0; n < N; n++) {
+                let sum = 0;
+                for (let k = 0; k < N; k++) {
+                    const angle = (2 * Math.PI * k * n) / N;
+                    sum += coeffs[k].re * Math.cos(angle) - coeffs[k].im * Math.sin(angle);
+                }
+                signal[n] = sum / N;
+            }
+            return signal;
+        }
+
+        function applyHanning(buffer) {
+            const N = buffer.length;
+            const output = new Array(N);
+            for(let i=0; i<N; i++) {
+                const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (N - 1)));
+                output[i] = buffer[i] * w;
+            }
+            return output;
+        }
+
+        function calculateEnergy(buffer) {
+            return buffer.reduce((sum, val) => sum + val*val, 0);
+        }
+
+        // --- Demo Logic (Panel 1) ---
+
+        function initStabilityCharts() {
+            // 1. Visual Signal (Top)
+            const ctxVis = document.getElementById('visualSignalChart').getContext('2d');
+            
+            const windowBoxPlugin = {
+                id: 'windowBox',
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const yAxis = chart.scales.y;
+                    
+                    const slider = document.getElementById('shiftSlider');
+                    const winSize = parseInt(document.getElementById('stabWindowSize').value);
+                    const startIdx = parseInt(slider.value);
+                    const useHanning = document.getElementById('useHanningCheck').checked;
+                    const endIdx = startIdx + winSize;
+
+                    if (startIdx < chart.data.labels.length) {
+                        const xStart = xAxis.getPixelForValue(startIdx);
+                        const safeEnd = Math.min(endIdx, chart.data.labels.length - 1);
+                        const xEnd = xAxis.getPixelForValue(safeEnd);
+                        const width = xEnd - xStart;
+
+                        ctx.save();
+                        
+                        if (useHanning) {
+                            // Draw Hanning Bell Curve
+                            ctx.beginPath();
+                            ctx.lineWidth = 2;
+                            ctx.strokeStyle = 'rgba(255, 152, 0, 0.9)';
+                            ctx.fillStyle = 'rgba(255, 152, 0, 0.2)';
+                            const yTop = yAxis.top;
+                            const yBot = yAxis.bottom;
+                            const yHeight = yBot - yTop;
+                            ctx.moveTo(xStart, yBot);
+                            for (let i = 0; i <= width; i++) {
+                                const ratio = i / width; 
+                                const w = 0.5 * (1 - Math.cos(2 * Math.PI * ratio));
+                                const xPos = xStart + i;
+                                const yPos = yBot - (w * yHeight * 0.9);
+                                ctx.lineTo(xPos, yPos);
+                            }
+                            ctx.lineTo(xEnd, yBot);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.stroke();
+                        } else {
+                            // Draw Rectangle
+                            ctx.fillStyle = 'rgba(255, 152, 0, 0.3)';
+                            ctx.strokeStyle = 'rgba(255, 152, 0, 0.8)';
+                            ctx.lineWidth = 2;
+                            ctx.fillRect(xStart, yAxis.top, width, yAxis.bottom - yAxis.top);
+                            ctx.strokeRect(xStart, yAxis.top, width, yAxis.bottom - yAxis.top);
+                        }
+                        ctx.restore();
+                    }
+                }
+            };
+
+            visualSignalInstance = new Chart(ctxVis, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: STAB_SIGNAL_LEN}, (_, i) => i),
+                    datasets: [{
+                        data: stabSignal,
+                        borderColor: '#555',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        tension: 0.2
+                    }]
+                },
+                plugins: [windowBoxPlugin],
+                options: {
+                    responsive: true, 
+                    maintainAspectRatio: false, // Fix infinite growth
+                    animation: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false, min: -2.5, max: 2.5 } }
+                }
+            });
+
+            // 2. Spectrum Charts (DCT vs DFT)
+            const ctxDCT = document.getElementById('dctStabChart').getContext('2d');
+            const ctxDFT = document.getElementById('dftStabChart').getContext('2d');
+            
+            // Shared Fixed Scale for Valid Comparison
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false, // Fix infinite growth
+                animation: false, 
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: {  min: 0, max: 24, display: false },
+                    y: { min: 0, max: 12.0, display: true, title: {display:true, text:'Energy'} } 
+                }
+            };
+
+            const emptyLabels = Array.from({length: 64}, (_,i) => i);
+
+            dctStabInstance = new Chart(ctxDCT, {
+                type: 'bar',
+                data: { labels: emptyLabels, datasets: [{ data: [], backgroundColor: 'rgba(54, 162, 235, 1)' }] },
+                options: commonOptions
+            });
+
+            dftStabInstance = new Chart(ctxDFT, {
+                type: 'bar',
+                data: { labels: emptyLabels, datasets: [{ data: [], backgroundColor: 'rgba(255, 99, 132, 1)' }] },
+                options: commonOptions
+            });
+            
+            updateStabilityDemo();
+        }
+
+        function updateStabilityDemo() {
+            const slider = document.getElementById('shiftSlider');
+            const winSizeInput = document.getElementById('stabWindowSize');
+            const useHanning = document.getElementById('useHanningCheck').checked;
+            
+            const offset = parseInt(slider.value);
+            const winSize = parseInt(winSizeInput.value);
+            const maxOffset = STAB_SIGNAL_LEN - winSize;
+            if (slider.max != maxOffset) slider.max = maxOffset;
+            document.getElementById('stabWinVal').innerText = winSize;
+
+            // 1. Prepare Block
+            let rawBlock = [];
+            for(let i=0; i<winSize; i++) {
+                rawBlock.push(stabSignal[offset + i] || 0);
+            }
+            
+            // 2. Apply Window (to input of BOTH transforms for fair comparison)
+            let processedBlock = [...rawBlock];
+            if (useHanning) {
+                processedBlock = applyHanning(rawBlock);
+            }
+
+            // 3. Time Domain Energy
+            const energyTime = calculateEnergy(processedBlock);
+
+            // 4. DCT Spectrum & Energy
+            const dctCoeffs = dct(processedBlock);
+            const dctEnergyArr = dctCoeffs.map(x => x*x);
+            const energyDCT = dctEnergyArr.reduce((a,b) => a+b, 0);
+
+            // 5. DFT Spectrum & Energy
+            const dftCoeffs = dft(processedBlock);
+            const dftEnergyArr = dftCoeffs.map(c => (c.re**2 + c.im**2) / winSize);
+            const energyDFT = dftEnergyArr.reduce((a,b) => a+b, 0);
+
+            // 6. Visualization
+            const maxVal = Math.max(...dctEnergyArr, ...dftEnergyArr);
+            const chartMax = Math.max(1.0, maxVal * 1.1); 
+
+            const labels = Array.from({length: winSize}, (_,i)=>i);
+            
+            dctStabInstance.data.labels = labels;
+            dctStabInstance.data.datasets[0].data = dctEnergyArr;
+            //dctStabInstance.options.scales.y.max = chartMax;
+            
+            dftStabInstance.data.labels = labels;
+            dftStabInstance.data.datasets[0].data = dftEnergyArr;
+           // dftStabInstance.options.scales.y.max = chartMax;
+
+            dctStabInstance.update('none');
+            dftStabInstance.update('none');
+            visualSignalInstance.update('none');
+
+            // 7. Display Checksums
+            const el = document.getElementById('demoEnergyVals');
+            el.innerHTML = `
+                Time Energy: ${energyTime.toFixed(2)} | 
+                DCT Sum: ${energyDCT.toFixed(2)} | 
+                DFT Sum: ${energyDFT.toFixed(2)}
+            `;
+            if(Math.abs(energyTime - energyDCT) < 0.01 && Math.abs(energyTime - energyDFT) < 0.01) {
+                el.className = "energy-display match-ok";
+            } else {
+                el.className = "energy-display match-fail";
+            }
+        }
+
+        // --- Main Simulation Logic (Panel 2) ---
+/*
+        function generateRandomSynth() {
+            const f1 = 1 + Math.random() * 5;
+            const f2 = 5 + Math.random() * 10;
+            const f3 = 10 + Math.random() * 20;
+            const p1 = Math.random() * Math.PI;
+            const p2 = Math.random() * Math.PI;
+            const driftSpeed = 0.2 + Math.random() * 0.5;
+
+            for (let i = 0; i < TOTAL_POINTS; i++) {
+                const t = i / TOTAL_POINTS;
+                let val = 1.0 * Math.sin(2 * Math.PI * f1 * t + p1) 
+                        + 0.5 * Math.sin(2 * Math.PI * f2 * t + p2)
+                        + 0.2 * Math.sin(2 * Math.PI * f3 * t);
+                val += 0.8 * Math.sin(2 * Math.PI * driftSpeed * t);
+                signalData[i] = val;
+            }
+            normalizeSignalBuffer(signalData);
+            updateVisualization();
+        }
+*/
+		function generateRandomSynth() {
+    // Варіант 1: Лінійний тренд + трохи шуму (Найкраща демонстрація)
+    // ДПФ побачить розрив між кінцем і початком -> купа ВЧ гармонік.
+    // ДКП побачить трикутник (після віддзеркалення) -> тільки НЧ гармоніки.
+    
+		const f1 = 4 + Math.random()*2;
+            const f2 = 5 + Math.random() * 2;
+            const f3 = 10 + Math.random() * 5;
+            const p1 = Math.random() * Math.PI;
+            const p2 = Math.random() * Math.PI;
+	
+    const slope = (Math.random() - 0.2) * 69; // Випадковий нахил
+    const driftFreq = 4.5 + 4*Math.random();   // Дуже повільна хвиля
+    
+    for (let i = 0; i < TOTAL_POINTS; i++) {
+        const t = i / TOTAL_POINTS;
+        
+        // 1. Похила лінія (Trend) - вбивця ефективності ДПФ
+        let val = slope * t;
+        
+        // 2. Додамо повільну хвилю (Low Frequency)
+        val += 2.5 * Math.sin(2 * Math.PI * driftFreq * t*t);
+        
+        // 3. Трохи "шорсткості" (High Frequency noise), щоб було що стискати
+        val += 0.4 * Math.sin(2 * Math.PI * 50 * t);
+		val += (1.0 * Math.sin(2 * Math.PI * f1 * t + p1) 
+                        + 1.5 * Math.sin(2 * Math.PI * f2 * t + p2)
+                        + 0.9 * Math.sin(2 * Math.PI * f3 * t))*3.3;
+        signalData[i] = val;
+    }
+    
+    normalizeSignalBuffer(signalData);
+    updateVisualization();
+    
+    // Оновлюємо підпис, щоб пояснити суть
+    document.querySelector('button[onclick="generateRandomSynth()"]').innerText = "📉 Генерувати Тренд (DCT Demo)";
+}
+			
+			
+			
+        function normalizeSignalBuffer(buffer) {
+            let max = 0;
+            for(let v of buffer) if(Math.abs(v) > max) max = Math.abs(v);
+            if(max > 0.001) {
+                for(let i=0; i<buffer.length; i++) buffer[i] = (buffer[i] / max) * 0.95;
+            }
+        }
+
+        async function toggleMic() {
+            const btn = document.getElementById('micBtn');
+            if (isRecording) {
+                isRecording = false;
+                btn.classList.remove('recording');
+                btn.innerText = "🎤 Мікрофон (Авто-gain)";
+                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+                if (audioCtx) audioCtx.close();
+                return;
+            }
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(mediaStream);
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 1024; 
+                source.connect(analyser);
+                isRecording = true;
+                btn.classList.add('recording');
+                btn.innerText = "🛑 Стоп";
+                const dataArray = new Float32Array(analyser.fftSize);
+
+                const loop = () => {
+                    if (!isRecording) return;
+                    analyser.getFloatTimeDomainData(dataArray);
+                    let localMax = 0;
+                    for(let v of dataArray) if(Math.abs(v) > localMax) localMax = Math.abs(v);
+
+                    if (localMax > 0.05) {
+                        for (let i = 0; i < TOTAL_POINTS; i++) {
+                            if (i < dataArray.length) signalData[i] = dataArray[i];
+                        }
+                        normalizeSignalBuffer(signalData);
+                        updateVisualization();
+                    }
+                    requestAnimationFrame(loop);
+                };
+                loop();
+            } catch (err) {
+                alert("Error: " + err);
+                isRecording = false;
+            }
+        }
+
+        function processSignal() {
+            const blockSize = parseInt(document.getElementById('blockSize').value);
+            const compressionPercent = parseInt(document.getElementById('compression').value);
+            const keepPercent = (100 - compressionPercent) / 100;
+            const overlapPercent = parseInt(document.getElementById('overlap').value) / 100;
+            
+            document.getElementById('blockSizeVal').innerText = `${blockSize} відліки`;
+            
+            if (compressionPercent === 0) {
+                 document.getElementById('compVal').innerText = `Всі коефіцієнти (Оригінал)`;
+            } else {
+                 document.getElementById('compVal').innerText = `Залишено ${Math.round(keepPercent * 100)}% (Топ ${Math.round(blockSize * keepPercent)} шт)`;
+            }
+            document.getElementById('overlapVal').innerText = `${overlapPercent * 100}%`;
+
+            const step = Math.max(1, Math.floor(blockSize * (1 - overlapPercent)));
+
+            const recDCT = new Array(TOTAL_POINTS).fill(0);
+            const recDFT = new Array(TOTAL_POINTS).fill(0);
+            const weightsDCT = new Array(TOTAL_POINTS).fill(0);
+            const weightsDFT = new Array(TOTAL_POINTS).fill(0);
+
+            let specDCT = new Array(blockSize).fill(0);
+            let specDFT = new Array(blockSize).fill(0);
+            let timeEnergyMiddle = 0;
+            
+            const middleIdx = TOTAL_POINTS / 2;
+
+            for (let start = 0; start <= TOTAL_POINTS - blockSize; start += step) {
+                const block = signalData.slice(start, start + blockSize);
+                const isMiddle = Math.abs(start - middleIdx) < step * 1.5;
+                
+                if (isMiddle) timeEnergyMiddle = calculateEnergy(block);
+
+                // DCT
+                let dctCoeffs = dct(block);
+                if (isMiddle) specDCT = dctCoeffs.map(x => x*x);
+                
+                const keepCount = Math.max(1, Math.floor(blockSize * keepPercent));
+                for (let i = keepCount; i < blockSize; i++) dctCoeffs[i] = 0;
+                
+                const blkRecDCT = idct(dctCoeffs);
+                for (let i = 0; i < blockSize; i++) {
+                    recDCT[start + i] += blkRecDCT[i];
+                    weightsDCT[start + i] += 1;
+                }
+
+                // DFT
+                let dftCoeffs = dft(block);
+                if (isMiddle) specDFT = dftCoeffs.map(c => (c.re**2 + c.im**2) / blockSize);
+
+                const cutStart = Math.ceil(keepCount / 2);
+                const cutEnd = blockSize - Math.ceil(keepCount / 2);
+                for (let k = 0; k < blockSize; k++) {
+                    if (k >= cutStart && k < cutEnd) {
+                        dftCoeffs[k].re = 0; dftCoeffs[k].im = 0;
+                    }
+                }
+
+                const blkRecDFT = idft(dftCoeffs);
+                for (let i = 0; i < blockSize; i++) {
+                    recDFT[start + i] += blkRecDFT[i];
+                    weightsDFT[start + i] += 1;
+                }
+            }
+
+            for (let i = 0; i < TOTAL_POINTS; i++) {
+                if (weightsDCT[i] > 0) recDCT[i] /= weightsDCT[i];
+                if (weightsDFT[i] > 0) recDFT[i] /= weightsDFT[i];
+            }
+
+            const sumDCT = specDCT.reduce((a,b)=>a+b, 0);
+            const sumDFT = specDFT.reduce((a,b)=>a+b, 0);
+
+            return { recDCT, recDFT, specDCT, specDFT, step, blockSize, timeEnergyMiddle, sumDCT, sumDFT };
+        }
+
+        function updateVisualization() {
+            if (!signalData.some(x => x !== 0)) return; 
+            const res = processSignal();
+            
+            const el = document.getElementById('mainEnergyVals');
+            el.innerHTML = `Middle Block Energy: Time=${res.timeEnergyMiddle.toFixed(2)} | DCT=${res.sumDCT.toFixed(2)} | DFT=${res.sumDFT.toFixed(2)}`;
+            if(Math.abs(res.timeEnergyMiddle - res.sumDCT) < 0.1) el.className = "energy-display match-ok";
+            else el.className = "energy-display match-fail";
+
+            const labels = Array.from({length: TOTAL_POINTS}, (_, i) => i);
+            const viewSpectrumSize = res.blockSize;
+            const specLabels = Array.from({length: viewSpectrumSize}, (_, i) => i);
+
+            const ctxWave = document.getElementById('waveChart').getContext('2d');
+            
+            const backgroundPlugin = {
+                id: 'customCanvasBackgroundColor',
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const yAxis = chart.scales.y;
+                    const bSize = res.blockSize;
+                    const step = res.step;
+                    let blockIndex = 0;
+                    for (let start = 0; start <= TOTAL_POINTS - bSize; start += step) {
+                        const xStart = xAxis.getPixelForValue(start);
+                        const xEnd = xAxis.getPixelForValue(start + bSize);
+                        ctx.fillStyle = blockIndex % 2 === 0 ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0)';
+                        ctx.fillRect(xStart, yAxis.top, xEnd - xStart, yAxis.bottom - yAxis.top);
+                        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                        ctx.beginPath();
+                        ctx.moveTo(xStart, yAxis.top);
+                        ctx.lineTo(xStart, yAxis.bottom);
+                        ctx.stroke();
+                        blockIndex++;
+                    }
+                }
+            };
+
+            if (waveChartInstance) waveChartInstance.destroy();
+            waveChartInstance = new Chart(ctxWave, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Оригінал', data: signalData, borderColor: '#999', borderWidth: 1, pointRadius: 1 },
+                        { label: 'DCT', data: res.recDCT, borderColor: 'blue', borderWidth: 3, pointRadius: 0 },
+                        { label: 'DFT', data: res.recDFT, borderColor: 'red', borderWidth: 2, borderDash: [8, 4], pointRadius: 0 }
+                    ]
+                },
+                plugins: [backgroundPlugin],
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: false, events: [],
+                    plugins: { legend: { position: 'top' }, tooltip: { enabled: false } },
+                    scales: { x: { max: 450, display: false }, y: { min: -1.1, max: 1.1, display: false } }
+                }
+            });
+
+            const ctxSpec = document.getElementById('spectrumChart').getContext('2d');
+            	res.specDCT[0] = 0; res.specDFT[0] = 0; // Обнуляємо DC компоненту жорстко
+            const maxEnergy = Math.max(...res.specDCT, ...res.specDFT);
+            const yMax = maxEnergy > 0 ? maxEnergy * 1.1 : 1.0;
+
+            if (spectrumChartInstance) spectrumChartInstance.destroy();
+			
+		
+            spectrumChartInstance = new Chart(ctxSpec, {
+                type: 'bar',
+                data: {
+                    labels: specLabels,
+                    datasets: [
+                        { label: 'DCT Energy', data: res.specDCT, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
+                        { label: 'DFT Energy', data: res.specDFT, backgroundColor: 'rgba(255, 99, 132, 0.7)' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: false, events: [],
+                    plugins: { legend: { display: true }, tooltip: { enabled: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 0.1, title: {display: true, text: 'Energy'} },
+						//y: { beginAtZero: true, max: yMax, title: {display: true, text: 'Energy'} },
+                        x: { min: 1, max: 18, title: { display: true, text: `Частотний індекс (k)`}, ticks: { maxTicksLimit: 20 } }
+                    }
+                }
+            });
+        }
+
+        // Init
+        initStabilityCharts();
+        generateRandomSynth();
+
+    </script>
+</body>
+</html>
