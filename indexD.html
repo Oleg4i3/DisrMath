@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дискретна Математика</title>
+    <style>
+        /* --- Загальні налаштування --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        /* --- БОКОВЕ МЕНЮ (SIDEBAR) --- */
+        #sidebar {
+            min-width: 280px;
+            max-width: 280px;
+            background: #2c3e50;
+            color: #fff;
+            transition: all 0.3s;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar.active {
+            margin-left: -280px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #1a252f;
+            text-align: center;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .category {
+            padding: 15px 20px 5px 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #ffffff;
+            font-weight: bold;
+            letter-spacing: 1px;
+            background: #22303d;
+        }
+        
+        .subcategory {
+            padding: 5px 20px 5px 30px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #3498db;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .menu-btn {
+            padding: 12px 20px;
+            font-size: 0.95rem;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            color: #bdc3c7;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: 0.2s;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .menu-btn:hover {
+            background: #34495e;
+            color: #fff;
+        }
+
+        .menu-btn.selected {
+            background: #34495e;
+            color: #fff;
+            border-left: 4px solid #3498db;
+        }
+
+        /* --- ОСНОВНИЙ КОНТЕНТ --- */
+       /* --- ОСНОВНИЙ КОНТЕНТ --- */
+        #content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .top-navbar {
+            /* Змінюємо позиціонування на absolute, щоб вона не займала місце */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px 15px;
+            z-index: 10;
+            
+            /* Прибираємо фон та тінь */
+            background: transparent;
+            box-shadow: none;
+            
+            /* Важливо: дозволяємо кліки крізь прозору панель по iframe */
+            pointer-events: none; 
+            
+            display: flex;
+            align-items: center;
+        }
+
+      #sidebarCollapse {
+            background: #3498db;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            
+            /* Тінь для контрасту на світлому фоні */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            
+            /* --- ВАЖЛИВІ ЗМІНИ ТУТ --- */
+            
+            /* 0.5 означає 50% видимості (можна змінити від 0.1 до 1.0) */
+            opacity: 0.5; 
+            
+            /* Плавна анімація для всіх властивостей (кольору та прозорості) */
+            transition: all 0.3s ease;
+            
+            /* Не забуваємо про клікабельність (з попереднього кроку) */
+            pointer-events: auto; 
+        }
+
+        #sidebarCollapse:hover {
+            background: #2980b9;
+            
+            /* При наведенні робимо кнопку повністю видимою */
+            opacity: 1; 
+        }
+
+        /* Ховаємо заголовок, щоб не заважав */
+        .current-title {
+            display: none; 
+        }
+
+        .iframe-container {
+            flex-grow: 1;
+            background: #ecf0f1;
+            position: relative;
+            height: 100%; /* Тепер займає всю висоту */
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block; /* Прибирає можливі відступи знизу */
+        }
+        .placeholder {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #95a5a6;
+            text-align: center;
+            padding: 20px;
+        }
+        .placeholder h2 { margin-bottom: 10px; color: #2c3e50; }
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h3>КОНЦЕПТУАЛЬНІ ОСНОВИ ІНТЕЛЕКТУАЛЬНОЇ ОБРОБКИ ДАНИХ. Інтерактивний навчальний посібник</h3>
+        </div>
+
+      
+
+        <div class="category">1. Математичні основи кодування інформації та кібербезпеки</div>
+        
+        <div class="subcategory">Кодування інформації</div>
+        <button class="menu-btn" onclick="openSim('Huffman_and_Shannon-Fano.html', 'Хаффман і Шеннон-Фано', this)">Коди Хаффмана і Шеннона-Фано</button>
+        <button class="menu-btn" onclick="openSim('ArithmCode.html', 'Арифметичне кодування', this)">Арифметичне кодування</button>
+        <button class="menu-btn" onclick="openSim('LZ77-78.html', 'Алгоритми LZ77 / LZ78', this)">Стиснення даних (LZ77 / LZ78)</button>
+        <button class="menu-btn" onclick="openSim('rANS.html', 'rANS кодування', this)">rANS кодування</button>
+		 <button class="menu-btn" onclick="openSim('hemming.html', 'Блокові коди', this)">Код Hemming (7,4)</button>
+        <button class="menu-btn" onclick="openSim('convolution-codes.html', 'Згорткові коди', this)">Згорткові коди</button>
+
+        <div class="subcategory">Криптографія та кібербезпека</div>
+		 <button class="menu-btn" onclick="openSim('lagrange.html', 'Інтерполяційний полінм Лагранжа', this)">Інтерполяція: Криптографія і коди із самокорекцією</button>
+        <button class="menu-btn" onclick="openSim('RSA.html', 'Шифрування RSA', this)">Алгоритм RSA</button>
+        <button class="menu-btn" onclick="openSim('DH.html', 'Протокол Діффі-Хеллмана', this)">Обмін ключами (Діффі-Хеллман)</button>
+          <button class="menu-btn" onclick="openSim('aes.html', ',Блочне симетричне шифрування AES', this)">Симетричне шифрування AES</button>
+		<button class="menu-btn" onclick="openSim('chacha20.html', 'Шифр ChaCha20', this)">Потоковий шифр ChaCha20</button>
+        <button class="menu-btn" onclick="openSim('HashingARX.html', 'Хешування ARX', this)">Хешування (ARX конструкції)</button>
+ 
+			<div class="category">2. Вступ до цифрової обробки інформації</div>
+ 			 <button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення</button>
+		 <button class="menu-btn" onclick="openSim('fft.html', 'DFT', this)">Дискретне перетворення Фур'є</button>
+				 <button class="menu-btn" onclick="openSim('DCT-DFT.html', 'DCT vs DFT', this)">Порівняння ДКП і ДПФ</button>
+			 <button class="menu-btn" onclick="openSim('DiscretQuant.html', 'Дискретизація і квантування', this)">Дискретизація і квантування</button>
+		 	 <button class="menu-btn" onclick="openSim('Lossy.html', 'Стиснення з втратами: Звук', this)">Стиснення з втратами (lossy compression) на прикладі звуку</button>
+			 <button class="menu-btn" onclick="openSim('Lossy2D.html', 'Стиснення з втратами: Зображення', this)">Стиснення з втратами (lossy compression) на прикладі зображення</button>
+		 <button class="menu-btn" onclick="openSim('Vocoder.html', 'Vocoder', this)">Vocoder на основі лінійного передбачення</button>
+     	
+		<button class="menu-btn" onclick="openSim('convolution.html', 'згортка', this)">Дискретна згортка</button>
+			 <button class="menu-btn" onclick="openSim('2D-ConvolFilter.html', '2D згортковий фільтр', this)">Згортковий фільтр зображень</button>
+		      <button class="menu-btn" onclick="openSim('NLM4.html', 'LMN', this)">Нелокальне усереднення для денойзінгу зображень</button>
+      
+		 <button class="menu-btn" onclick="openSim('CNN.html', 'cNN', this)">Вступ до згорткових нейромереж</button>
+ 				 <button class="menu-btn" onclick="openSim('HR.html', 'монітор пульсу', this)">Цифрова фільтрація і спектральний аналіз: монітор пульсу</button>
+		
+        <div style="height: 50px;"></div>
+    </nav>
+
+    <div id="content">
+        <div class="top-navbar">
+            <button type="button" id="sidebarCollapse">
+                <span>☰</span>
+            </button>
+            <span class="current-title" id="pageTitle">Оберіть тему</span>
+        </div>
+
+        <div class="iframe-container">
+            <div class="placeholder" id="startMessage">
+                <h2>Вітаємо у курсі «КОНЦЕПТУАЛЬНІ ОСНОВИ ІНТЕЛЕКТУАЛЬНОЇ ОБРОБКИ ДАНИХ»!</h2>
+                <p>Натисніть кнопку ☰ зліва зверху, щоб відкрити меню тем.</p>
+                <p>Уважно читайте теоретичну довідку, яка доступна внизу кожної симуляції.</p>
+                <p style="font-size: 0.9em; color: #bdc3c7;">© КАІ Кафедра комп'ютерних інформаційних технологій</p>
+			</div>
+            <iframe id="simFrame" name="simFrame" src=""></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    const sidebar = document.getElementById('sidebar');
+    const collapseBtn = document.getElementById('sidebarCollapse');
+
+    collapseBtn.addEventListener('click', function () {
+        sidebar.classList.toggle('active');
+    });
+
+    function openSim(file, title, btn) {
+        const iframe = document.getElementById('simFrame');
+        const pageTitle = document.getElementById('pageTitle');
+        const startMsg = document.getElementById('startMessage');
+        
+        // Встановлюємо адресу посилання
+        iframe.src = file;
+        pageTitle.innerText = title;
+        
+        if(startMsg) startMsg.style.display = 'none';
+
+        // Скидаємо виділення з усіх кнопок
+        document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
+        // Виділяємо натиснуту
+        btn.classList.add('selected');
+
+        // Автоматичне згортання меню на мобільних пристроях (і планшетах)
+        if (window.innerWidth < 2400) {
+            sidebar.classList.add('active');
+        }
+    }
+</script>
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
