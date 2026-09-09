@@ -112,6 +112,10 @@
             cursor: pointer;
         }
         .switch-label { margin-right: 10px; font-weight: bold; min-width: 100px; text-align: right; font-size: 0.9em;}
+
+        .light-value { text-align: center; font-size: 0.85em; color: #666; margin: 2px 0 0; }
+        .light-value strong { color: var(--accent); }
+        .explain-text { font-size: 0.85em; color: #666; margin-top: 8px; max-width: 220px; text-align: center; }
         
         .toggle {
             position: relative;
@@ -383,34 +387,39 @@
 
     <div class="logic-card border-xor" id="card-xor">
         <div class="card-header">
-            <span class="card-title">Виключне АБО (XOR)</span>
+            <span class="card-title">Виключне АБО (XOR) — Тунель на одну смугу</span>
             <span class="formula">\( F = A \oplus B \)</span>
         </div>
         <div class="sim-area">
             <div class="inputs">
                 <div class="switch-container" onclick="toggleInput('xor', 'a')">
-                    <span class="switch-label">Вимикач внизу (A)</span>
+                    <span class="switch-label">Світлофор В'їзду Північ (A)</span>
                     <label class="toggle"><input type="checkbox" id="xor-a"><span class="slider"></span></label>
                 </div>
-                <div class="switch-container" onclick="toggleInput('xor', 'b')">
-                    <span class="switch-label">Вимикач нагорі (B)</span>
+                <div class="light-value" id="xor-a-color">Зараз: <strong>0 — червоне</strong></div>
+
+                <div class="switch-container" onclick="toggleInput('xor', 'b')" style="margin-top:15px;">
+                    <span class="switch-label">Світлофор В'їзду Південь (B)</span>
                     <label class="toggle"><input type="checkbox" id="xor-b"><span class="slider"></span></label>
                 </div>
+                <div class="light-value" id="xor-b-color">Зараз: <strong>0 — червоне</strong></div>
             </div>
             <div class="visual-connector">➔</div>
             <div class="output">
-                <div class="status-icon color-gray" id="xor-icon">⚫</div>
-                <span class="status-text" id="xor-status">Світло вимкнено</span>
+                <div class="status-icon color-red" id="xor-icon">⚠️</div>
+                <span class="status-text" id="xor-status">ПОРУШЕННЯ</span>
+                <div class="explain-text" id="xor-explain">Світлофори однакові: обидва червоні (0 = 0). За протоколом рівно один в'їзд завжди має бути зеленим.</div>
             </div>
 
-            <div style="flex-basis: 100%; max-width: 300px;">
+            <div style="flex-basis: 100%; max-width: 340px;">
+                <p style="font-size:0.85em; text-align:center; color:#666; margin: 0 0 8px;"><strong>Правило:</strong> 0 = червоне світло, 1 = зелене світло. Штатний режим настає, тільки коли світлофори РІЗНІ.</p>
                 <table>
-                    <thead><tr><th>A</th><th>B</th><th>\( A \oplus B \)</th></tr></thead>
+                    <thead><tr><th>Світлофор A</th><th>Світлофор B</th><th>\( A \oplus B \)</th></tr></thead>
                     <tbody>
-                        <tr id="xor-row-00" class="active-row"><td>0</td><td>0</td><td>0</td></tr>
-                        <tr id="xor-row-01"><td>0</td><td>1</td><td>1</td></tr>
-                        <tr id="xor-row-10"><td>1</td><td>0</td><td>1</td></tr>
-                        <tr id="xor-row-11"><td>1</td><td>1</td><td>0</td></tr>
+                        <tr id="xor-row-00" class="active-row"><td>0 (червоне)</td><td>0 (червоне)</td><td>0 — порушення</td></tr>
+                        <tr id="xor-row-01"><td>0 (червоне)</td><td>1 (зелене)</td><td>1 — штатно</td></tr>
+                        <tr id="xor-row-10"><td>1 (зелене)</td><td>0 (червоне)</td><td>1 — штатно</td></tr>
+                        <tr id="xor-row-11"><td>1 (зелене)</td><td>1 (зелене)</td><td>0 — порушення</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -425,7 +434,8 @@
                 <div class="example-box">
                     <strong>Приклади з життя:</strong>
                     <ul>
-                        <li><strong>Прохідний вимикач:</strong> Схема освітлення на сходах. Ви можете увімкнути світло внизу і вимкнути його нагорі. Світло горить, якщо положення вимикачів відрізняються.</li>
+                        <li><strong>Дворучна пила:</strong> Щоб пиляти колоду, тягнути повинен <strong>рівно один</strong> з двох людей за раз — поки один тягне на себе, другий відпускає. Якщо тягнуть одночасно обидва — сили компенсують одна одну, пила застрягає (не пиляє). Якщо не тягне ніхто — пила просто стоїть (теж не пиляє). Різні дії (тягне/відпускає) → пиляння; однакові дії (тягнуть обидва або відпускають обидва) → нічого не відбувається.</li>
+                        <li><strong>Прохідний вимикач:</strong> Схема освітлення на сходах, коли лампочкою керують два вимикачі — внизу і нагорі. Світло горить, якщо їхні положення відрізняються.</li>
                         <li><strong>Комплексний обід у їдальні:</strong> "Компот <strong>або</strong> салат у комплекті". Ви не можете взяти обидва страви безкоштовно, і не можете не взяти нічого.</li>
                         <li><strong>Додавання двійкових чисел:</strong> \( 1 + 1 = 0 \) (і переносом розряду). XOR відповідає за результат додавання без переносу.</li>
                     </ul>
@@ -546,6 +556,59 @@
         </details>
     </div>
 
+    <div class="logic-card" id="card-all16" style="border-left-color:#7f8c8d;">
+        <div class="card-header">
+            <span class="card-title">Усі 16 бінарних логічних операцій</span>
+        </div>
+        <details>
+            <summary>Розгорнути повну таблицю (включно з тривіальними, Штрихом Шеффера і Стрілкою Пірса)</summary>
+            <div class="theory-content">
+                <p>Логічна функція від двох змінних \(A\) і \(B\) — це будь-яке правило, яке кожному з 4 можливих поєднань значень \(A, B\) (00, 01, 10, 11) ставить у відповідність 0 або 1. Оскільки для кожного з 4 рядків результат можна обрати незалежно (0 або 1), усього існує \(2^4 = 16\) різних бінарних операцій. Частину з них ви вже дослідили у картках вище (позначені зірочкою *), решта — менш відомі, але не менш логічні.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Назва операції</th>
+                            <th>Познач.</th>
+                            <th>Формула</th>
+                            <th>00</th>
+                            <th>01</th>
+                            <th>10</th>
+                            <th>11</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>Хибність (тотожний нуль)</td><td>0</td><td>\( F = 0 \)</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>2</td><td>Кон'юнкція (AND) *</td><td>∧</td><td>\( F = A \wedge B \)</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+                        <tr><td>3</td><td>Заборона B (A і не B)</td><td>↛</td><td>\( F = A \wedge \neg B \)</td><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+                        <tr><td>4</td><td>Проєкція A (перша змінна)</td><td>A</td><td>\( F = A \)</td><td>0</td><td>0</td><td>1</td><td>1</td></tr>
+                        <tr><td>5</td><td>Заборона A (B і не A)</td><td>↚</td><td>\( F = \neg A \wedge B \)</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+                        <tr><td>6</td><td>Проєкція B (друга змінна)</td><td>B</td><td>\( F = B \)</td><td>0</td><td>1</td><td>0</td><td>1</td></tr>
+                        <tr><td>7</td><td>Виключне АБО (XOR) *</td><td>⊕</td><td>\( F = A \oplus B \)</td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+                        <tr><td>8</td><td>Диз'юнкція (OR) *</td><td>∨</td><td>\( F = A \vee B \)</td><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+                        <tr><td>9</td><td>Стрілка Пірса (NOR)</td><td>↓</td><td>\( F = \neg(A \vee B) \)</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>10</td><td>Еквіваленція (XNOR) *</td><td>↔</td><td>\( F = A \leftrightarrow B \)</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+                        <tr><td>11</td><td>Заперечення B</td><td>¬B</td><td>\( F = \neg B \)</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
+                        <tr><td>12</td><td>Обернена імплікація (B→A)</td><td>←</td><td>\( F = B \to A \)</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
+                        <tr><td>13</td><td>Заперечення A *</td><td>¬A</td><td>\( F = \neg A \)</td><td>1</td><td>1</td><td>0</td><td>0</td></tr>
+                        <tr><td>14</td><td>Пряма імплікація (A→B) *</td><td>→</td><td>\( F = A \to B \)</td><td>1</td><td>1</td><td>0</td><td>1</td></tr>
+                        <tr><td>15</td><td>Штрих Шеффера (NAND)</td><td>|</td><td>\( F = \neg(A \wedge B) \)</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
+                        <tr><td>16</td><td>Істинність (тотожна одиниця)</td><td>1</td><td>\( F = 1 \)</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="example-box">
+                    <strong>* — вже розглянуто детально у картках вище</strong> (NOT відповідає рядку 13 "Заперечення A").
+                </div>
+
+                <div class="example-box">
+                    <strong>Цікавий факт про рядки 9 і 15:</strong> Штрих Шеффера (NAND, рядок 15) і Стрілка Пірса (NOR, рядок 9) — особливі: кожна з них сама по собі <strong>функціонально повна</strong>. Це означає, що, маючи лише елементи NAND (або лише NOR), можна зібрати будь-яку іншу логічну операцію зі списку — включно з AND, OR, NOT, XOR тощо. Саме на елементах NAND/NOR фізично будують мікросхеми процесорів.
+                </div>
+            </div>
+        </details>
+    </div>
+
     <div class="training-section">
         <h2>⚔️ Генератор Випробувань</h2>
         
@@ -616,15 +679,27 @@
             }
         }
         else if (type === 'xor') {
+            // Явно показуємо колір кожного світлофора: 0 = червоне, 1 = зелене
+            const aColorEl = document.getElementById('xor-a-color');
+            const bColorEl = document.getElementById('xor-b-color');
+            const explainEl = document.getElementById('xor-explain');
+            if (aColorEl) aColorEl.innerHTML = `Зараз: <strong>${a ? '1 — зелене' : '0 — червоне'}</strong>`;
+            if (bColorEl) bColorEl.innerHTML = `Зараз: <strong>${b ? '1 — зелене' : '0 — червоне'}</strong>`;
+
             if (result) {
-                icon.classList.add('color-warning'); icon.textContent = '💡';
-                icon.style.color = "#f1c40f";
-                icon.style.textShadow = "0 0 20px #f1c40f";
-                statusText.textContent = "СВІТЛО УВІМКНЕНО";
+                icon.classList.add('color-green'); icon.textContent = '✅';
+                statusText.textContent = "ШТАТНИЙ РЕЖИМ";
+                statusText.style.color = "var(--success)";
+                if (explainEl) explainEl.textContent = a
+                    ? "Світлофори різні: A — зелене, B — червоне. Проїзд відкритий тільки з півночі."
+                    : "Світлофори різні: A — червоне, B — зелене. Проїзд відкритий тільки з півдня.";
             } else {
-                icon.classList.add('color-gray'); icon.textContent = '⚫';
-                icon.style.textShadow = "none";
-                statusText.textContent = "Світло вимкнено";
+                icon.classList.add('color-red'); icon.textContent = '⚠️';
+                statusText.textContent = "ПОРУШЕННЯ";
+                statusText.style.color = "var(--danger)";
+                if (explainEl) explainEl.textContent = a
+                    ? "Світлофори однакові: обидва зелені (1 = 1). Небезпека — можливий зустрічний рух."
+                    : "Світлофори однакові: обидва червоні (0 = 0). За протоколом рівно один в'їзд завжди має бути зеленим.";
             }
         }
         else if (type === 'imp') {
