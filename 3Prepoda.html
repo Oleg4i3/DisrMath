@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>П'ЯТНАДЦЯТЬ ДИСЦИПЛІН — комбінаторна драма</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+  startup: { typeset: true }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    min-height: 100vh; padding: 20px; color: #2c3e50;
+  }
+  .container {
+    max-width: 940px; margin: 0 auto; background: #fff;
+    border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;
+  }
+  /* ===== шапка-телепостер ===== */
+  header {
+    background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);
+    color: white; padding: 44px 26px; text-align: center;
+    border-bottom: 4px solid rgba(0,0,0,.15);
+  }
+  header h1 {
+    font-size: 2.4em; font-weight: 800; letter-spacing: 6px;
+    text-transform: uppercase; text-shadow: 0 3px 10px rgba(0,0,0,.25);
+  }
+  .tabs { display: flex; flex-wrap: wrap; background: #f1f3f5; border-bottom: 2px solid #dee2e6; }
+  .tab { flex: 1; min-width: 96px; padding: 11px 5px; text-align: center; cursor: pointer;
+    font-weight: 600; border: none; background: transparent; font-size: .88em; transition: all .3s; color: #495057; }
+  .tab:hover { background: #e9ecef; }
+  .tab.active { background: white; color: #1971c2; border-bottom: 3px solid #1971c2; margin-bottom: -2px; }
+  .tab .diff { display: block; font-size: .74em; font-weight: normal; margin-top: 3px; opacity: .7; }
+  .content { padding: 28px; display: none; animation: fadeIn .4s ease; }
+  .content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);} }
+  h2 { color: #2a5298; margin-bottom: 15px; font-size: 1.35em; }
+  h3 { color: #ff5e62; margin: 20px 0 10px; font-size: 1.15em; }
+  p, li { line-height: 1.7; margin-bottom: 10px; font-size: 1.02em; }
+  ul, ol { padding-left: 25px; margin-bottom: 15px; }
+  .formula {
+    background: #e7f5ff; border-left: 4px solid #1971c2; padding: 14px 18px; margin: 15px 0;
+    border-radius: 8px; font-size: 1.05em; overflow-x: auto;
+  }
+  .formula .result { display: block; margin-top: 6px; color: #1864ab; font-weight: bold; }
+  .mistake-box { background: #fff5f5; border: 2px dashed #ff6b6b; border-radius: 12px; padding: 20px; margin: 20px 0; }
+  .mistake-box h3 { color: #c92a2a; margin-top: 0; }
+  .mistake-box .wrong { background: #ffe3e3; padding: 10px 15px; border-radius: 8px; font-family: 'Courier New', monospace; margin: 10px 0; color: #c92a2a; }
+  .correct-box { background: #ebfbee; border: 2px solid #51cf66; border-radius: 12px; padding: 20px; margin: 20px 0; }
+  .correct-box h3 { color: #2b8a3e; margin-top: 0; }
+  .correct-box .right { background: #d3f9d8; padding: 10px 15px; border-radius: 8px; margin: 10px 0; color: #2b8a3e; }
+  .idea-block { background: #fff9db; border-left: 4px solid #fcc419; padding: 14px 18px; margin: 15px 0; border-radius: 8px; }
+  .idea-block::before { content: "Ідея: "; font-weight: bold; color: #e67700; }
+  .alt-approach { background: #f3f0ff; border-left: 4px solid #7950f2; padding: 14px 18px; margin: 15px 0; border-radius: 8px; }
+  .alt-approach::before { content: "Альтернативний підхід: "; font-weight: bold; color: #6741d9; }
+  .step { background: #f8f9fa; border-radius: 10px; padding: 14px 18px; margin: 12px 0; border-left: 4px solid #1971c2; }
+  .step-num { display: inline-block; background: #1971c2; color: white; width: 28px; height: 28px;
+    border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
+  .calc { background: #f1f3f5; padding: 12px 18px; border-radius: 8px; margin: 10px 0; line-height: 1.9; overflow-x: auto; }
+  .highlight { background: #fff3bf; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  .final-answer {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px;
+    border-radius: 12px; text-align: center; font-size: 1.2em; margin-top: 20px;
+    box-shadow: 0 8px 20px rgba(102,126,234,.3);
+  }
+  .final-answer .big { font-size: 1.3em; font-weight: bold; display: block; margin-top: 8px; }
+  .why-wrong { background: #ffe8cc; border-left: 4px solid #fd7e14; padding: 14px 18px; margin: 15px 0; border-radius: 8px; }
+  .why-wrong::before { content: "Чому це не працює: "; font-weight: bold; color: #d9480f; }
+  .example { background: #e3fafc; border-left: 4px solid #15aabf; padding: 12px 18px; margin: 12px 0; border-radius: 8px; font-size: .97em; }
+  .example::before { content: "Приклад: "; font-weight: bold; color: #0c8599; }
+  .repeat-demo { background: #fff0f6; border: 2px solid #f783ac; border-radius: 10px; padding: 15px; margin: 15px 0; }
+  .repeat-demo h4 { color: #a61e4d; margin-bottom: 10px; }
+  .repeat-item { background: white; border-left: 3px solid #f783ac; padding: 8px 12px; margin: 8px 0;
+    border-radius: 6px; font-size: .92em; }
+  .repeat-item .tag { display: inline-block; background: #f783ac; color: white; padding: 2px 8px;
+    border-radius: 10px; font-size: .8em; margin-right: 8px; }
+
+  /* ===== чипи правил ===== */
+  .rule-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 16px; }
+  .rule-chip { display: inline-block; padding: 6px 14px; border-radius: 20px; color: #fff;
+    font-size: .9em; font-weight: 700; cursor: pointer; border: none; transition: .2s; }
+  .rule-chip:hover { transform: translateY(-2px); filter: brightness(1.12); }
+  .rule-chip.mul { background: #1971c2; } .rule-chip.add { background: #2b8a3e; }
+  .rule-chip.sub { background: #c92a2a; } .rule-chip.div { background: #7048e8; }
+
+  /* ===== навігація епізодів ===== */
+  .series-nav { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
+  .nav-btn { background: #1971c2; color: #fff; border: none; border-radius: 10px;
+    padding: 11px 16px; font-weight: 700; cursor: pointer; transition: .25s; font-size: .93em; }
+  .nav-btn:hover { background: #1864ab; }
+  .nav-progress { font-weight: 700; color: #868e96; font-size: .9em; }
+
+  /* ===== картки правил (пілот) ===== */
+  .rcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 15px 0; }
+  .rcard { border-radius: 14px; padding: 16px; color: #fff; }
+  .rcard h4 { margin-bottom: 8px; font-size: 1.05em; }
+  .rcard p { font-size: .92em; line-height: 1.55; }
+  .rcard .rex { background: rgba(255,255,255,.22); padding: 7px 9px; border-radius: 6px; margin-top: 8px; font-size: .85em; }
+  .rcard .where { background: rgba(0,0,0,.22); padding: 5px 9px; border-radius: 6px;
+    margin-top: 8px; font-size: .82em; display: inline-block; cursor: pointer; font-weight: 600; }
+  .rcard.mul { background: #1971c2; } .rcard.add { background: #2b8a3e; }
+  .rcard.sub { background: #c92a2a; } .rcard.div { background: #7048e8; }
+
+  /* ===== анімації ===== */
+  .arena-wrap { overflow-x: auto; padding: 8px 0; }
+  #arena { position: relative; height: 184px; max-width: 640px; margin: 0 auto; min-width: 420px; }
+  .anim-ball { position: absolute; width: 40px; height: 40px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; color: #fff; font-weight: bold;
+    background: #868e96; box-shadow: 0 3px 8px rgba(0,0,0,.25); user-select: none;
+    transition: left .65s cubic-bezier(.4,0,.2,1), top .65s cubic-bezier(.4,0,.2,1), background-color .8s ease; }
+  .anim-ball.c0 { background: #ff6b6b; } .anim-ball.c1 { background: #4dabf7; } .anim-ball.c2 { background: #51cf66; }
+  .anim-ball.colored { animation: pop .6s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.35)} 100%{transform:scale(1)} }
+  .anim-controls { display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; margin: 16px 0; }
+  .anim-btn { border: none; border-radius: 10px; padding: 11px 14px; font-weight: 700; font-size: .9em;
+    cursor: pointer; color: #fff; transition: all .25s; box-shadow: 0 3px 8px rgba(0,0,0,.15); }
+  .anim-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 14px rgba(0,0,0,.22); }
+  .anim-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .anim-btn.b1 { background: #1971c2; } .anim-btn.b2 { background: #e8590c; }
+  .anim-btn.bred { background: #e03131; } .anim-btn.bblue { background: #1971c2; } .anim-btn.bgreen { background: #2f9e44; }
+  .anim-btn.auto { background: #7048e8; } .anim-btn.reset { background: #868e96; }
+  .anim-status { background: #fff9db; border-left: 4px solid #fcc419; padding: 13px 16px;
+    border-radius: 8px; margin: 12px 0; line-height: 1.6; min-height: 46px; }
+  .group-box { background: #f8f9fa; border: 2px dashed #adb5bd; border-radius: 10px; padding: 10px; margin: 6px 0; text-align: center; }
+  .group-box h4 { margin-bottom: 4px; color: #495057; font-size: .95em; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  #animSets.flash { animation: flashb .8s ease; }
+  @keyframes flashb { 50% { outline: 4px solid #fcc419; } }
+  #formulaBuild { background: #e7f5ff; border-left: 4px solid #1971c2; border-radius: 8px;
+    padding: 14px; margin: 12px 0; text-align: center; font-size: 1.15em; min-height: 64px; }
+  #factorChips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 8px 0; }
+  .fpart { display: inline-block; animation: fpop .5s ease; }
+  @keyframes fpop { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
+  .fchip { padding: 5px 13px; border-radius: 14px; color: #fff; font-weight: 700; font-size: .9em; }
+  .fchip.k15 { background: #495057; } .fchip.fr { background: #e03131; }
+  .fchip.fb { background: #1971c2; } .fchip.fg { background: #2f9e44; }
+
+  /* ===== дерево 4! (Е1) ===== */
+  #treeSvg .lv { opacity: 0; transform: translateY(8px); transition: opacity .55s ease, transform .55s ease; }
+  #treeSvg .lv.show { opacity: 1; transform: none; }
+  #treeChips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 10px 0; min-height: 30px; }
+  .tchip { background: #1971c2; color: #fff; padding: 4px 13px;
+    border-radius: 14px; font-weight: 700; font-size: .95em; }
+
+  /* ===== довідник: SVG-дерево ===== */
+  #refTreeSvg { width: 100%; min-width: 940px; height: auto; }
+  #refTreeSvg .leafbtn { cursor: pointer; }
+  #refTreeSvg .leafbtn:hover rect { filter: brightness(1.1); }
+
+  .obs-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 13px; margin: 14px 0; }
+  .obs-card { border-radius: 12px; padding: 15px; background: #f8f9fa; border-top: 4px solid #15aabf; }
+  .obs-card.good { border-color: #51cf66; } .obs-card.bad { border-color: #ff6b6b; }
+  .obs-card h4 { margin-bottom: 6px; font-size: .98em; }
+  .obs-card p { font-size: .9em; line-height: 1.55; }
+  .ball-demo { display: flex; flex-wrap: wrap; gap: 6px; margin: 15px 0; justify-content: center; }
+  .ball { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; color: white; font-weight: bold; font-size: .85em; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  .ball.red { background: #ff6b6b; } .ball.blue { background: #4dabf7; }
+  .euro-line { font-size: 1.3em; background: #fff9db; border: 2px dashed #fcc419; border-radius: 10px;
+    padding: 12px; text-align: center; line-height: 2; word-break: break-all; }
+  .euro-bar { color: #e03131; font-weight: bold; margin: 0 3px; }
+  #euroInfo { text-align: center; margin: 10px 0; }
+  mjx-container { max-width: 100%; overflow-x: auto; }
+  @media (max-width: 640px) {
+    .content { padding: 20px 14px; } .tab { font-size: .74em; padding: 9px 3px; }
+    header h1 { font-size: 1.4em; letter-spacing: 3px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>П'ятнадцять дисциплін</h1>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="0">Пілот<span class="diff">правила гри</span></button>
+    <button class="tab" data-tab="1">Еп. 1<span class="diff">Мішаніна · 15!</span></button>
+    <button class="tab" data-tab="2">Еп. 2<span class="diff">Усім по 5 · головна сцена</span></button>
+    <button class="tab" data-tab="3">Еп. 3<span class="diff">Сім і вісім · C(15,7)</span></button>
+    <button class="tab" data-tab="4">Еп. 4<span class="diff">Пн–Ср–Пт · A(15,3)</span></button>
+    <button class="tab" data-tab="5">Еп. 5<span class="diff">Кожному своє · 3¹⁵</span></button>
+    <button class="tab" data-tab="6">Еп. 6<span class="diff">П'ятнадцять євро · 136</span></button>
+    <button class="tab" data-tab="7">Еп. 7<span class="diff">Ніхто не зайвий · фінал</span></button>
+    <button class="tab" data-tab="ref">Довідник<span class="diff">карта формул</span></button>
+  </div>
+
+  <!-- ================= ПІЛОТ ================= -->
+  <div class="content active" id="tab0">
+    <h2>Пілот · «Правила гри»</h2>
+    <p>Усього в сезоні — <strong>6 формул</strong>, але виводяться вони всім лише <strong>чотирма правилами</strong>.
+      В кожному епізоді — чип-посилання на правило, яке там працює. Навіть факторіал —
+      це не «окрема річ», а правило множення, застосоване \(n\) разів підряд!</p>
+
+    <div class="rcards">
+      <div class="rcard mul">
+        <h4>Множення — логічне «І»</h4>
+        <p>Вибір складається з кроків: робимо крок 1 <b>і</b> крок 2 <b>і</b>… — кількості варіантів перемножуємо.</p>
+        $$N = N_1 \cdot N_2 \cdot \ldots \cdot N_m$$         <div class="rex">3 сорочки І 2 штани = 6 образів. 15 · 14 · 13 · … · 1 — теж «І», просто 15 разів!</div>
+        <span class="where" data-goto="1">застосовується в епізодах 1, 4, 5</span>
+      </div>
+      <div class="rcard add">
+        <h4>Додавання — «АБО»</h4>
+        <p>Об'єкт потрапляє <b>або</b> в одну категорію, <b>або</b> в іншу (категорії не перетинаються!) — додаємо.</p>
+        $$N = N_1 + N_2$$         <div class="rex">7 математичних елективів АБО 8 програмістських = 15.</div>
+        <span class="where" data-goto="3">застосовується в епізодах 3, 7</span>
+      </div>
+      <div class="rcard sub">
+        <h4>Віднімання заборонених</h4>
+        <p>Рахуємо <b>всі</b>, віднімаємо <b>заборонені</b>. Якщо «заборонені» перетинаються — включення-виключення.</p>
+        $$N_{\text{дозволені}} = N_{\text{всі}} - N_{\text{заборонені}}$$         <div class="rex">Якщо «погані» категорії перекриваються — перераховані додаємо назад: − + − +…</div>
+        <span class="where" data-goto="7">головна роль: епізод 7 (фінал)</span>
+      </div>
+      <div class="rcard div">
+        <h4>Ділення — виявлення дублікатів</h4>
+        <p>Якщо кожен справжній об'єкт пораховано <b>рівно k разів</b> — ділимо на k. Головний детектив комбінаторики.</p>
+        $$N_{\text{справжнє}} = \frac{N_{\text{пораховане}}}{k}$$         <div class="rex">C = A/k!; \(\tilde{P}_{15}(5,5,5) = 15!/(5!\cdot5!\cdot5!)\); зірки й роздільники.</div>
+        <span class="where" data-goto="2">застосовується в епізодах 2, 3, 6</span>
+      </div>
+    </div>
+
+    <div class="idea-block">Запам'ятайте ці чотири. Більше нічого не буде: жодна формула сезону не з'явиться «з повітря».
+      Усі формули «з повтореннями» пишемо з тильдою зверху: \(\tilde{P}\), \(\tilde{A}\), \(\tilde{C}\) — як у підручнику.</div>
+
+    <div class="series-nav">
+      <span class="nav-progress">Пілот</span>
+      <button class="nav-btn" data-goto="1">Епізод 1 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 1 ================= -->
+  <div class="content" id="tab1">
+    <h2>Епізод 1 · «Мішаніна»: перестановки без повторень</h2>
+    <div class="rule-chips">
+      <button class="rule-chip mul" data-goto="0">правило «І»</button>
+    </div>
+    <p>Деканат: <em>«Складіть черговість читання всіх 15 дисциплін на рік»</em>. Усі 15 різні, беремо всі, порядок важливий.</p>
+
+    <h3>Розбір</h3>
+    <div class="step"><span class="step-num">1</span> Перша позиція — будь-яка з <span class="highlight">15</span> дисциплін.</div>
+    <div class="step"><span class="step-num">2</span> Друга — будь-яка з <span class="highlight">14</span> тих, що лишилися.</div>
+    <div class="step"><span class="step-num">3</span> …і так далі: правило <b>«І»</b> 15 разів підряд.</div>
+
+    <div class="formula">
+      $$P_{15} = 15 \cdot 14 \cdot 13 \cdot \ldots \cdot 2 \cdot 1 = 15! = 1\,307\,674\,368\,000$$       <span class="result">≈ 1,3 трильйона черговостей</span>
+    </div>
+
+    <div class="idea-block">Факторіал — це не нове правило, а <b>правило множення «І»</b>, застосоване \(n\) разів: кожен наступний крок має на 1 варіант менше.</div>
+
+    <h3>Міні-анімація: те саме на 4 кульках (дерево 4!)</h3>
+    <p>На 15 кульках дерево не намалюєш, тож глянемо на 4: обираємо першу кульку — <b>4 кольорові гілки</b>;
+      потім одну із трьох, що залишилися, тощо. Кожен шлях від кореня до листка = один порядок.</p>
+    <div class="anim-controls">
+      <button id="tNext" class="anim-btn b1">Наступний рівень</button>
+      <button id="tAuto" class="anim-btn auto">Авто</button>
+      <button id="tReset" class="anim-btn reset">Скинути</button>
+    </div>
+    <div class="arena-wrap">
+      <svg id="treeSvg" viewBox="0 0 900 355" style="width:100%; min-width:760px; height:auto;"></svg>
+    </div>
+    <div id="treeChips"></div>
+    <div id="tStatus" class="anim-status">Тисніть «Наступний рівень»: обираємо першу кульку — 4 кольорові гілки.</div>
+    <div class="example">На 15 кульках таке дерево мало б \(15! \approx 1{,}3\cdot10^{12}\) листків. Якщо перебирати по одному порядку щосекунди — ≈ 41 500 років.</div>
+
+    <div class="final-answer">Відповідь епізоду 1:<span class="big">\(P_{15} = 15! = 1\,307\,674\,368\,000\)</span></div>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="0">← Пілот</button>
+      <span class="nav-progress">Епізод 1 з 7</span>
+      <button class="nav-btn" data-goto="2">Епізод 2 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 2 (ГОЛОВНА АНІМАЦІЯ) ================= -->
+  <div class="content" id="tab2">
+    <h2>Епізод 2 · «Усім по 5»: перестановки з повтореннями</h2>
+    <div class="rule-chips">
+      <button class="rule-chip mul" data-goto="0">правило «І»</button>
+      <button class="rule-chip div" data-goto="0">правило ділення</button>
+    </div>
+    <p>Деканат: <em>«Розділіть 15 дисциплін між трьома викладачами <b>порівну</b>, по 5 кожному»</em>.
+      Це і є <strong>перестановки з повтореннями</strong>: \(\tilde{P}_{15}(5,\,5,\,5)\) —
+      розфарбовування 15 кульок у 3 кольори по 5. Позначення за підручником: \(n\) — нижнім індексом,
+      у дужках — кількість повторень у кожній групі.</p>
+
+    <h3>Головна анімація: тасуємо — розфарбовуємо — перемішуємо кольори</h3>
+    <div class="step"><span class="step-num">1</span> <b>Перемішати всі 15</b> — порядок у рядку поки що важливий.</div>
+    <div class="step"><span class="step-num">2</span> <b>Розфарбувати</b> 5+5+5 — фіксуємо один конкретний розподіл.</div>
+    <div class="step"><span class="step-num">3а</span> <b>Перемішуємо лише червоні</b> — група не змінюється, розподіл той самий: у формулі з'являється ÷5!.</div>
+    <div class="step"><span class="step-num">3б</span> <b>Перемішуємо лише сині</b> — ще один ÷5!.</div>
+    <div class="step"><span class="step-num">3в</span> <b>Перемішуємо лише зелені</b> — формула завершена.</div>
+
+    <div class="anim-controls">
+      <button id="btnS1" class="anim-btn b1">Крок 1: перемішати всі</button>
+      <button id="btnS2" class="anim-btn b2" disabled>Крок 2: розфарбувати 5+5+5</button>
+      <button id="btnSR" class="anim-btn bred" disabled>3а: перемішати червоні</button>
+      <button id="btnSB" class="anim-btn bblue" disabled>3б: перемішати сині</button>
+      <button id="btnSG" class="anim-btn bgreen" disabled>3в: перемішати зелені</button>
+      <button id="btnSAuto" class="anim-btn auto">Авто</button>
+      <button id="btnSReset" class="anim-btn reset">Скинути</button>
+    </div>
+    <div id="formulaBuild">Формула з'являтиметься тут після кожного кроку…</div>
+    <div id="factorChips"></div>
+    <div class="arena-wrap"><div id="arena"></div></div>
+    <div id="animStatus" class="anim-status">Натисніть «Крок 1» або «Авто».</div>
+    <div id="animSets"></div>
+
+    <h3>Підсумок епізоду</h3>
+    <div class="formula">
+      $$\tilde{P}_{15}(5,\,5,\,5) = \frac{15!}{5! \cdot 5! \cdot 5!} = \frac{1\,307\,674\,368\,000}{1\,728\,000}$$       <span class="result">= 756 756 різних розподілів</span>
+    </div>
+    <p>Загальна формула «перестановки з повтореннями» (мультикольорові групи):</p>
+    <div class="formula">$$\tilde{P}_{n}(n_1,\, n_2, \ldots, n_k) = \frac{n!}{n_1! \cdot n_2! \cdots n_k!}, \qquad n_1 + n_2 + \ldots + n_k = n$$</div>
+
+    <div class="alt-approach">
+      Цю саму задачу можна розв'язати послідовним вибором: обираємо 5 із 15 для А, потім 5 із 10 для Б, решту — В.
+      Як це рахувати через <b>комбінації</b> — дізнаємося вже в <b>Епізоді 3</b> (спойлер: вийде той самий результат).
+    </div>
+    <div class="example">Викладачі — конкретні люди (Іваненко, Петренко, Сидоренко), тому на 3! не ділимо. Якби це були «три однакові купки» — ділили б ще й на 3! = 6.</div>
+
+    <div class="final-answer">Відповідь епізоду 2:<span class="big">\(\tilde{P}_{15}(5,5,5) = \dfrac{15!}{(5!)^3} = 756\,756\)</span></div>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="1">← Епізод 1</button>
+      <span class="nav-progress">Епізод 2 з 7</span>
+      <button class="nav-btn" data-goto="3">Епізод 3 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 3 ================= -->
+  <div class="content" id="tab3">
+    <h2>Епізод 3 · «Сім і вісім»: комбінації — частковий випадок епізоду 2</h2>
+    <div class="rule-chips">
+      <button class="rule-chip div" data-goto="0">правило ділення</button>
+      <button class="rule-chip add" data-goto="0">правило «АБО»</button>
+    </div>
+    <p>Студент обирає <strong>7 дисциплін із 15</strong> на перший семестр (решта 8 — автоматично на другий).
+      Порядок вибору неважливий — лише набір.</p>
+
+    <h3>Це ТЕ САМЕ, що перестановки з двома кольорами</h3>
+    <p>Візьмемо 15 карток-дисциплін і позначимо 7 з них <b>«одиничками»</b> (семестр 1), а 8 — <b>«двійками»</b> (семестр 2).
+      Це в точності схема Епізоду 2, тільки груп дві: <b>7 + 8 = 15</b>. Кожен набір із 7 дисциплін — це одна розфарбовка.</p>
+    <div class="ball-demo">
+      <div class="ball red">1</div><div class="ball blue">2</div><div class="ball red">3</div><div class="ball blue">4</div>
+      <div class="ball red">5</div><div class="ball blue">6</div><div class="ball red">7</div><div class="ball blue">8</div>
+      <div class="ball red">9</div><div class="ball blue">10</div><div class="ball red">11</div><div class="ball blue">12</div>
+      <div class="ball red">13</div><div class="ball blue">14</div><div class="ball blue">15</div>
+    </div>
+    <div class="formula">
+      $$C_{15}^{7} = \frac{15!}{7! \cdot 8!} = \tilde{P}_{15}(7,\,8) = \frac{15!}{8! \cdot 7!} = C_{15}^{8} = 6\,435$$       <span class="result">Комбінації = перестановки з повтореннями з двох груп: C(15,7) = C(15,8) — бо обрати 7 на семестр 1 = обрати 8 на семестр 2</span>
+    </div>
+    <p>Загальна формула <strong>комбінацій без повторень</strong>:</p>
+    <div class="formula">$$C_n^k = \frac{n!}{k!\,(n-k)!} = \tilde{P}_{n}(k,\,n-k)$$</div>
+
+    <h3>Перше застосування правила «АБО»</h3>
+    <p>Студент ще не вирішив: взяти <b>рівно 7</b> <em>або</em> <b>рівно 8</b> дисциплін у першому семестрі.
+      Категорії не перетинаються (різні поділи 7/8 і 8/7) — тому додаємо:</p>
+    <div class="calc">$$C_{15}^{7} + C_{15}^{8} = 6\,435 + 6\,435 = 12\,870$$</div>
+
+    <div class="example">Правило «АБО» вимагає, щоб категорії не перетиналися. Якщо перетинаються — на допомогу приходить віднімання (увіємо його у фіналі, Епізоді 7).</div>
+
+    <div class="final-answer">Відповідь епізоду 3:<span class="big">\(C_{15}^{7} = C_{15}^{8} = 6\,435\); «7 АБО 8»: 12 870</span></div>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="2">← Епізод 2</button>
+      <span class="nav-progress">Епізод 3 з 7</span>
+      <button class="nav-btn" data-goto="4">Епізод 4 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 4 ================= -->
+  <div class="content" id="tab4">
+    <h2>Епізод 4 · «Понеділок, середа, п'ятниця»: розміщення без повторень</h2>
+    <div class="rule-chips">
+      <button class="rule-chip mul" data-goto="0">правило «І»</button>
+      <button class="rule-chip div" data-goto="0">правило ділення</button>
+    </div>
+    <p>Деканат: <em>«Складіть розклад першого тижня: 3 заняття з 15 дисциплін — понеділок, середа, п'ятниця»</em>.
+      Обираємо <b>частину</b> (3 з 15), повторень нема (одну дисципліну двічі не поставиш), <b>порядок важливий</b> (пн ≠ пт).</p>
+
+    <h3>Розбір</h3>
+    <div class="step"><span class="step-num">1</span> На понеділок — <span class="highlight">15</span> варіантів.</div>
+    <div class="step"><span class="step-num">2</span> На середу — <span class="highlight">14</span> (правило «І»).</div>
+    <div class="step"><span class="step-num">3</span> На п'ятницю — <span class="highlight">13</span>.</div>
+
+    <div class="formula">
+      $$A_{15}^{3} = 15 \cdot 14 \cdot 13 = 2\,730 = \frac{15!}{12!}$$       <span class="result">«Хвіст» 12! просто відрізаємо — його ніхто не чіпає</span>
+    </div>
+    <div class="formula">$$A_n^k = \frac{n!}{(n-k)!}$$</div>
+
+    <h3>Зв'язок епізодів: A = C · P</h3>
+    <p>Можна йти іншим шляхом (два кроки, з'єднані правилом «І»): спочатку <b>обрати трійку</b> як в Епізоді 3 —
+      \(C_{15}^{3} = 455\), потім <b>впорядкувати її</b> як в Епізоді 1 — \(3! = 6\):</p>
+    <div class="calc">$$A_{15}^{3} = C_{15}^{3} \cdot 3! = 455 \cdot 6 = 2\,730 \quad\Longleftrightarrow\quad C_n^k = \frac{A_n^k}{k!}$$</div>
+    <p>Зверніть увагу: \(C_{15}^{3} = 455\), а \(A_{15}^{3} = 2730\) — у 6 разів більше саме тому, що порядок важливий.</p>
+    <div class="example">Та сама логіка: подіум «золото-срібло-бронза» серед 15 спортсменів — \(A_{15}^{3} = 2\,730\), а просто «трійка фіналістів» — \(C_{15}^{3} = 455\).</div>
+
+    <div class="final-answer">Відповідь епізоду 4:<span class="big">\(A_{15}^{3} = 15 \cdot 14 \cdot 13 = 2\,730\)</span></div>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="3">← Епізод 3</button>
+      <span class="nav-progress">Епізод 4 з 7</span>
+      <button class="nav-btn" data-goto="5">Епізод 5 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 5 ================= -->
+  <div class="content" id="tab5">
+    <h2>Епізод 5 · «Кожному своє»: розміщення з повтореннями</h2>
+    <div class="rule-chips">
+      <button class="rule-chip mul" data-goto="0">правило «І»</button>
+    </div>
+    <p>Деканат: <em>«Розділіть 15 дисциплін між 3 викладачами <b>довільно</b>»</em>. Хтось може отримати всі 15, хтось — жодної.
+      Вперше в сезоні — <strong>повторення дозволені</strong>: викладача можна обирати багато разів підряд.
+      Позначення: \(\tilde{A}_{3}^{15}\) — з 3 варіантів обираємо на 15 позицій.</p>
+
+    <h3>Розбір</h3>
+    <div class="step"><span class="step-num">1</span> Перша дисципліна — одному з <span class="highlight">3</span> викладачів.</div>
+    <div class="step"><span class="step-num">2</span> Друга — знову <span class="highlight">3</span> (вибір першої нічого не заблокував — повторення дозволені!).</div>
+    <div class="step"><span class="step-num">3</span> І так 15 разів: правило «І».</div>
+
+    <div class="formula">
+      $$\tilde{A}_{3}^{\,15} = 3^{15} = \underbrace{3 \cdot 3 \cdot \ldots \cdot 3}_{15}$$       <span class="result">= 14 348 907</span>
+    </div>
+    <div class="formula">$$\tilde{A}_n^k = n^k \quad \text{— «розміщення з повтореннями»: з } n \text{ варіантів на } k \text{ позицій}$$</div>
+
+    <div class="idea-block">В Епізоді 4 порядок «з'їдав» варіанти (15 → 14 → 13). Тут повторення дозволені, тож на кожному кроці — всі 3 варіанти: \(3^{15}\), а не \(15\cdot14\cdot13\).</div>
+
+    <div class="example">Порядок тут — це номери дисциплін: «дисципліна №1 → Б, №2 → А, …». Сам викладач «повторюватися не заважає».</div>
+
+    <div class="final-answer">Відповідь епізоду 5:<span class="big">\(\tilde{A}_{3}^{15} = 3^{15} = 14\,348\,907\)</span></div>
+    <p>Ця відповідь — база для фіналу (Епізод 7), а близький «родич» грошей чекає в Епізоді 6.</p>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="4">← Епізод 4</button>
+      <span class="nav-progress">Епізод 5 з 7</span>
+      <button class="nav-btn" data-goto="6">Епізод 6 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 6 ================= -->
+  <div class="content" id="tab6">
+    <h2>Епізод 6 · «П'ятнадцять євро»: комбінації з повтореннями</h2>
+    <div class="rule-chips">
+      <button class="rule-chip div" data-goto="0">правило ділення</button>
+      <button class="rule-chip mul" data-goto="0">правило «І»</button>
+    </div>
+    <p>Кафедра отримала <strong>грант 15 €</strong> і ділить його між трьома викладачами. Нюанси:
+      євро <strong>однакові</strong> (важливо лише, <em>скільки</em> кожному), нуль — дозволений, викладачі — різні.
+      Вибір формули тут <strong>неочевидний</strong> — про це нижче і в Довіднику.</p>
+
+    <h3>Зірки й роздільники</h3>
+    <p>Виписуємо 15 однакових € і 2 роздільники │: перед першим │ — частка А, між ними — Б, після другого — В.
+      Усього <b>17 позицій</b>, і вся задача — <b>куди поставити 2 роздільники</b>.</p>
+    <div class="euro-line" id="euroLine"></div>
+    <div id="euroInfo"></div>
+    <div class="anim-controls"><button id="euroRandom" class="anim-btn b2">Ще один випадковий розподіл</button></div>
+
+    <h3>Формула зводиться до… двох груп об'єктів</h3>
+    <p>Рядок із 17 символів — це <b>дві групи однакових об'єктів</b>: 15 грошей і 2 роздільники. Тобто — перестановки з повтореннями \(\tilde{P}_{17}(15,\,2)\) з Епізоду 2!</p>
+    <div class="formula">
+      $$\tilde{C}_{15}^{\,3} = C_{17}^{2} = \frac{17!}{15! \cdot 2!} = \tilde{P}_{17}(15,\,2) = \frac{17 \cdot 16}{2} = 136$$       <span class="result">136 способів поділити 15 € між трьома: комбінації з повтореннями = перестановки двох груп</span>
+    </div>
+    <div class="calc">
+      Той самий результат іншим маршрутом (Епізод 4 + ділення): поставити 2 роздільники на 17 позицій — \(A_{17}^{2} = 17\cdot16 = 272\),
+      але роздільники однакові → кожен варіант пораховано \(2!\) разів → \(272 / 2 = 136\).
+    </div>
+    <div class="formula">$$\tilde{C}_n^k = C_{n+k-1}^{k} = \frac{(n+k-1)!}{k!\,(n-1)!}$$</div>
+
+    <div class="correct-box">
+      <h3>А якщо кожному — хоча б 1 €?</h3>
+      <p>Роздамо спочатку <b>по 1 €</b> кожному. Для <b>однакових</b> євро це чесно — нічого не перерахується!
+        Залишилось 12 € на трьох: \(\tilde{C}_{12}^{\,3} = C_{14}^{2} = 91\).</p>
+      <div class="right">$$\tilde{C}_{12}^{3} = C_{14}^{2} = 91 \quad \text{способів (кожному ≥ 1 €)}$$</div>
+      <p><b>Порівняйте з Епізодом 7:</b> для <b>різних</b> дисциплін трюк «спочатку по одній» дає перерахунок і не працює — там рятує лише віднімання.</p>
+    </div>
+
+    <div class="idea-block">Неочевидність: здається, що «поділ грошей» — це без повторень. Але € однакові, і одному можна дати і 0, і 1, і 5 — тобто «тип» повторюється, отже це <b>комбінації З повтореннями</b> \(\tilde{C}\). Більше прикладів на цю пастку — в Довіднику.</div>
+
+    <div class="final-answer">Відповідь епізоду 6:<span class="big">\(\tilde{C}_{15}^{3} = C_{17}^{2} = 136\); якщо кожному ≥ 1 €: \(\tilde{C}_{12}^{3} = 91\)</span></div>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="5">← Епізод 5</button>
+      <span class="nav-progress">Епізод 6 з 7</span>
+      <button class="nav-btn" data-goto="7">Епізод 7 →</button>
+    </div>
+  </div>
+
+  <!-- ================= ЕПІЗОД 7 (ФІНАЛ) ================= -->
+  <div class="content" id="tab7">
+    <h2>Епізод 7 · «Ніхто не зайвий»: фінал сезону</h2>
+    <div class="rule-chips">
+      <button class="rule-chip sub" data-goto="0">правило віднімання</button>
+      <button class="rule-chip add" data-goto="0">правило «АБО»</button>
+    </div>
+    <p>Остання вимога деканату: <strong>жоден викладач не залишається порожнім</strong> — у кожного ≥ 1 дисципліни.
+      База рахунку — \(\tilde{A}_{3}^{15} = 3^{15}\) з Епізоду 5, знімаємо заборонене.</p>
+
+    <div class="mistake-box">
+      <h3>Типова помилка (так роблять багато студентів!)</h3>
+      <p><em>«Дамо спочатку кожному по одній дисципліні, щоб гарантувати мінімум, а залишок — довільно»</em>.</p>
+      <div class="wrong">
+        «Крок 1»: першому — C(15,1) = 15<br>
+        «Крок 2»: другому — C(14,1) = 14<br>
+        «Крок 3»: третьому — C(13,1) = 13<br>
+        «Крок 4»: залишок 12 — довільно: 3¹²<br>
+        Разом: 15 · 14 · 13 · 3¹² = ???
+      </div>
+      <div class="why-wrong">Цей підхід <strong>рахує одне й те саме розподілення багато разів</strong> — «гарантована» дисципліна не відрізняється від тих, що прилетіли на кроці 4.</div>
+    </div>
+
+    <h3>Чому трюк не працює: детальний розбір</h3>
+    <p>Нехай підсумок такий:</p>
+    <div class="example">Викладач А: {Матан, Фізика, Алгебра} · Б: {Геометрія, Програмування} · В: {усі інші 10}</div>
+    <div class="repeat-demo">
+      <h4>Як один розподіл рахується тричі (для викладача А):</h4>
+      <div class="repeat-item"><span class="tag">Варіант 1</span> «Гарантована» для А — <b>Матан</b>; решта дві — на кроці 4. → А = {Матан, Фізика, Алгебра}</div>
+      <div class="repeat-item"><span class="tag">Варіант 2</span> «Гарантована» — <b>Фізика</b>; решта — на кроці 4. → А = {Матан, Фізика, Алгебра}</div>
+      <div class="repeat-item"><span class="tag">Варіант 3</span> «Гарантована» — <b>Алгебра</b>; решта — на кроці 4. → А = {Матан, Фізика, Алгебра}</div>
+    </div>
+    <p>Повторів для цього розподілу: \(3 \cdot 2 \cdot 10 = 60\)! І для інших розподілів множник інший — залежить від розмірів груп.
+      Тому завищення <strong>нерівномірне</strong>, і виправити його діленням на константу неможливо:</p>
+    <div class="calc">Помилкова відповідь: 15 · 14 · 13 · 3¹² ≈ <b>1 450 834 130</b> — це навіть БІЛЬШЕ за всі 3¹⁵ = 14 348 907 розподілів. Абсурд!</div>
+
+    <div class="correct-box">
+      <h3>Правильний шлях: віднімання заборонених (включення-виключення)</h3>
+      <p>Рахуємо <b>всі</b> розподіли (Епізод 5) і віднімаємо ті, де хтось порожній. А якщо «погані» категорії перетинаються — перераховані повертаємо: правило «АБО» з поправкою на віднімання.</p>
+    </div>
+
+    <h3>Крок за кроком</h3>
+    <div class="step"><span class="step-num">1</span> Всі розподіли: \(|U| = 3^{15} = 14\,348\,907\).</div>
+    <div class="step"><span class="step-num">2</span> Погані події: <b>A</b>, <b>B</b>, <b>C</b> — відповідний викладач отримав 0 дисциплін. Шукаємо: жодна не сталась.</div>
+    <div class="step"><span class="step-num">3</span> Формула включення-виключення:
+      $$|A \cup B \cup C| = |A| + |B| + |C| - |A \cap B| - |A \cap C| - |B \cap C| + |A \cap B \cap C|$$     </div>
+    <div class="step"><span class="step-num">4</span> Компоненти:
+      <ul>
+        <li>\(|A| = |B| = |C| = 2^{15}\) — усе дісталось двом іншим.</li>
+        <li>\(|A \cap B| = |A \cap C| = |B \cap C| = 1\) — усе одному.</li>
+        <li>\(|A \cap B \cap C| = 0\) — неможливо, дисципліни не подіти.</li>
+      </ul>
+    </div>
+    <div class="step"><span class="step-num">5</span> Підставляємо:
+      $$|A \cup B \cup C| = 3 \cdot 2^{15} - 3 \cdot 1 + 0 = 98\,304 - 3 = 98\,301$$     </div>
+    <div class="step"><span class="step-num">6</span> Фінал:
+      $$N = 3^{15} - 3 \cdot 2^{15} + 3 \cdot 1^{15} = 14\,348\,907 - 98\,301 = 14\,250\,606$$     </div>
+
+    <h3>Універсальна формула</h3>
+    <div class="formula">
+      $$N = \sum_{i=0}^{k} (-1)^{i} \binom{k}{i} (k-i)^{n}$$       <span class="result">Для k=3, n=15: \(3^{15} - 3\cdot2^{15} + 3\cdot1^{15} = 14\,250\,606 = 3! \cdot S(15,3)\)</span>
+    </div>
+    <p>Це, до речі, <strong>числа Стірлінга другого роду</strong>, помножені на \(k!\): \(N = 3! \cdot S(15,3) = 6 \cdot 2\,375\,101\).</p>
+
+    <div class="final-answer">Фінал сезону:<span class="big">\(3^{15} - 3\cdot2^{15} + 3 = 14\,250\,606\)</span></div>
+    <p><b>Кінець першого сезону.</b> Усі 6 формул і всі 4 правила пройдено. Закріпіть матеріал у Довіднику.</p>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="6">← Епізод 6</button>
+      <span class="nav-progress">Епізод 7 з 7 · фінал</span>
+      <button class="nav-btn" data-goto="ref">Довідник →</button>
+    </div>
+  </div>
+
+  <!-- ================= ДОВІДНИК ================= -->
+  <div class="content" id="tabref">
+    <h2>Довідник · дерево вибору формули</h2>
+    <p>Три послідовні питання — і формула сама знаходиться. Жовті вузли — питання, зелені листки — формули
+      (у кожному — кнопка переходу до епізоду, де вона народилася). Кольорові бирки на гілках — відповіді на питання.
+      Формули «з повтореннями» — з тильдою: \(\tilde{P}\), \(\tilde{A}\), \(\tilde{C}\).</p>
+
+    <div class="arena-wrap">
+      <svg id="refTreeSvg" viewBox="0 0 1030 455"></svg>
+    </div>
+    <div class="example">Тупикова гілка для повноти: «всі n, порядок НЕ важливий» — рівно 1 спосіб (набір уже весь), тому окремої формули для неї немає.</div>
+
+    <h3>Вибір формули НЕ завжди очевидний</h3>
+    <div class="obs-cards">
+      <div class="obs-card good">
+        <h4>Очевидний випадок: букет</h4>
+        <p>Букет із 3 квіток різних кольорів із клумби 5 сортів: одну квітку двічі не зірвеш, порядок у букеті неважливий —
+          одразу видно: \(C_5^3 = 10\), комбінації без повторень.</p>
+      </div>
+      <div class="obs-card bad">
+        <h4>Пастка №1: поділ гранту</h4>
+        <p>«Поділити 15 €» здається вибором «без повторень»… але € <b>однакові</b>, і одній людині можна дати і 0, і 5, і всі 15 —
+          «тип» повторюється! Правильна гілка: <b>комбінації З повтореннями</b>: \(\tilde{C}_{15}^{3} = C_{17}^{2} = 136\) → Епізод 6.</p>
+      </div>
+      <div class="obs-card bad">
+        <h4>Пастка №2: «хоча б по одній»</h4>
+        <p>«Кожному викладачу ≥ 1 дисципліни» спокушає трюком «спочатку по одній». Для <b>різних</b> дисциплін це перерахунок!
+          Працює лише включення-виключення → Епізод 7. А от для <b>однакових</b> € той самий трюк — чесний: \(\tilde{C}_{12}^{3} = 91\).</p>
+      </div>
+      <div class="obs-card good">
+        <h4>Тонкощі: «порівну по 5»</h4>
+        <p>Здається, що це «комбінації»… але зручніше бачити <b>розфарбовування</b>: \(\tilde{P}_{15}(5,5,5) = 15!/(5!)^3\) → Епізод 2.
+          Одна задача — два погляди (через ділення і через C·C·C).</p>
+      </div>
+    </div>
+
+    <h3>Правила сезону (швидкі посилання)</h3>
+    <div class="rule-chips">
+      <button class="rule-chip mul" data-goto="0">«І» — множення</button>
+      <button class="rule-chip add" data-goto="0">«АБО» — додавання</button>
+      <button class="rule-chip sub" data-goto="0">заборонені — віднімання</button>
+      <button class="rule-chip div" data-goto="0">дублікати — ділення</button>
+    </div>
+
+    <div class="series-nav">
+      <button class="nav-btn" data-goto="7">← Епізод 7</button>
+      <span class="nav-progress">Довідник</span>
+      <button class="nav-btn" data-goto="0">На початок →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======================= ВКЛАДКИ + ДЕЛЕГУВАННЯ data-goto =======================
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+  document.querySelectorAll('.content').forEach(c => c.classList.toggle('active', c.id === 'tab' + id));
+  if (id === '2') requestAnimationFrame(() => { if (arena && arena.clientWidth > 0) placeAll(); });
+  if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([document.getElementById('tab' + id)]).catch(() => {});
+}
+function mj(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(el ? [el] : undefined).catch(() => {}); }
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-goto]');
+  if (g) switchTab(g.dataset.goto);
+});
+
+// ======================= ДОВІДНИК: SVG-ДЕРЕВО =======================
+(function buildRefTree() {
+  const NSVG = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('refTreeSvg');
+  function el(tag, attrs) { const e = document.createElementNS(NSVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function txt(x, y, s, size, fill, weight) {
+    const t = el('text', { x, y, 'text-anchor': 'middle', 'font-size': size, fill, 'font-weight': weight || 'normal' });
+    t.textContent = s; return t;
+  }
+
+  const QNODES = [
+    { x: 430, y: 42,  w: 290, h: 44, root: true,  l1: 'ВСІ n  ЧИ  ЧАСТИНА k?' },
+    { x: 175, y: 150, w: 185, h: 54, l1: 'СЕРЕД n',    l2: 'Є ОДНАКОВІ?' },
+    { x: 685, y: 150, w: 185, h: 54, l1: 'ПОРЯДОК',    l2: 'ВАЖЛИВИЙ?' },
+    { x: 515, y: 256, w: 190, h: 54, l1: 'ПОВТОРЕННЯ', l2: 'МОЖЛИВІ?' },
+    { x: 855, y: 256, w: 190, h: 54, l1: 'ПОВТОРЕННЯ', l2: 'МОЖЛИВІ?' }
+  ];
+  const LEAF_Y = 350, LW = 164, LH = 92;
+  const LEAVES = [
+    { x: 90,  series: 1, name: 'Перестановки',       formula: 'P = n!',                 ex: 'черговість 15 дисциплін' },
+    { x: 260, series: 2, name: 'Перест. з повтор.',  formula: 'P\u0303\u2099(n\u2081,\u2026,n\u2096)', ex: '5+5+5 між викладачами' },
+    { x: 430, series: 4, name: 'Розміщення',         formula: 'A(n,k) = n!/(n\u2212k)!', ex: 'пн·ср·пт із 15' },
+    { x: 600, series: 5, name: 'Розміщ. з повтор.',  formula: 'A\u0303\u2099\u1D4F = n\u1D4F', ex: '15 дисциплін → 3 виклад.' },
+    { x: 770, series: 3, name: 'Комбінації',         formula: 'C = n!/(k!(n\u2212k)!)', ex: '7 дисциплін на семестр' },
+    { x: 940, series: 6, name: 'Комбін. з повтор.',  formula: 'C\u0303\u2099\u1D4F = C(n+k\u22121, k)', ex: '15 євро на трьох' }
+  ];
+  const EDGES = [
+    { a: [430, 64],  b: [175, 123], label: 'ВСІ n',      color: '#e67700', lx: 295, ly: 96 },
+    { a: [430, 64],  b: [685, 123], label: 'ЧАСТИНА k',  color: '#7950f2', lx: 565, ly: 96 },
+    { a: [175, 177], b: [90, 350],  label: 'усі різні',  color: '#1971c2', lx: 112, ly: 274 },
+    { a: [175, 177], b: [260, 350], label: 'є однакові', color: '#1971c2', lx: 238, ly: 274 },
+    { a: [685, 177], b: [515, 229], label: 'ТАК',        color: '#2b8a3e', lx: 606, ly: 200 },
+    { a: [685, 177], b: [855, 229], label: 'НІ',         color: '#c92a2a', lx: 768, ly: 200 },
+    { a: [515, 283], b: [430, 350], label: 'нема',       color: '#2b8a3e', lx: 455, ly: 322 },
+    { a: [515, 283], b: [600, 350], label: 'можна',      color: '#c92a2a', lx: 575, ly: 322 },
+    { a: [855, 283], b: [770, 350], label: 'нема',       color: '#2b8a3e', lx: 795, ly: 322 },
+    { a: [855, 283], b: [940, 350], label: 'можна',      color: '#c92a2a', lx: 915, ly: 322 }
+  ];
+
+  EDGES.forEach(e => svg.appendChild(el('line', { x1: e.a[0], y1: e.a[1], x2: e.b[0], y2: e.b[1], stroke: '#adb5bd', 'stroke-width': 2 })));
+  EDGES.forEach(e => {
+    const w = e.label.length * 6.2 + 14;
+    svg.appendChild(el('rect', { x: e.lx - w / 2, y: e.ly - 10, width: w, height: 20, rx: 10, fill: '#ffffff', stroke: e.color, 'stroke-width': 1.6 }));
+    svg.appendChild(txt(e.lx, e.ly + 4, e.label, 9.5, e.color, 'bold'));
+  });
+  QNODES.forEach(n => {
+    svg.appendChild(el('rect', { x: n.x - n.w / 2, y: n.y - n.h / 2, width: n.w, height: n.h, rx: 12,
+      fill: n.root ? '#ffe8cc' : '#fff9db', stroke: n.root ? '#e8590c' : '#e67700', 'stroke-width': 2 }));
+    if (n.l2) {
+      svg.appendChild(txt(n.x, n.y - 4, n.l1, 11.5, '#495057', 'bold'));
+      svg.appendChild(txt(n.x, n.y + 13, n.l2, 11.5, '#495057', 'bold'));
+    } else {
+      svg.appendChild(txt(n.x, n.y + 4.5, n.l1, 12.5, '#d9480f', 'bold'));
+    }
+  });
+  LEAVES.forEach(n => {
+    svg.appendChild(el('rect', { x: n.x - LW / 2, y: LEAF_Y, width: LW, height: LH, rx: 12, fill: '#ebfbee', stroke: '#51cf66', 'stroke-width': 2 }));
+    svg.appendChild(txt(n.x, LEAF_Y + 17, n.name, 10.5, '#2b8a3e', 'bold'));
+    svg.appendChild(txt(n.x, LEAF_Y + 37, n.formula, 10.5, '#1e3c72', '600'));
+    svg.appendChild(txt(n.x, LEAF_Y + 54, n.ex, 8.5, '#868e96'));
+    const btn = el('g', { class: 'leafbtn' });
+    btn.appendChild(el('rect', { x: n.x - 44, y: LEAF_Y + 62, width: 88, height: 21, rx: 9, fill: '#2f9e44' }));
+    btn.appendChild(txt(n.x, LEAF_Y + 76.5, 'Епізод ' + n.series, 10, '#ffffff', 'bold'));
+    btn.addEventListener('click', () => switchTab(String(n.series)));
+    svg.appendChild(btn);
+  });
+})();
+
+// ======================= ДЕРЕВО 4! (ЕПІЗОД 1) =======================
+const NSVG = 'http://www.w3.org/2000/svg';
+const tsvg = document.getElementById('treeSvg');
+const tNext = document.getElementById('tNext'), tAuto = document.getElementById('tAuto'), tReset = document.getElementById('tReset');
+const tStatus = document.getElementById('tStatus'), tChips = document.getElementById('treeChips');
+const TCOLORS = { 1: '#ff6b6b', 2: '#4dabf7', 3: '#51cf66', 4: '#ffa94d' };
+const TY = [75, 160, 245, 330], LEFT = 40, TW = 820, CNT = [4, 12, 24, 24];
+let treeLevel = 0, tTimers = [];
+
+function svgEl(tag, attrs) { const e = document.createElementNS(NSVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+function seqsOf(len) {
+  const res = [];
+  (function rec(cur, used) {
+    if (cur.length === len) { res.push(cur.slice()); return; }
+    for (let b = 1; b <= 4; b++) if (!used.has(b)) { used.add(b); cur.push(b); rec(cur, used); used.delete(b); cur.pop(); }
+  })([], new Set());
+  return res;
+}
+function xAt(level, i) { return LEFT + (i + 0.5) * TW / CNT[level]; }
+function parentIdx(L, i) { return L === 1 ? Math.floor(i / 3) : (L === 2 ? Math.floor(i / 2) : i); }
+
+function buildTree() {
+  tTimers.forEach(clearTimeout); tTimers = []; treeLevel = 0;
+  tsvg.innerHTML = '';
+  const root = svgEl('g', { class: 'lv show' });
+  root.appendChild(svgEl('circle', { cx: 450, cy: 22, r: 6, fill: '#868e96' }));
+  const rt = svgEl('text', { x: 450, y: 12, 'text-anchor': 'middle', 'font-size': 11, fill: '#868e96' });
+  rt.textContent = 'старт'; root.appendChild(rt);
+  tsvg.appendChild(root);
+  for (let L = 0; L < 4; L++) {
+    const g = svgEl('g', { class: 'lv', id: 'tlv' + L });
+    const sqs = seqsOf(L + 1);
+    sqs.forEach((sq, i) => {
+      let px = 450, py = 22;
+      if (L > 0) { px = xAt(L - 1, parentIdx(L, i)); py = TY[L - 1]; }
+      g.appendChild(svgEl('line', { x1: px, y1: py, x2: xAt(L, i), y2: TY[L], stroke: TCOLORS[sq[sq.length - 1]], 'stroke-width': 1.4, opacity: .55 }));
+    });
+    sqs.forEach((sq, i) => {
+      const x = xAt(L, i), y = TY[L];
+      if (L < 3) {
+        g.appendChild(svgEl('circle', { cx: x, cy: y, r: [12, 9, 7][L], fill: TCOLORS[sq[sq.length - 1]] }));
+        const t = svgEl('text', { x: x, y: y + 3, 'text-anchor': 'middle', 'font-size': [11, 9, 8][L], fill: '#fff', 'font-weight': 'bold' });
+        t.textContent = sq[sq.length - 1]; g.appendChild(t);
+      } else {
+        const t = svgEl('text', { x: x, y: y + 2.5, 'text-anchor': 'middle', 'font-size': 7, fill: '#495057' });
+        t.textContent = sq.join('\u00B7'); g.appendChild(t);
+      }
+    });
+    const cl = svgEl('text', { x: 12, y: TY[L] + 4, 'font-size': 11, 'font-weight': 'bold', fill: '#adb5bd' });
+    cl.textContent = ['4', '12', '24', '4!'][L]; g.appendChild(cl);
+    tsvg.appendChild(g);
+  }
+  updateTreeUI();
+}
+const TREE_MSG = [
+  'Тисніть «Наступний рівень»: обираємо першу кульку — 4 кольорові гілки.',
+  'Рівень 1: перша кулька — 4 варіанти. Гілка пофарбована в колір обраної кульки.',
+  'Рівень 2: для кожної з 4 гілок — 3 варіанти другої кульки, разом <b>4 · 3 = 12</b> шляхів.',
+  'Рівень 3: третя кулька — по 2 варіанти, разом <b>4 · 3 · 2 = 24</b> шляхи.',
+  'Рівень 4: остання кулька вже визначена — рівно 1 варіант. Разом <b>4·3·2·1 = 4! = 24</b> листки. Факторіал = правило «І» 4 рази підряд!'
+];
+const TREE_CHIPS = ['4', '· 3 = 12', '· 2 = 24', '· 1 = 4! = 24'];
+function updateTreeUI() {
+  tChips.innerHTML = TREE_CHIPS.slice(0, treeLevel).map(c => `<span class="fpart tchip">${c}</span>`).join('');
+  tNext.disabled = treeLevel >= 4;
+  tStatus.innerHTML = TREE_MSG[treeLevel];
+}
+function treeNext() { if (treeLevel >= 4) return; document.getElementById('tlv' + treeLevel).classList.add('show'); treeLevel++; updateTreeUI(); }
+tNext.addEventListener('click', treeNext);
+tReset.addEventListener('click', buildTree);
+tAuto.addEventListener('click', () => { buildTree(); for (let i = 1; i <= 4; i++) tTimers.push(setTimeout(treeNext, i * 850)); });
+buildTree();
+
+// ======================= ГОЛОВНА АНІМАЦІЯ (ЕПІЗОД 2) =======================
+const arena = document.getElementById('arena'), statusEl = document.getElementById('animStatus'),
+      setsEl = document.getElementById('animSets'), formulaEl = document.getElementById('formulaBuild'),
+      chipsEl = document.getElementById('factorChips');
+const b1 = document.getElementById('btnS1'), b2 = document.getElementById('btnS2'),
+      bR = document.getElementById('btnSR'), bB = document.getElementById('btnSB'), bG = document.getElementById('btnSG'),
+      bAuto = document.getElementById('btnSAuto'), bReset = document.getElementById('btnSReset');
+const PER_ROW = 5, BALL = 40, GAP_Y = 16;
+const C_LABEL = ['Викладач А', 'Викладач Б', 'Викладач В'];
+const C_HEX = ['#ff6b6b', '#4dabf7', '#51cf66'];
+let balls = [], slots = [], stage = 0, busy = false, timers = [], done = { r: false, b: false, g: false };
+
+function setStatus(html) { statusEl.innerHTML = html; }
+function refreshBtns() {
+  b1.disabled = stage !== 0 || busy; b2.disabled = stage !== 1 || busy;
+  bR.disabled = bB.disabled = bG.disabled = (stage < 2 || busy);
+}
+function slotXY(s) {
+  const row = Math.floor(s / PER_ROW), col = s % PER_ROW;
+  const w = arena.clientWidth || 640, cell = w / PER_ROW;
+  return { x: col * cell + (cell - BALL) / 2, y: row * (BALL + GAP_Y) };
+}
+function placeAll() { slots.forEach((b, s) => { const p = slotXY(s); b.el.style.left = p.x + 'px'; b.el.style.top = p.y + 'px'; }); }
+function shuffleArr(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function createBalls() {
+  timers.forEach(clearTimeout); timers = [];
+  arena.innerHTML = ''; balls = []; slots = [];
+  for (let i = 1; i <= 15; i++) {
+    const el = document.createElement('div');
+    el.className = 'anim-ball'; el.textContent = i;
+    arena.appendChild(el);
+    const b = { num: i, el, color: -1 };
+    balls.push(b); slots.push(b);
+  }
+  stage = 0; busy = false; done = { r: false, b: false, g: false };
+  placeAll();
+  setsEl.innerHTML = ''; chipsEl.innerHTML = '';
+  formulaEl.innerHTML = 'Формула з\u2019являтиметься тут після кожного кроку…';
+  setStatus('Кульки 1…15 вишикувані. Натисніть «Крок 1: перемішати всі» або «Авто».');
+  refreshBtns();
+}
+function updateFormula() {
+  let f = 'N = 15!';
+  const den = [];
+  if (done.r) den.push('\\textcolor{#e03131}{5!}');
+  if (done.b) den.push('\\textcolor{#1971c2}{5!}');
+  if (done.g) den.push('\\textcolor{#2f9e44}{5!}');
+  if (den.length) f = 'N = \\dfrac{15!}{' + den.join('\\;\\cdot\\;') + '}';
+  if (done.r && done.b && done.g) f += ' = 756\\,756 = \\tilde{P}_{15}(5,\\,5,\\,5)';
+  formulaEl.innerHTML = '$$' + f + '$$';
+  mj(formulaEl);
+  let chips = '';
+  if (stage >= 1) chips += '<span class="fpart fchip k15">15!</span>';
+  if (done.r) chips += '<span class="fpart fchip fr">÷ 5! червоні</span>';
+  if (done.b) chips += '<span class="fpart fchip fb">÷ 5! сині</span>';
+  if (done.g) chips += '<span class="fpart fchip fg">÷ 5! зелені</span>';
+  chipsEl.innerHTML = chips;
+}
+function showSets() {
+  const sets = [[], [], []];
+  balls.forEach(b => sets[b.color].push(b.num));
+  sets.forEach(s => s.sort((a, b) => a - b));
+  setsEl.innerHTML = sets.map((s, i) =>
+    `<div class="group-box"><h4><span class="dot" style="background:${C_HEX[i]}"></span>${C_LABEL[i]}: {${s.join(', ')}}</h4>` +
+    `<p style="font-size:.82em;color:#868e96;margin:0;">порядок усередині групи не має значення</p></div>`).join('');
+}
+function flashSets() { setsEl.classList.remove('flash'); void setsEl.offsetWidth; setsEl.classList.add('flash'); }
+
+function doStep1() {
+  if (stage !== 0 || busy) return;
+  busy = true; refreshBtns();
+  shuffleArr(slots); placeAll(); stage = 1;
+  updateFormula();
+  setStatus('<b>Крок 1.</b> Перемішали! Різних порядків — <b>15! = 1 307 674 368 000</b>. Поки що вважаємо порядок у рядку «важливим».');
+  setTimeout(() => { busy = false; refreshBtns(); }, 700);
+}
+function doStep2() {
+  if (stage !== 1 || busy) return;
+  busy = true; refreshBtns();
+  shuffleArr(balls.slice()).forEach((b, i) => { b.color = Math.floor(i / 5); });
+  balls.forEach(b => { b.el.classList.add('c' + b.color); b.el.classList.remove('colored'); void b.el.offsetWidth; b.el.classList.add('colored'); });
+  stage = 2; showSets(); updateFormula();
+  setStatus('<b>Крок 2.</b> Розфарбовано 5+5+5 — це вже <b>один конкретний розподіл</b> (групи нижче). Але в рядку кульки все ще «переставлені всередині кольорів». Скільки перестановок дають ТАКУ САМУ розфарбовку? Перевіримо покроково: спочатку червоні.');
+  setTimeout(() => { busy = false; refreshBtns(); }, 800);
+}
+function colorShuffle(c) {
+  if (stage < 2 || busy) return;
+  busy = true; refreshBtns();
+  const idx = slots.map((b, s) => b.color === c ? s : -1).filter(s => s >= 0);
+  const targets = shuffleArr(idx.slice());
+  const next = slots.slice();
+  idx.forEach((s, i) => { next[targets[i]] = slots[s]; });
+  slots = next;
+  placeAll();
+  const key = ['r', 'b', 'g'][c], name = ['Червоні', 'Сині', 'Зелені'][c];
+  if (!done[key]) {
+    done[key] = true; updateFormula(); flashSets();
+    let extra = '';
+    if (done.r && done.b && done.g) extra = '<br><b>Формула завершена: 15!/(5!·5!·5!) = 756 756.</b> Кожна розфарбовка порахована рівно (5!)³ разів — тому й ділимо.';
+    setStatus(`<b>Перемішали лише ${name.toLowerCase()}</b> — між собою. Група не змінилася, отже <b>розподіл той самий!</b> У формулу додається черговий множник ÷5!.${extra}`);
+  } else {
+    setStatus(`Знову перемішали ${name.toLowerCase()} — розподіл <b>усе той самий</b>. Таких перестановок 5! = 120; тисніть скільки завгодно!`);
+  }
+  setTimeout(() => { busy = false; refreshBtns(); }, 700);
+}
+b1.addEventListener('click', doStep1);
+b2.addEventListener('click', doStep2);
+bR.addEventListener('click', () => colorShuffle(0));
+bB.addEventListener('click', () => colorShuffle(1));
+bG.addEventListener('click', () => colorShuffle(2));
+bReset.addEventListener('click', createBalls);
+bAuto.addEventListener('click', () => {
+  createBalls();
+  timers = [setTimeout(doStep1, 400), setTimeout(doStep2, 1700),
+            setTimeout(() => colorShuffle(0), 3100), setTimeout(() => colorShuffle(1), 4500),
+            setTimeout(() => colorShuffle(2), 5900)];
+});
+window.addEventListener('resize', () => { if (arena.clientWidth > 0) placeAll(); });
+createBalls();
+
+// ======================= 15 ЄВРО (ЕПІЗОД 6) =======================
+function randomSplit(total, parts) {
+  const n = total + parts - 1, idx = [];
+  while (idx.length < parts - 1) { const p = Math.floor(Math.random() * n); if (!idx.includes(p)) idx.push(p); }
+  idx.sort((a, b) => a - b);
+  const res = []; let prev = -1;
+  for (const p of idx) { res.push(p - prev - 1); prev = p; }
+  res.push(n - prev - 1);
+  return res;
+}
+function renderEuro() {
+  const [a, b, c] = randomSplit(15, 3);
+  document.getElementById('euroLine').innerHTML =
+    '💶'.repeat(a) + '<span class="euro-bar">│</span>' +
+    '💶'.repeat(b) + '<span class="euro-bar">│</span>' +
+    '💶'.repeat(c);
+  document.getElementById('euroInfo').innerHTML =
+    `А: <b>${a} €</b> · Б: <b>${b} €</b> · В: <b>${c} €</b> — це 1 із <b>136</b> способів`;
+}
+document.getElementById('euroRandom').addEventListener('click', renderEuro);
+renderEuro();
+</script>
+</body>
+</html>
