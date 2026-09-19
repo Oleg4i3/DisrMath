@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Біном Ньютона</title>
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']]},svg:{fontCache:'global'}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:10px;background:#f5f6f7;color:#222;font-family:Arial,Helvetica,sans-serif;font-size:15px}
+.app{max-width:1000px;margin:auto}
+h1{font-size:19px;margin:0 0 8px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px}
+input[type=number]{width:52px;padding:5px;font-size:15px}
+button{padding:6px 11px;font-size:14px;border:1px solid #aaa;border-radius:6px;background:#fff;cursor:pointer}
+button:disabled{opacity:.4;cursor:default}
+.check{display:flex;align-items:center;gap:5px;font-size:14px}
+.panel{background:#fff;border:1px solid #d5d5d5;border-radius:9px;padding:10px 12px;margin-bottom:8px}
+.stage{position:relative}
+.headline{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-bottom:4px}
+.formula{font-size:20px}
+.factors{display:flex;justify-content:center;flex-wrap:wrap;gap:2px 4px;
+  font-family:"Cambria Math","STIX Two Math","Times New Roman",Georgia,serif;
+  font-size:23px;line-height:1.15}
+.factor{white-space:nowrap}
+.factor .lt{opacity:.28;transition:opacity .12s}
+.factor .lt.sel{opacity:1;font-weight:700}
+.aText{color:#2675bd}
+.bText{color:#c87920}
+.result{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 5px;
+  min-height:40px;margin-top:8px;
+  font-family:"Cambria Math","STIX Two Math","Times New Roman",Georgia,serif;font-size:20px}
+.slot{opacity:0;transition:opacity .18s;white-space:nowrap}
+.slot.on{opacity:1}
+.plus{color:#999;opacity:0;transition:opacity .18s}
+.plus.on{opacity:1}
+.final{margin-left:2px}
+.fly-layer{position:absolute;inset:0;pointer-events:none;z-index:20}
+.flyletter{position:absolute;font-size:21px;font-weight:700;transform:translate(-50%,-50%);
+  font-family:"Cambria Math","Times New Roman",Georgia,serif}
+.info{text-align:center;font-size:16px;line-height:1.5;min-height:46px;
+  border-top:1px solid #eee;padding-top:7px;margin-top:8px}
+.progress{text-align:center;color:#666;font-size:13px;min-height:28px}
+.progress .combo{
+  font-family:"Cambria Math","STIX Two Math","Times New Roman",Georgia,serif;
+  font-size:22px;font-weight:700;letter-spacing:1px;margin-left:4px;
+}
+.progress .combo .sep{color:#999;font-weight:400;font-size:18px;margin:0 2px}
+.expansion{text-align:center;font-size:17px;line-height:1.7;min-height:28px}
+.note{text-align:center;color:#666;font-size:13px;line-height:1.5}
+@media(max-width:700px){
+  body{padding:6px}
+  .factors{font-size:18px}
+  .result{font-size:17px}
+  .formula{font-size:17px}
+  h1{font-size:16px}
+  .progress .combo{font-size:19px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Біном Ньютона</h1>
+
+<div class="controls">
+  <label>Степінь \(n=\) <input id="n" type="number" min="1" max="7" value="4"></label>
+  <button id="next">Наступний доданок →</button>
+  <button id="auto">▶ Авто</button>
+  <button id="restart">Спочатку</button>
+  <label class="check"><input id="notation" type="checkbox" checked> писати як \(\binom{n}{k}\) (інакше — \(C_n^k\))</label>
+</div>
+
+<div class="panel stage" id="stage">
+  <div class="headline">
+    <span id="formula" class="formula"></span>
+    <div id="factors" class="factors"></div>
+  </div>
+  <div id="result" class="result"></div>
+  <div id="flyLayer" class="fly-layer"></div>
+  <div id="info" class="info"></div>
+  <div id="progress" class="progress"></div>
+</div>
+
+<div class="panel">
+  <div id="expansion" class="expansion"></div>
+</div>
+<div class="note">
+  З кожної дужки вибираємо одну літеру. Кожна комбінація вибору має свій колір;
+  усі вони дають однаковий доданок, тому в розкладі він записується один раз — із коефіцієнтом.
+</div>
+</div>
+
+<script>
+/* ---------- елементи ---------- */
+const nInput     = document.getElementById('n');
+const notationChk= document.getElementById('notation');
+const factorsEl  = document.getElementById('factors');
+const resultEl   = document.getElementById('result');
+const flyEl      = document.getElementById('flyLayer');
+const infoEl     = document.getElementById('info');
+const progressEl = document.getElementById('progress');
+const expansionEl= document.getElementById('expansion');
+const formulaEl  = document.getElementById('formula');
+const nextBtn    = document.getElementById('next');
+const autoBtn    = document.getElementById('auto');
+const restartBtn = document.getElementById('restart');
+
+/* ---------- стан ---------- */
+let n = 4, m = 0, token = 0, busy = false, autoMode = false, autoTimer = null, rendered = 0;
+
+/* ---------- допоміжне ---------- */
+function C(n,k){ k=Math.min(k,n-k); let r=1; for(let i=1;i<=k;i++) r=r*(n-k+i)/i; return Math.round(r); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function raf2(){ return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); }
+function typeset(){ if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise().catch(()=>{}); }
+
+/* позначення:
+   checked   -> \binom{n}{k}  (як у підручнику: у дужках стовпчиком)
+   unchecked -> C_n^k         (верхній і нижній індекси біля букви C)   */
+function combTex(nn,kk){
+  return notationChk.checked
+    ? '\\binom{'+nn+'}{'+kk+'}'
+    : 'C_{'+nn+'}^{'+kk+'}';
+}
+
+function monoHTML(pa,pb){
+  let s='';
+  if(pa>0) s+='a'+(pa>1?'<sup>'+pa+'</sup>':'');
+  if(pb>0) s+='b'+(pb>1?'<sup>'+pb+'</sup>':'');
+  return s||'1';
+}
+function texMono(pa,pb){
+  let s='';
+  if(pa>0) s+='a'+(pa>1?'^{'+pa+'}':'');
+  if(pb>0) s+='b'+(pb>1?'^{'+pb+'}':'');
+  return s||'1';
+}
+function comboColor(k,count){
+  const hue = Math.round(360*k/count);
+  return 'hsl('+hue+',70%,40%)';
+}
+
+/* HTML для рядка прогресу: кольорові літери a/b */
+function comboHTML(choice){
+  const parts = choice.map(x =>
+    '<span class="'+(x?'bText':'aText')+'">'+(x?'b':'a')+'</span>'
+  );
+  return '<span class="combo">' + parts.join('<span class="sep">·</span>') + '</span>';
+}
+
+/* всі двійкові набори довжини n з рівно k одиницями */
+function allChoices(n,k){
+  const out=[];
+  (function rec(pos,left,a){
+    if(pos===n){ if(left===0) out.push(a.slice()); return; }
+    if(left>0){ a.push(1); rec(pos+1,left-1,a); a.pop(); }
+    if(n-pos-1>=left){ a.push(0); rec(pos+1,left,a); a.pop(); }
+  })(0,k,[]);
+  return out;
+}
+
+/* ---------- дужки ---------- */
+function buildFactors(){
+  factorsEl.innerHTML='';
+  for(let i=0;i<n;i++){
+    const f=document.createElement('span');
+    f.className='factor';
+    f.innerHTML='(<span class="lt la aText">a</span>+<span class="lt lb bText">b</span>)';
+    factorsEl.appendChild(f);
+  }
+}
+function setHighlight(choice){
+  for(let i=0;i<n;i++){
+    const f=factorsEl.children[i];
+    const a=f.querySelector('.la'), b=f.querySelector('.lb');
+    const sel = choice ? (choice[i]===1?'b':'a') : null;
+    a.classList.toggle('sel', sel==='a');
+    b.classList.toggle('sel', sel==='b');
+  }
+}
+
+/* ---------- заголовок ---------- */
+function updateFormula(){
+  formulaEl.innerHTML = '\\((a+b)^{'+n+'}\\) =';
+}
+
+/* ---------- розгорнутий вираз ---------- */
+function updateExpansion(){
+  if(rendered===0){ expansionEl.innerHTML=''; return; }
+  let s='';
+  for(let k=0;k<rendered;k++){
+    if(k>0) s+=' + ';
+    const c=C(n,k);
+    if(c!==1) s+=c+'\\,';
+    s+=texMono(n-k,k);
+  }
+  if(rendered<=n) s+=' + \\cdots';
+  expansionEl.innerHTML='\\((a+b)^{'+n+'} = '+s+'\\)';
+}
+
+/* ---------- пояснення ---------- */
+function updateInfo(mv){
+  const c=C(n,mv);
+  let extra='';
+  if(mv===0 || mv===n){
+    extra=' Крайній випадок: варіант лише один, \\('+combTex(n,mv)+'=1\\).';
+  }
+  infoEl.innerHTML =
+    'Доданок \\('+texMono(n-mv,mv)+'\\): з '+n+' дужок беремо \\(b\\) з '+
+    (mv===0?'жодної':mv)+', а \\(a\\) з '+n+'.<br>'+
+    'Способів вибрати '+mv+' дужок із '+n+': '+
+    '\\(\\displaystyle '+combTex(n,mv)+'='+c+'\\). '+
+    'Сумарний степінь: \\('+(n-mv)+'+'+mv+'='+n+'\\).'+extra;
+}
+
+/* ---------- анімація одного доданка ---------- */
+async function playAddend(mv){
+  const myToken = ++token;
+  const list  = allChoices(n, mv);
+  const count = list.length;
+
+  const dur = Math.max(360, Math.min(900, Math.round(5200/count)));
+  const gap = Math.max(120, Math.round(dur*0.42));
+
+  resultEl.innerHTML='';
+  flyEl.innerHTML='';
+  const slots=[], pluses=[];
+  for(let k=0;k<count;k++){
+    if(k>0){
+      const p=document.createElement('span');
+      p.className='plus'; p.textContent='+';
+      resultEl.appendChild(p); pluses.push(p);
+    }
+    const s=document.createElement('span');
+    s.className='slot';
+    s.innerHTML=monoHTML(n-mv, mv);
+    resultEl.appendChild(s);
+    slots.push(s);
+  }
+  progressEl.textContent='Комбінацій для цього доданка: '+count;
+  await raf2();
+  if(myToken!==token) return false;
+
+  const base = flyEl.getBoundingClientRect();
+  const factors = Array.from(factorsEl.children);
+
+  for(let k=0;k<count;k++){
+    if(myToken!==token) return false;
+    const choice = list[k];
+    setHighlight(choice);
+
+    const sr = slots[k].getBoundingClientRect();
+    const tx = sr.left - base.left + sr.width/2;
+    const ty = sr.top  - base.top  + sr.height/2;
+
+    const letters=[];
+    for(let i=0;i<n;i++){
+      const src = factors[i].querySelector(choice[i] ? '.lb' : '.la');
+      const r = src.getBoundingClientRect();
+      const d = document.createElement('span');
+      d.className = 'flyletter ' + (choice[i] ? 'bText' : 'aText');
+      d.textContent = choice[i] ? 'b' : 'a';
+      d.style.left = (r.left - base.left + r.width/2) + 'px';
+      d.style.top  = (r.top  - base.top  + r.height/2) + 'px';
+      d.style.transition='none';
+      d.style.opacity='1';
+      flyEl.appendChild(d);
+      letters.push(d);
+    }
+    void flyEl.offsetWidth;
+
+    letters.forEach((d,i)=>{
+      const off = (i-(n-1)/2)*7;
+      d.style.transition =
+        'left '+dur+'ms cubic-bezier(.4,0,.6,1), top '+dur+'ms cubic-bezier(.4,0,.6,1), opacity '+
+        Math.round(dur*0.35)+'ms linear '+Math.round(dur*0.65)+'ms';
+      d.style.left = (tx+off)+'px';
+      d.style.top  = ty+'px';
+      d.style.opacity = '0';
+    });
+
+    await sleep(dur+40);
+    if(myToken!==token) return false;
+
+    letters.forEach(d=>d.remove());
+    slots[k].style.color = comboColor(k,count);
+    slots[k].classList.add('on');
+    if(k>0) pluses[k-1].classList.add('on');
+
+    progressEl.innerHTML =
+      'Комбінація '+(k+1)+' з '+count+': ' + comboHTML(choice);
+
+    await sleep(gap);
+  }
+
+  if(myToken!==token) return false;
+  setHighlight(null);
+
+  const eq=document.createElement('span');
+  eq.className='plus on'; eq.style.color='#333'; eq.textContent='=';
+  resultEl.appendChild(eq);
+
+  const fin=document.createElement('span');
+  fin.className='final';
+  fin.innerHTML='\\(\\displaystyle '+combTex(n,mv)+'\\; '+texMono(n-mv,mv)+'\\)';
+  resultEl.appendChild(fin);
+  typeset();
+
+  progressEl.textContent =
+    'Усього '+count+' однакових доданків → коефіцієнт '+C(n,mv)+'.';
+  return true;
+}
+
+/* ---------- керування ---------- */
+function updateButtons(){
+  nextBtn.disabled = busy || m>n;
+  autoBtn.textContent = autoMode ? '⏸ Пауза' : '▶ Авто';
+}
+function scheduleAuto(){
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(()=>{ if(autoMode) nextStep(); }, 1400);
+}
+function stopAuto(){
+  autoMode=false;
+  clearTimeout(autoTimer);
+  autoTimer=null;
+  updateButtons();
+}
+function toggleAuto(){
+  if(autoMode){ stopAuto(); return; }
+  autoMode=true;
+  updateButtons();
+  if(!busy && m<=n) nextStep();
+}
+async function nextStep(){
+  if(busy || m>n) return;
+  busy=true; updateButtons();
+  const mv=m;
+  const ok = await playAddend(mv);
+  if(!ok){ busy=false; updateButtons(); return; }
+  m = mv+1;
+  rendered = m;
+  updateExpansion();
+  updateInfo(mv);
+  typeset();
+  busy=false; updateButtons();
+  if(autoMode){
+    if(m<=n) scheduleAuto();
+    else stopAuto();
+  }
+}
+function readN(){
+  let v = Number(nInput.value) || 5;
+  v = Math.max(1, Math.min(7, Math.round(v)));
+  nInput.value = v;
+  return v;
+}
+function restart(){
+  token++;
+  stopAuto();
+  busy=false;
+  flyEl.innerHTML='';
+  resultEl.innerHTML='';
+  n = readN();
+  m = 0; rendered = 0;
+  buildFactors();
+  updateFormula();
+  updateExpansion();
+  infoEl.innerHTML='Натисніть «Наступний доданок», щоб утворити перший доданок розкладу.';
+  progressEl.textContent='';
+  updateButtons();
+  typeset();
+}
+
+nextBtn.onclick    = nextStep;
+autoBtn.onclick    = toggleAuto;
+restartBtn.onclick = restart;
+nInput.onchange    = restart;
+notationChk.onchange = ()=>{ if(!busy) restart(); };
+
+restart();
+</script>
+</body>
+</html>
