@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Спектр графа: три кластери (віджет для стартової сторінки)</title>
+<style>
+  :root{
+    --ink:#14213d; --muted:#56627a; --rule:#d5dce6; --accent:#2f6fdb;
+  }
+  html,body{margin:0;height:100%;background:transparent;color:var(--ink);
+    font-family:Inter,'Segoe UI',Arial,sans-serif;}
+  #app{display:flex;flex-direction:column;height:100%;}
+  #stage{position:relative;flex:1 1 auto;min-height:0;}
+  canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .eq{flex:0 0 auto;display:flex;gap:16px;justify-content:center;align-items:flex-end;
+    padding:6px 12px 14px;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  input[type=range]{width:18px;height:68px;margin:0;writing-mode:vertical-lr;direction:rtl;
+    accent-color:var(--accent);appearance:auto;}
+  .cap{font-size:12px;line-height:1;color:var(--ink);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+  </div>
+  <div class="eq" role="group" aria-label="Амплітуди мод">
+    <div class="col"><input type="range" id="a1" min="0" max="100" value="100" orient="vertical" aria-label="Амплітуда моди λ2"><span class="cap">λ₂</span></div>
+    <div class="col"><input type="range" id="a2" min="0" max="100" value="100" orient="vertical" aria-label="Амплітуда моди λ3"><span class="cap">λ₃</span></div>
+    <div class="col"><input type="range" id="a3" min="0" max="100" value="0" orient="vertical" aria-label="Амплітуда моди λ4"><span class="cap">λ₄</span></div>
+    <div class="col"><input type="range" id="a4" min="0" max="100" value="0" orient="vertical" aria-label="Амплітуда моди λ5"><span class="cap">λ₅</span></div>
+    <div class="col"><input type="range" id="a5" min="0" max="100" value="0" orient="vertical" aria-label="Амплітуда моди λ6"><span class="cap">λ₆</span></div>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  const stage=document.getElementById('stage');
+  const SPEED=0.2, TAU=3;
+
+  /* Граф: A={0,1,2}, B={0,3,4} зі спільним шарніром 0; C={5,6,7}; міст 0–5.
+     λ₂ відокремлює C від A∪B, λ₃=1 розділяє A і B (шарнір і C там нульові).
+     λ₄=λ₅=λ₆=3 вироджені: базис обрано локалізованим — по одній моді на трикутник. */
+  const G={
+    pos:[[180,200],[80,120],[200,80],[80,280],[200,320],[380,200],[480,120],[480,280]],
+    edges:[[0,1],[0,2],[1,2],[0,3],[0,4],[3,4],[5,6],[5,7],[6,7],[0,5]],
+    lam:[0,0.373802,1,3,3,3],
+    vec:[[0.354,0.354,0.354,0.354,0.354,0.354,0.354,0.354],
+         [-0.182,-0.291,-0.291,-0.291,-0.291,0.321,0.512,0.512],
+         [0,-0.5,-0.5,0.5,0.5,0,0,0],
+         [0,0.707,-0.707,0,0,0,0,0],
+         [0,0,0,0.707,-0.707,0,0,0],
+         [0,0,0,0,0,0,0.707,-0.707]]
+  };
+  const N=G.pos.length;
+  const NEUTRAL=new Array(N).fill('rgb(247,247,247)');
+
+  /* геометрія залежить від розміру полотна */
+  let W=600, H=300, K=1, R=13, MAX_AMP=20, px=[];
+  const bb=(function(){
+    let a=1e9,b=-1e9,c=1e9,d=-1e9;
+    G.pos.forEach(function(p){ a=Math.min(a,p[0]); b=Math.max(b,p[0]); c=Math.min(c,p[1]); d=Math.max(d,p[1]); });
+    return {minX:a,maxX:b,minY:c,maxY:d};
+  })();
+  function layout(){
+    K=Math.max(0.55,Math.min(W/470,H/290));
+    R=13*K; MAX_AMP=20*K;
+    const mrg=MAX_AMP+R+8;
+    const s=Math.min((W-2*mrg)/(bb.maxX-bb.minX),(H-2*mrg)/(bb.maxY-bb.minY));
+    const tx=W/2-s*(bb.minX+bb.maxX)/2, ty=H/2-s*(bb.minY+bb.maxY)/2;
+    px=G.pos.map(function(p){ return [p[0]*s+tx, p[1]*s+ty]; });
+  }
+  function resize(){
+    const r=stage.getBoundingClientRect();
+    W=Math.max(120,r.width); H=Math.max(120,r.height);
+    const dpr=window.devicePixelRatio||1;
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    layout();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  window.addEventListener('resize',resize);
+
+  const sliders=['a1','a2','a3','a4','a5'].map(function(id){ return document.getElementById(id); });
+  function ampOf(m){ return sliders[m-1].value/100; }
+
+  let tAcc=0, last=null;
+  let Qx=new Array(N).fill(0), Qy=new Array(N).fill(0);
+
+  function step(t){
+    const dx=new Array(N).fill(0), dy=new Array(N).fill(0);
+    const bx=new Array(N).fill(0), by=new Array(N).fill(0);
+    let rSum=0, wSum=0, totAmp=0;
+    for (let m=1;m<6;m++){
+      const a=ampOf(m); if (a<=0.005) continue;
+      const w=(Math.sqrt(G.lam[m])+0.5)*1.5;
+      const A=a*MAX_AMP*Math.cos(t*w/100);
+      rSum+=a*(SPEED*w/100); wSum+=a; totAmp+=a;
+      for (let i=0;i<N;i++){
+        const c=G.vec[m][i], d=c*A;
+        if (m%2===1){ dx[i]+=d; bx[i]+=Math.abs(c)*a*MAX_AMP; }
+        else        { dy[i]+=d; by[i]+=Math.abs(c)*a*MAX_AMP; }
+      }
+    }
+    return {dx:dx, dy:dy, bx:bx, by:by, rSum:rSum, wSum:wSum, totAmp:totAmp};
+  }
+
+  /* Кольори (змішування адитивне, у лінійному світлі):
+       зелений — горизонталь: у фазі з найрухливішою по горизонталі вершиною;
+       червоний / синій — вертикаль: у фазі / в протифазі з найрухливішою по вертикалі.
+     Вершина без вертикального руху (шарнір) — 50 % червоного + 50 % синього = фіолетовий.
+     Насиченість — наскільки сильно вершина бере участь у русі; нерухомі — білі. */
+  const C_RED=[224,36,46], C_GREEN=[28,165,75], C_BLUE=[37,69,224], C_WHITE=[247,247,247];
+  function lin(v){ v/=255; return v<=0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
+  function srgb(v){ return 255*(v<=0.0031308 ? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055); }
+  function phaseColor(ax,ay){
+    ax=Math.max(-1,Math.min(1,ax)); ay=Math.max(-1,Math.min(1,ay));
+    const g=Math.max(0,ax);
+    const wRB=(1-g)*Math.max(-ax,Math.abs(ay));
+    const wR=wRB*(1+ay)/2, wB=wRB*(1-ay)/2;
+    const S=g+wRB;
+    if (S<1e-3) return 'rgb('+C_WHITE.join(',')+')';
+    const t=Math.pow(Math.min(1,S),0.6);
+    const out=[0,1,2].map(function(j){
+      const m=srgb((g*lin(C_GREEN[j])+wR*lin(C_RED[j])+wB*lin(C_BLUE[j]))/S);
+      return Math.round(C_WHITE[j]+t*(m-C_WHITE[j]));
+    });
+    return 'rgb('+out.join(',')+')';
+  }
+  function fillsFrom(s,dt){
+    let rx=0, ry=0;
+    for (let i=1;i<N;i++){
+      if (s.bx[i]>s.bx[rx]+1e-9) rx=i;
+      if (s.by[i]>s.by[ry]+1e-9) ry=i;
+    }
+    const nx=s.bx[rx]||1, ny=s.by[ry]||1;
+    const rAvg=s.wSum>0?s.rSum/s.wSum:0;
+    const alpha=1-Math.exp(-rAvg*dt/TAU);
+    for (let i=0;i<N;i++){
+      const cx=(s.dx[i]/nx)*(s.dx[rx]/nx), cy=(s.dy[i]/ny)*(s.dy[ry]/ny);
+      Qx[i]+=alpha*(cx-Qx[i]);
+      Qy[i]+=alpha*(cy-Qy[i]);
+    }
+    const out=[];
+    for (let i=0;i<N;i++) out.push(phaseColor(2*Qx[i],2*Qy[i]));
+    return out;
+  }
+
+  function draw(fills,dx,dy){
+    ctx.clearRect(0,0,W,H);
+    const X=px.map(function(p,i){ return [p[0]+dx[i], p[1]+dy[i]]; });
+    ctx.strokeStyle='#b9c1cf'; ctx.lineWidth=2.6*K; ctx.lineCap='round';
+    G.edges.forEach(function(e){
+      ctx.beginPath(); ctx.moveTo(X[e[0]][0],X[e[0]][1]); ctx.lineTo(X[e[1]][0],X[e[1]][1]); ctx.stroke();
+    });
+    for (let i=0;i<N;i++){
+      ctx.beginPath(); ctx.arc(X[i][0],X[i][1],R,0,2*Math.PI);
+      ctx.fillStyle=fills[i]; ctx.fill();
+      ctx.strokeStyle='#1f2a44'; ctx.lineWidth=1.5*K; ctx.stroke();
+    }
+  }
+
+  /* прогін наперед для встановлення кольорів */
+  function settle(ms){
+    for (let k=0;k<ms/16;k++){
+      tAcc+=16;
+      const s=step(tAcc*SPEED);
+      if (s.totAmp>0.005) fillsFrom(s,16);
+    }
+  }
+
+  function frame(now){
+    if (last===null) last=now;
+    const dt=Math.min(100, now-last); last=now;
+    tAcc+=dt;
+    const s=step(tAcc*SPEED);
+    const fills=(s.totAmp<=0.005)?NEUTRAL:fillsFrom(s,dt);
+    draw(fills,s.dx,s.dy);
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  settle(3000);   /* кольори встановлюються одразу, а не проявляються на старті */
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
