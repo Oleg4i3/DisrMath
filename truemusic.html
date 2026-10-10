@@ -126,8 +126,8 @@ function buildT(){$('th').innerHTML='<tr>'+V.map(s=>`<th>${nm(s)}</th>`).join(''
 function renderT(){let h='';for(let i=0;i<16;i++){const f=F[i];h+=`<tr data-i="${i}" class="${i===cur?'cur':''}">`+[0,1,2,3].map(k=>`<td class="${bit(i,k)?'o':'z'}">${bit(i,k)}</td>`).join('')+`<td>${cname(i)}</td><td><button class="rb g${f===1?' sel':''}" data-r="1">🙂</button><button class="rb b${f===0?' sel':''}" data-r="0">😖</button></td><td><b>${f===null?'?':f}</b></td></tr>`}
  $('tb').innerHTML=h;const n=F.filter(x=>x!==null).length;$('pb').style.width=n*100/16+'%';$('n2').disabled=n<16}
 $('tb').onclick=e=>{const r=e.target.closest('tr');if(!r)return;const i=+r.dataset.i,b=e.target.closest('[data-r]');if(b)rate(i,+b.dataset.r);else{cur=i;renderT();playIdx(i)}};
-function rate(i,v){if(F[i]===null)bump(1);F[i]=v;const n=[...Array(16).keys()].map(k=>(i+1+k)%16).find(k=>F[k]===null);cur=n===undefined?i:n;renderT();playIdx(cur)}
-function autoRate(){for(let i=0;i<16;i++)if(F[i]===null){const n=chordOf(i).sort((a,b)=>a-b);let ok=1;for(let a=0;a<n.length;a++)for(let b=a+1;b<n.length;b++){const d=(n[b]-n[a])%12,ic=Math.min(d,12-d);if([1,2,6].includes(ic))ok=0}F[i]=ok;bump(1)}renderT();toast('Підказка: малі/великі секунди, тритон і септима = дисонанс')}
+function rate(i,v){if(F[i]===null)bump(1);F[i]=v;cur=i;renderT()}
+function autoRate(){for(let i=0;i<16;i++)if(F[i]===null){const n=chordOf(i).sort((a,b)=>a-b);let sc=0,np=0;for(let a=0;a<n.length;a++)for(let b=a+1;b<n.length;b++){const d=(n[b]-n[a])%12,ic=Math.min(d,12-d);np++;sc+=ic===1?3:(ic===2||ic===6)?1:0}F[i]=np&&sc/np>=1.5?0:1;bump(1)}renderT();toast('Підказка: дисонанс — малі секунди, великі септими й кластери. Великі секунди, тритон і септакорди дозволено')}
 function resetF(){F=Array(16).fill(null);cur=-1;renderT()}
 /* minimization */
 function minimize(){const ones=[...Array(16).keys()].filter(i=>F[i]===1);if(!ones.length)return[];const cu=[];
@@ -175,7 +175,7 @@ function loop(b){if(!playing)return;const bt=(AC.currentTime-t0)/b;if(bt>total+.
  const s=$('rs'),x=bt*28;if(x>s.scrollLeft+s.clientWidth-40||x<s.scrollLeft)s.scrollLeft=Math.max(0,x-40);
  const e=ev.find(e=>bt>=e.t&&bt<e.t+e.d);document.querySelectorAll('.ev').forEach(n=>n.classList.toggle('hot',!!e&&+n.dataset.t===e.t));if(e)$('now').textContent=(e.i?'🎵 ':'')+evName(e)+' ✓';requestAnimationFrame(()=>loop(b))}
 async function dlOK(){try{return window.claude?await window.claude.use('downloads'):null}catch(e){return null}}
-async function saveJ(){if(!ev.length)return;const o={app:'music-automat',v:1,notes:sel,table:F,bpm:+$('bpm').value,inst:$('inst').value,invert:$('inv').checked,smooth:$('sm').checked,patterns:[...document.querySelectorAll('input.pt:checked')].map(x=>+x.value),events:ev.map(e=>({t:e.t,d:e.d,i:e.i,n:e.n})),savedAt:new Date().toISOString()};
+async function saveJ(){if(!ev.length)return;const o={app:'music-automat',v:2,notes:V.slice(),noteNames:V.map(nm),table:F,truthTable:F.map((f,i)=>({row:i.toString(2).padStart(4,'0'),chord:cname(i),F:f})),formula:cover.length?cover.map(g=>[0,1,2,3].filter(k=>g.m>>(3-k)&1).map(k=>(bit(g.v,k)?'':'¬')+nm(V[k])).join('·')||'1').join(' ∨ '):'0',bpm:+$('bpm').value,inst:$('inst').value,invert:$('inv').checked,smooth:$('sm').checked,patterns:[...document.querySelectorAll('input.pt:checked')].map(x=>+x.value),events:ev.map(e=>({t:e.t,d:e.d,i:e.i,chord:evName(e),n:e.n})),savedAt:new Date().toISOString()};
  const txt=JSON.stringify(o,null,1),d=await dlOK();
  if(d){try{await d.save({filename:'melody-'+[...sel].sort((a,b)=>a-b).map(s=>nm(s).replace('♯','s')).join('')+'.json',data:txt});bump(10);return}catch(e){if(e&&e.code==='declined')return}}
  $('jb').style.display='block';$('jt').value=txt;toast('Скопіюй JSON з поля внизу')}
