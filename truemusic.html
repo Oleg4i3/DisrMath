@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Музичний автомат · Карти Карно</title>
+<style>
+:root{--bg:#150d22;--pn:#241638;--ln:#3a2757;--ink:#f6ecff;--dim:#a995c4;--am:#ffb53b;--pk:#ff4f8b;--tl:#3de0c5;--gd:#4ade80;--bd:#ff5d6c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;background:radial-gradient(circle at 50% -10%,#3b1d5e,var(--bg) 60%) fixed var(--bg);color:var(--ink);font-family:system-ui,'Segoe UI',sans-serif}
+.w{max-width:860px;margin:0 auto;padding:14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h1{margin:0;font:800 1.7em Georgia,serif;background:linear-gradient(90deg,var(--am),var(--pk));-webkit-background-clip:text;background-clip:text;color:transparent}
+.coin{background:var(--pn);border:1px solid var(--am);border-radius:20px;padding:4px 12px;font-weight:700;color:var(--am)}
+.steps{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+.st{flex:1;min-width:110px;text-align:center;padding:8px 6px;border-radius:12px;background:var(--pn);border:1px solid var(--ln);color:var(--dim);font-size:.85em;cursor:default}
+.st.ok{cursor:pointer;color:var(--ink)}.st.cur{border-color:var(--am);color:var(--am);box-shadow:0 0 14px #ffb53b55}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:18px;padding:16px;display:none}
+.card.on{display:block;animation:f .35s}@keyframes f{from{opacity:0;transform:translateY(8px)}}
+h2{margin:0 0 6px;font-size:1.2em}p{margin:6px 0;color:var(--dim);line-height:1.5}b.h{color:var(--ink)}
+.btn{background:linear-gradient(135deg,var(--am),var(--pk));color:#2a1038;border:0;border-radius:12px;padding:9px 16px;font-weight:800;cursor:pointer;font-size:.95em}
+.btn.g{background:transparent;color:var(--ink);border:1px solid var(--ln)}.btn:disabled{opacity:.35;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+#kb{position:relative;height:180px;margin:14px auto;user-select:none;touch-action:manipulation}
+.wk{position:absolute;top:0;width:calc(100%/14);height:100%;box-sizing:border-box;background:#f8f1e4;border:1px solid #2b1c3f;border-radius:0 0 9px 9px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;color:#3b2a52;font-weight:700;font-size:.8em;cursor:pointer}
+.bk{position:absolute;top:0;width:4.8%;height:60%;z-index:2;box-sizing:border-box;background:#1d1230;border:1px solid #000;border-radius:0 0 6px 6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:#bba9d6;font-size:.62em;cursor:pointer}
+.wk.on{background:linear-gradient(#ffe29a,var(--am));box-shadow:0 0 14px var(--am)}.bk.on{background:var(--pk);color:#fff;box-shadow:0 0 14px var(--pk)}
+.chip,.n{display:inline-block;font-weight:700}.chip{background:#1b1030;border:1px solid var(--ln);border-radius:10px;padding:3px 10px}
+.ng{text-decoration:overline;text-decoration-thickness:2px}
+table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid var(--ln);padding:6px 4px;text-align:center;font-size:.9em}
+th{color:var(--am)}tr[data-i]{cursor:pointer}tr.cur{background:#3a2757}td.o{color:var(--tl);font-weight:800}td.z{color:var(--dim)}
+.rb{border:1px solid var(--ln);background:transparent;color:var(--ink);border-radius:9px;padding:4px 8px;cursor:pointer;margin:1px}
+.rb.sel.g{background:var(--gd);color:#062}.rb.sel.b{background:var(--bd);color:#400}
+.bar{height:8px;background:#1b1030;border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--tl),var(--am));transition:width .3s}
+#km{position:relative;margin:12px auto}
+.kc{position:absolute;width:60px;height:60px;border-radius:10px;border:2px solid var(--ln);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:1.4em;background:#1b1030;color:var(--dim)}
+.kc small{font-size:.38em;font-weight:400;opacity:.7}.kc.v1{background:#3b2d12;border-color:var(--am);color:var(--am)}.kc.pop{animation:p .45s backwards}
+@keyframes p{from{transform:scale(.3);opacity:0}}
+.kh{position:absolute;color:var(--dim);font-size:.8em;display:flex;align-items:center;justify-content:center}
+.go{position:absolute;border:3px solid;border-radius:12px;pointer-events:none;animation:f .5s}
+#roll{display:flex;margin-top:10px}#rl{width:34px;flex:none}#rl div{height:26px;font-size:.75em;color:var(--dim);line-height:22px}
+#rs{overflow-x:auto;flex:1;position:relative;background:#1b1030;border-radius:10px}#ri{position:relative;height:108px}
+.ev{position:absolute;height:22px;border-radius:5px;opacity:.85}.ev.hot{opacity:1;box-shadow:0 0 12px #fff;filter:brightness(1.3)}
+.rest{position:absolute;top:2px;height:100px;border:1px dashed var(--dim);border-radius:5px;opacity:.5}
+#ph{position:absolute;top:0;bottom:0;width:2px;background:#fff;display:none}.bl{position:absolute;top:0;bottom:0;width:1px;background:var(--ln)}
+#now{font:700 1.4em Georgia,serif;color:var(--am);min-height:1.5em}
+.lg{display:inline-flex;gap:6px;align-items:center;margin:2px 8px 2px 0}.lg i{width:14px;height:14px;border-radius:4px;display:inline-block}
+label.pt{display:block;margin:3px 0;color:var(--ink);cursor:pointer}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--pk);color:#fff;padding:8px 16px;border-radius:20px;display:none;z-index:9}
+</style></head><body><div class="w">
+<div class="top"><h1>🎰 Музичний автомат</h1><span class="coin">🪙 <span id="coins">0</span></span></div>
+<div class="steps" id="steps"></div>
+
+<section class="card" id="s1"><h2>1 · Обери 4 ноти</h2>
+<p>Букви обраних нот стануть змінними булевої функції. Клацай по клавішах — чутно звук. Найнижча нота — старший розряд таблиці.</p>
+<div id="kb"></div>
+<div class="row"><span>Змінні:</span><span id="chips"></span><span style="flex:1"></span><span id="cnt" class="chip">0/4</span></div>
+<div class="row"><span style="color:var(--dim)">Швидкий старт:</span>
+<button class="btn g" onclick="pre([0,4,7,11])">C E G B</button><button class="btn g" onclick="pre([0,2,4,7])">C D E G</button><button class="btn g" onclick="pre([2,5,9,12])">D F A C</button>
+<button class="btn g" onclick="sel=[];drawSel()">Скинути</button><button class="btn g" onclick="$('jf').click()">📂 Відкрити збережену мелодію</button></div>
+<div class="row"><button class="btn" id="n1" onclick="go(2)">До таблиці істинності →</button></div></section>
+
+<section class="card" id="s2"><h2>2 · Таблиця істинності: що звучить гарно?</h2>
+<p>Клацни по рядку — автомат зіграє акорд (1 = біт «нота звучить»). Потім обери: <b class="h">🙂 красиво</b> (F=1, консонанс) або <b class="h">😖 дисонанс</b> (F=0). Рядок 0000 — пауза.</p>
+<div class="bar"><i id="pb"></i></div>
+<table><thead id="th"></thead><tbody id="tb"></tbody></table>
+<div class="row"><button class="btn g" onclick="ac();playIdx(cur)">🔊 Ще раз</button><button class="btn g" onclick="autoRate()">🎓 Підказка за теорією інтервалів</button><button class="btn g" onclick="resetF()">Скинути</button><span style="flex:1"></span><button class="btn" id="n2" onclick="go(3)">До карти Карно →</button></div></section>
+
+<section class="card" id="s3"><h2>3 · Складаємо карту Карно</h2>
+<div id="ktxt"></div><div id="km"></div>
+<div id="kf" style="text-align:center;font-size:1.25em;min-height:1.6em"></div>
+<div class="row" style="justify-content:center"><button class="btn g" id="kp" onclick="kgo(-1)">← Назад</button><button class="btn" id="kn" onclick="kgo(1)">Далі →</button><button class="btn g" onclick="kauto()">▶ Автоматично</button><button class="btn" id="n3" onclick="go(4)" style="display:none">До автомата 🎰</button></div></section>
+
+<section class="card" id="s4"><h2>4 · Автомат грає мелодію</h2>
+<p>Кожен звучний момент — це комбінація нот з клітинки, де F=1. Колір блока = правило (група карти Карно), яке цю комбінацію дозволяє.</p>
+<div id="lg"></div>
+<div class="row" style="align-items:flex-start"><div style="flex:1;min-width:200px"><b class="h">Ритм (можна кілька):</b><div id="pats"></div></div>
+<div style="flex:1;min-width:200px"><label class="pt">Інструмент <select id="inst" onchange="ac();playIdx(cur>=0?cur:15,1)"><option value="piano">🎹 Піаніно</option><option value="organ">⛪ Орган</option><option value="pluck">🎸 Щипкові</option><option value="bells">🔔 Дзвіночки</option><option value="synth">🎛 Синтезатор</option></select></label><label class="pt"><input type="checkbox" id="inv" checked onchange="revoice()"> Обертати акорди (мі·соль·до′)</label><label class="pt"><input type="checkbox" id="sm" checked> Плавний рух по сусідніх клітинках</label>
+<label class="pt">Темп <input type="range" id="bpm" min="60" max="160" value="96"> <span id="bv">96</span></label></div></div>
+<div class="row"><button class="btn" onclick="play()">▶ Грати</button><button class="btn g" onclick="stop()">⏹ Стоп</button><button class="btn g" onclick="gen(true)">🎲 Нова мелодія</button><span style="flex:1"></span><button class="btn g" onclick="saveJ()">💾 Зберегти (JSON)</button><button class="btn g" onclick="$('jf').click()">📂 Відкрити</button><button class="btn g" onclick="$('jb').style.display='block'">📋 Вставити JSON</button></div><div id="jb" style="display:none"><textarea id="jt" rows="6" style="width:100%;box-sizing:border-box;background:#1b1030;color:var(--ink);border:1px solid var(--ln);border-radius:10px;padding:8px" placeholder="JSON мелодії"></textarea><button class="btn g" onclick="loadJ($('jt').value)">Завантажити з поля</button></div>
+<div id="now">&nbsp;</div>
+<div id="roll"><div id="rl"></div><div id="rs"><div id="ri"></div></div></div>
+<p id="chk"></p></section>
+</div><input type="file" id="jf" accept=".json,application/json" style="display:none" onchange="readF(this)"><div id="toast"></div>
+<script>
+const NM=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],GR=[0,1,3,2],COL=['#ff5d6c','#3dc2ff','#4ade80','#c084fc','#ffb53b','#3de0c5','#ff8ad8','#d4e157'];
+const PAT=[{n:'Класика',g:'♩ ♪♪ ♩ ♪♪ | ♩ ♩ ♩–',d:[1,.5,.5,1,.5,.5,1,1,2]},{n:'Марш',g:'♩ ♩ ♩ ♩ | ♩ ♩ ♩–',d:[1,1,1,1,1,1,2]},{n:'Синкопа',g:'♪ ♩ ♪ ♩ ♩ | ♩ ♪♪ ♩–',d:[.5,1,.5,1,1,1,.5,.5,2]},{n:'Біг',g:'♪×8 | ♩ ♩ ♪♪ ♩',d:[.5,.5,.5,.5,.5,.5,.5,.5,1,1,.5,.5,1]},{n:'Повільна',g:'♩– ♩ ♩ | ♩. ♪ ♩–',d:[2,1,1,1.5,.5,2]}];
+const $=i=>document.getElementById(i);
+let sel=[],V=[],F=[],AC=null,stage=1,max=1,cur=-1,ks=0,cover=[],coins=0,ev=[],total=0,master=null,t0=0,playing=false,key='',tm=null;
+const nm=s=>NM[s%12],fr=s=>440*Math.pow(2,(s-9)/12),pc=x=>[0,1,2,3].filter(k=>x>>k&1).length;
+const bit=(i,k)=>i>>(3-k)&1,chordOf=i=>V.filter((_,k)=>bit(i,k)),cname=i=>i?chordOf(i).map(nm).join('·'):'пауза';
+function ac(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}
+function tone(fs,t,d,out){const c=ac(),o_=out||c.destination,g0=.32/Math.sqrt(Math.max(fs.length,1)),I=$('inst')?$('inst').value:'piano';
+ fs.forEach(f=>{const g=c.createGain(),lp=c.createBiquadFilter(),e=t+d+.05;lp.type='lowpass';lp.frequency.value=I==='pluck'?1800:I==='synth'?2400:9000;lp.connect(g);g.connect(o_);
+  const add=(ty,m,v)=>{const o=c.createOscillator(),h=c.createGain();o.type=ty;o.frequency.value=f*m;h.gain.value=v;o.connect(h);h.connect(lp);o.start(t);o.stop(e)};g.gain.setValueAtTime(0,t);
+  if(I==='organ'){add('sine',1,1);add('sine',2,.5);add('sine',3,.25);add('sine',.5,.4);g.gain.linearRampToValueAtTime(g0*.7,t+.03);g.gain.setValueAtTime(g0*.7,t+d*.9)}
+  else if(I==='pluck'){add('sawtooth',1,.6);add('triangle',2,.2);g.gain.linearRampToValueAtTime(g0*1.1,t+.005);g.gain.exponentialRampToValueAtTime(g0*.12,t+d*.6)}
+  else if(I==='bells'){add('sine',1,1);add('sine',2.76,.35);add('sine',5.4,.15);g.gain.linearRampToValueAtTime(g0,t+.005);g.gain.exponentialRampToValueAtTime(g0*.1,t+d*.9)}
+  else if(I==='synth'){add('square',1,.35);add('sawtooth',1.006,.35);g.gain.linearRampToValueAtTime(g0*.8,t+.02);g.gain.setValueAtTime(g0*.8,t+d*.8)}
+  else{add('triangle',1,1);add('sine',2,.25);g.gain.linearRampToValueAtTime(g0,t+.015);g.gain.exponentialRampToValueAtTime(g0*.5,t+d*.6)}
+  g.gain.linearRampToValueAtTime(.0001,t+d)})}
+function voice(i,prev,sm){let n=V.map((s,k)=>bit(i,k)?{k,s}:null).filter(Boolean);if(n.length>1&&$('inv').checked){const opts=n.map((_,r)=>n.map((x,j)=>({k:x.k,s:x.s+(j<r?12:0)})));if(sm&&prev&&prev.n.length&&Math.random()<.7){const av=a=>a.reduce((u,x)=>u+x.s,0)/a.length,pa=av(prev.n);n=opts.reduce((b,o)=>Math.abs(av(o)-pa)<Math.abs(av(b)-pa)?o:b)}else n=opts[Math.random()*opts.length|0]}return n}
+function evName(e){return e.i?[...e.n].sort((a,b)=>a.s-b.s).map(x=>nm(x.s)+(x.s!==V[x.k]?'′':'')).join('·'):'пауза'}
+function revoice(){ev.forEach((e,j)=>e.n=voice(e.i,ev[j-1],$('sm').checked));drawRoll()}
+function toneOld(fs,t,d,out){const c=ac(),o_=out||c.destination,g0=.32/Math.sqrt(Math.max(fs.length,1));
+ fs.forEach(f=>{const a=c.createOscillator(),b=c.createOscillator(),g=c.createGain(),h=c.createGain();a.type='triangle';b.type='sine';a.frequency.value=f;b.frequency.value=f*2;h.gain.value=.25;
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(g0,t+.015);g.gain.exponentialRampToValueAtTime(g0*.5,t+d*.6);g.gain.linearRampToValueAtTime(.0001,t+d);
+ a.connect(g);b.connect(h);h.connect(g);g.connect(o_);a.start(t);b.start(t);a.stop(t+d+.05);b.stop(t+d+.05)})}
+function playIdx(i,d=1.2){if(i>=0)tone(chordOf(i).map(fr),ac().currentTime+.02,d)}
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(tm);tm=setTimeout(()=>t.style.display='none',1800)}
+function bump(n){coins+=n;$('coins').textContent=coins}
+function termH(c){let a=[];for(let k=0;k<4;k++)if(c.m>>(3-k)&1)a.push(`<span class="n${bit(c.v,k)?'':' ng'}">${nm(V[k])}</span>`);return a.length?a.join('·'):'1'}
+/* nav */
+function go(n){if(n===2){const k=sel.join();if(k!==key){key=k;F=Array(16).fill(null);cur=-1}V=[...sel].sort((a,b)=>a-b);buildT()}
+ if(n===3){cover=minimize();ks=0;renderK(false)}if(n===4){buildPats();gen(false)}
+ stage=n;max=Math.max(max,n);[1,2,3,4].forEach(i=>$('s'+i).classList.toggle('on',i===n));drawSteps();window.scrollTo({top:0,behavior:'smooth'})}
+function drawSteps(){const L=['1 · Ноти','2 · Таблиця','3 · Карта Карно','4 · Автомат'];$('steps').innerHTML=L.map((t,i)=>`<div class="st${i+1<=max?' ok':''}${i+1===stage?' cur':''}" onclick="${i+1<=max?`go(${i+1})`:''}">${t}</div>`).join('')}
+/* step 1 */
+function buildKb(){const W={0:0,2:1,4:2,5:3,7:4,9:5,11:6};let h='';for(let s=0;s<24;s++){const p=s%12,o=s>11?1:0;
+ if(p in W)h+=`<div class="wk" data-s="${s}" style="left:${(o*7+W[p])*100/14}%">${NM[p]}</div>`;else h+=`<div class="bk" data-s="${s}" style="left:${(o*7+W[p-1]+1)*100/14-2.4}%">${NM[p]}</div>`}
+ $('kb').innerHTML=h;$('kb').onpointerdown=e=>{const k=e.target.closest('[data-s]');if(k)pick(+k.dataset.s)}}
+function pick(s){ac();const i=sel.indexOf(s);if(i>=0)sel.splice(i,1);else{const j=sel.findIndex(x=>x%12===s%12);if(j>=0)sel.splice(j,1);else if(sel.length>=4){toast('Максимум 4 ноти — зніми одну');return}sel.push(s)}tone([fr(s)],AC.currentTime+.01,.9);drawSel()}
+function pre(a){sel=a.slice();ac();tone(a.map(fr),AC.currentTime+.02,1.4);drawSel()}
+function drawSel(){document.querySelectorAll('#kb [data-s]').forEach(k=>k.classList.toggle('on',sel.includes(+k.dataset.s)));
+ $('chips').innerHTML=[...sel].sort((a,b)=>a-b).map(s=>`<span class="chip">${nm(s)}</span>`).join(' ');$('cnt').textContent=sel.length+'/4';$('n1').disabled=sel.length<4}
+/* step 2 */
+function buildT(){$('th').innerHTML='<tr>'+V.map(s=>`<th>${nm(s)}</th>`).join('')+'<th>Акорд</th><th>Оцінка</th><th>F</th></tr>';renderT()}
+function renderT(){let h='';for(let i=0;i<16;i++){const f=F[i];h+=`<tr data-i="${i}" class="${i===cur?'cur':''}">`+[0,1,2,3].map(k=>`<td class="${bit(i,k)?'o':'z'}">${bit(i,k)}</td>`).join('')+`<td>${cname(i)}</td><td><button class="rb g${f===1?' sel':''}" data-r="1">🙂</button><button class="rb b${f===0?' sel':''}" data-r="0">😖</button></td><td><b>${f===null?'?':f}</b></td></tr>`}
+ $('tb').innerHTML=h;const n=F.filter(x=>x!==null).length;$('pb').style.width=n*100/16+'%';$('n2').disabled=n<16}
+$('tb').onclick=e=>{const r=e.target.closest('tr');if(!r)return;const i=+r.dataset.i,b=e.target.closest('[data-r]');if(b)rate(i,+b.dataset.r);else{cur=i;renderT();playIdx(i)}};
+function rate(i,v){if(F[i]===null)bump(1);F[i]=v;const n=[...Array(16).keys()].map(k=>(i+1+k)%16).find(k=>F[k]===null);cur=n===undefined?i:n;renderT();playIdx(cur)}
+function autoRate(){for(let i=0;i<16;i++)if(F[i]===null){const n=chordOf(i).sort((a,b)=>a-b);let ok=1;for(let a=0;a<n.length;a++)for(let b=a+1;b<n.length;b++){const d=(n[b]-n[a])%12,ic=Math.min(d,12-d);if([1,2,6].includes(ic))ok=0}F[i]=ok;bump(1)}renderT();toast('Підказка: малі/великі секунди, тритон і септима = дисонанс')}
+function resetF(){F=Array(16).fill(null);cur=-1;renderT()}
+/* minimization */
+function minimize(){const ones=[...Array(16).keys()].filter(i=>F[i]===1);if(!ones.length)return[];const cu=[];
+ for(let m=0;m<16;m++)for(let v=0;v<16;v++){if(v&~m)continue;const cells=[];for(let i=0;i<16;i++)if((i&m)===v)cells.push(i);if(cells.every(i=>F[i]===1))cu.push({m,v,cells})}
+ const pr=cu.filter(a=>!cu.some(b=>b.cells.length>a.cells.length&&a.cells.every(i=>b.cells.includes(i))));let best=null;
+ for(let mk=1;mk<1<<pr.length;mk++){let c=0,cv=0,l=0;pr.forEach((p,k)=>{if(mk>>k&1){c++;l+=pc(p.m);p.cells.forEach(i=>cv|=1<<i)}});if(ones.every(i=>cv>>i&1)&&(!best||c<best.c||c===best.c&&l<best.l))best={c,l,mk}}
+ return pr.filter((_,k)=>best.mk>>k&1).sort((a,b)=>b.cells.length-a.cells.length).map((g,i)=>({...g,col:COL[i%8]}))}
+/* step 3 */
+const P=64,H=40;
+function runs(a){a=[...new Set(a)].sort((x,y)=>x-y);const r=[];a.forEach(x=>{const l=r[r.length-1];if(l&&l[1]===x-1)l[1]=x;else r.push([x,x])});return r}
+function renderK(an){const ones=F.filter(x=>x===1).length,L=cover.length,fill=ks>=1,tot=L+3;
+ let h=`<div class="kh" style="left:0;top:0;width:${H}px;height:${H}px;font-size:.6em">${nm(V[0])}${nm(V[1])}\\${nm(V[2])}${nm(V[3])}</div>`;const lab=['00','01','11','10'];
+ lab.forEach((t,i)=>h+=`<div class="kh" style="left:${H+i*P}px;top:0;width:60px;height:${H}px">${t}</div><div class="kh" style="top:${H+i*P}px;left:0;width:${H}px;height:60px">${t}</div>`);
+ for(let r=0;r<4;r++)for(let c=0;c<4;c++){const i=GR[r]<<2|GR[c],v=F[i];h+=`<div class="kc${fill&&v?' v1':''}${an&&ks===1?' pop':''}" style="left:${H+c*P}px;top:${H+r*P}px;${an&&ks===1?`animation-delay:${i*70}ms`:''}" title="${cname(i)}">${fill?v:'·'}<small>${[0,1,2,3].map(k=>bit(i,k)).join('')}</small></div>`}
+ const shown=ks>=2?cover.slice(0,ks-1):[];
+ shown.forEach((g,gi)=>{const rs=runs(g.cells.map(i=>GR.indexOf(i>>2))),cs=runs(g.cells.map(i=>GR.indexOf(i&3))),o=2+gi%3*3;
+  rs.forEach(r=>cs.forEach(c=>h+=`<div class="go" style="border-color:${g.col};background:${g.col}22;left:${H+c[0]*P+o}px;top:${H+r[0]*P+o}px;width:${(c[1]-c[0]+1)*P-4-o*2}px;height:${(r[1]-r[0]+1)*P-4-o*2}px"></div>`))});
+ const km=$('km');km.style.width=H+4*P+'px';km.style.height=H+4*P+'px';km.innerHTML=h;
+ let t;if(ks===0)t=`<b class="h">Крок 1 · Порожня карта.</b> 4 змінні → 16 клітинок. Рядки — стани нот ${nm(V[0])},${nm(V[1])}, стовпці — ${nm(V[2])},${nm(V[3])}. Коди йдуть за Греєм: 00, 01, 11, 10 — сусідні клітинки відрізняються рівно на одну ноту, а краї карти «склеєні».`;
+ else if(ks===1)t=`<b class="h">Крок 2 · Переносимо таблицю.</b> Кожен рядок таблиці — це одна клітинка. Золоті = «красиво» (1), темні = дисонанс (0). Дрібні цифри — код акорду.`;
+ else if(ks<=L+1){const g=cover[ks-2],fr_=[0,1,2,3].filter(k=>!(g.m>>(3-k)&1)),on=[0,1,2,3].filter(k=>g.m>>(3-k)&1&&bit(g.v,k)),off=[0,1,2,3].filter(k=>g.m>>(3-k)&1&&!bit(g.v,k)),wrap=runs(g.cells.map(i=>GR.indexOf(i&3))).length>1||runs(g.cells.map(i=>GR.indexOf(i>>2))).length>1;
+  t=`<b class="h">Крок ${ks+1} · Група з ${g.cells.length} клітинок</b> <span style="color:${g.col}">■</span>. Ноти ${fr_.length?fr_.map(k=>nm(V[k])).join(', '):'—'} у цій групі змінюють стан, тож вони не впливають на красу — викреслюємо. Правило: ${termH(g)}. `+
+  `Звучать: ${on.map(k=>nm(V[k])).join(', ')||'—'}; мовчать: ${off.map(k=>nm(V[k])).join(', ')||'—'}; ${fr_.length?'решта — будь-що':'без обмежень'}.${wrap?' Група «перетинає край» карти — так можна, бо карта згорнута в тор.':''}`}
+ else t=L?`<b class="h">Готово!</b> ${ones} красивих акордів зведено до ${L} правил${L>1?'':'а'}. Автомат грає лише те, що вони дозволяють.`:`<b class="h">Жодного красивого акорду.</b> Автомат мовчить — поверніся до таблиці та познач хоча б один консонанс.`;
+ $('ktxt').innerHTML=`<p>${t}</p>`;
+ $('kf').innerHTML=ks>=2?'F = '+(L?shown.map(termH).join(' ∨ '):'0'):'';
+ const last=ks===tot-1;$('kp').disabled=ks===0;$('kn').style.display=last?'none':'';$('n3').style.display=last?'':'none';$('n3').disabled=!L}
+function kgo(d){ks=Math.max(0,Math.min(cover.length+2,ks+d));renderK(d>0)}
+function kauto(){ks=0;renderK(false);const iv=setInterval(()=>{if(ks>=cover.length+2||stage!==3)return clearInterval(iv);kgo(1)},1900)}
+/* step 4 */
+function buildPats(){if($('pats').innerHTML)return;$('pats').innerHTML=PAT.map((p,i)=>`<label class="pt"><input type="checkbox" class="pt" value="${i}" ${i<1?'checked':''}> ${p.n} <span style="color:var(--dim)">${p.g}</span></label>`).join('');
+ $('rl').innerHTML=[3,2,1,0].map(()=>'<div></div>').join('');$('bpm').oninput=()=>$('bv').textContent=$('bpm').value}
+function pickNext(ones,c,sm){const cs=ones.length>1?ones.filter(i=>i!==c):ones;const w=cs.map(i=>{let x=1;if(sm&&c>=0){const h=pc(i^c);x=h===1?6:h===2?2:1}if(i===0)x*=.4;return x});let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let k=0;k<cs.length;k++){r-=w[k];if(r<=0)return cs[k]}return cs[0]}
+function gen(snd){stop();const ones=[...Array(16).keys()].filter(i=>F[i]===1);if(!ones.length)return;const act=[...document.querySelectorAll('input.pt:checked')].map(x=>PAT[+x.value]),pool=act.length?act:[PAT[0]],sm=$('sm').checked;ev=[];let t=0,c=-1;
+ for(let ph=0;ph<4;ph++){const p=pool[Math.random()*pool.length|0];p.d.forEach(d=>{c=pickNext(ones.filter(i=>i||c>=0),c,sm);ev.push({t,d,i:c,n:voice(c,ev[ev.length-1],sm)});t+=d})}
+ total=t;drawRoll();$('lg').innerHTML=cover.map(g=>`<span class="lg"><i style="background:${g.col}"></i>${termH(g)}</span>`).join('');
+ const used=new Set(ev.map(e=>e.i)).size,okk=ev.every(e=>F[e.i]===1);$('chk').innerHTML=`${okk?'✅':'❌'} Усі ${ev.length} звучань взято з рядків, де F=1. Використано ${used} різних сполучень із ${ones.length} дозволених. Дисонансів: 0.`;bump(5);if(snd)play()}
+function drawRoll(){const U=28;let h='';for(let b=0;b<=total;b+=4)h+=`<div class="bl" style="left:${b*U}px"></div>`;
+ ev.forEach(e=>{if(!e.i){h+=`<div class="rest" data-t="${e.t}" style="left:${e.t*U}px;width:${e.d*U-2}px"></div>`;return}const g=cover.find(g=>g.cells.includes(e.i));
+ V.forEach((s,k)=>{if(bit(e.i,k))h+=`<div class="ev" data-t="${e.t}" title="${evName(e)}" style="left:${e.t*U}px;width:${e.d*U-2}px;top:${(3-k)*26+2}px;background:${g?g.col:'#fff'}">${e.n.find(x=>x.k===k).s!==s?'<span style="font-size:11px;padding-left:3px;color:#000">↑</span>':''}</div>`})});
+ $('ri').style.width=total*U+'px';$('ri').innerHTML=h+'<div id="ph"></div>';$('rl').innerHTML=[3,2,1,0].map(k=>`<div>${nm(V[k])}</div>`).join('')}
+function play(){stop();const c=ac(),b=60/$('bpm').value;t0=c.currentTime+.15;master=c.createGain();master.connect(c.destination);ev.forEach(e=>tone(e.n.map(x=>fr(x.s)),t0+e.t*b,e.d*b*.95,master));playing=true;loop(b)}
+function stop(){playing=false;if(master){master.disconnect();master=null}const p=$('ph');if(p)p.style.display='none';$('now').innerHTML='&nbsp;';document.querySelectorAll('.ev.hot').forEach(x=>x.classList.remove('hot'))}
+function loop(b){if(!playing)return;const bt=(AC.currentTime-t0)/b;if(bt>total+.5){stop();return}const p=$('ph');p.style.display='block';p.style.left=Math.max(bt,0)*28+'px';
+ const s=$('rs'),x=bt*28;if(x>s.scrollLeft+s.clientWidth-40||x<s.scrollLeft)s.scrollLeft=Math.max(0,x-40);
+ const e=ev.find(e=>bt>=e.t&&bt<e.t+e.d);document.querySelectorAll('.ev').forEach(n=>n.classList.toggle('hot',!!e&&+n.dataset.t===e.t));if(e)$('now').textContent=(e.i?'🎵 ':'')+evName(e)+' ✓';requestAnimationFrame(()=>loop(b))}
+async function dlOK(){try{return window.claude?await window.claude.use('downloads'):null}catch(e){return null}}
+async function saveJ(){if(!ev.length)return;const o={app:'music-automat',v:1,notes:sel,table:F,bpm:+$('bpm').value,inst:$('inst').value,invert:$('inv').checked,smooth:$('sm').checked,patterns:[...document.querySelectorAll('input.pt:checked')].map(x=>+x.value),events:ev.map(e=>({t:e.t,d:e.d,i:e.i,n:e.n})),savedAt:new Date().toISOString()};
+ const txt=JSON.stringify(o,null,1),d=await dlOK();
+ if(d){try{await d.save({filename:'melody-'+[...sel].sort((a,b)=>a-b).map(s=>nm(s).replace('♯','s')).join('')+'.json',data:txt});bump(10);return}catch(e){if(e&&e.code==='declined')return}}
+ $('jb').style.display='block';$('jt').value=txt;toast('Скопіюй JSON з поля внизу')}
+function readF(inp){const f=inp.files[0];inp.value='';if(!f||f.size>1e6)return toast('Файл завеликий або порожній');const r=new FileReader();r.onload=()=>loadJ(r.result);r.readAsText(f)}
+function loadJ(txt){try{const o=JSON.parse(txt);
+  const ok=o&&Array.isArray(o.notes)&&o.notes.length===4&&o.notes.every(x=>Number.isInteger(x)&&x>=0&&x<24)&&new Set(o.notes.map(x=>x%12)).size===4&&Array.isArray(o.table)&&o.table.length===16&&o.table.every(x=>x===0||x===1)&&Array.isArray(o.events)&&o.events.length>0&&o.events.length<500;if(!ok)throw 0;
+  const nsel=o.notes.slice(),nV=[...nsel].sort((a,b)=>a-b),nF=o.table.slice();
+  if(o.events.some(e=>!(e&&e.t>=0&&e.d>0&&Number.isInteger(e.i)&&e.i>=0&&e.i<16&&nF[e.i]===1)))throw 0;
+  stop();sel=nsel;key=sel.join();V=nV;F=nF;cur=-1;buildT();cover=minimize();ks=0;buildPats();drawSel();
+  document.querySelectorAll('input.pt').forEach(x=>x.checked=(o.patterns||[0]).includes(+x.value));
+  if(['piano','organ','pluck','bells','synth'].includes(o.inst))$('inst').value=o.inst;$('inv').checked=!!o.invert;$('sm').checked=!!o.smooth;const b=Math.min(160,Math.max(60,+o.bpm||96));$('bpm').value=b;$('bv').textContent=b;
+  ev=o.events.map(e=>{const base=V.map((s,k)=>bit(e.i,k)?k:-1).filter(k=>k>=0),src=e.n,okn=Array.isArray(src)&&src.length===base.length&&src.every((x,m)=>x&&x.k===base[m]&&Number.isInteger(x.s)&&x.s>=0&&x.s<48&&x.s%12===V[x.k]%12);return{t:+e.t,d:+e.d,i:e.i,n:okn?src.map(x=>({k:x.k,s:x.s})):voice(e.i,null,false)}});
+  total=Math.max(...ev.map(e=>e.t+e.d));drawRoll();
+  $('lg').innerHTML=cover.map(g=>`<span class="lg"><i style="background:${g.col}"></i>${termH(g)}</span>`).join('');
+  const ones=F.filter(x=>x===1).length;$('chk').innerHTML=`✅ Завантажено: ${ev.length} звучань, усі з рядків, де F=1 (дозволених сполучень: ${ones}).`;
+  stage=4;max=4;[1,2,3,4].forEach(i=>$('s'+i).classList.toggle('on',i===4));drawSteps();$('jb').style.display='none';toast('Мелодію завантажено 🎶')}catch(e){toast('Файл не схожий на мелодію автомата')}}
+buildKb();drawSel();drawSteps();go(1);
+</script></body></html>
