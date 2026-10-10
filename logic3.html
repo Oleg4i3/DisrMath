@@ -220,7 +220,46 @@
             border: 2px solid;
             background: white;
         }
+        /* ===== HOWTO ===== */
+        .btn.active { background: var(--accent); }
+        .btn:disabled { opacity: .4; cursor: default; }
+        .ht-pills { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+        .ht-pill { border:2px solid #8e44ad; background:#fff; color:#8e44ad; border-radius:20px; padding:6px 14px; font-weight:bold; cursor:pointer; }
+        .ht-pill.active { background:#8e44ad; color:#fff; }
+        .ht-step { display:none; }
+        .ht-note { background:#f8f4fb; border-left:4px solid #8e44ad; padding:10px 14px; border-radius:6px; margin:10px 0; line-height:1.5; }
+        .ht-nav { display:flex; justify-content:space-between; margin-top:14px; }
+        #gl-box { width:100%; height:380px; background:linear-gradient(#f4f7f6,#e8eef2); border-radius:10px; cursor:grab; overflow:hidden; }
+        #gl-box canvas { display:block; touch-action:none; }
+        .ht-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:8px 0; }
+        .ht-row input[type=range] { flex:1; min-width:160px; }
+        .mm { position:relative; margin:10px auto; }
+        .mm-c { position:absolute; width:56px; height:56px; box-sizing:border-box; border:2px solid #bdc3c7; border-radius:8px; background:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.3em; transition:left .45s ease, top .45s ease; }
+        .mm-h { position:absolute; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:.85em; color:var(--accent); transition:left .45s ease, top .45s ease; }
+        .mm-ov { position:absolute; border:3px solid; border-radius:10px; pointer-events:none; box-sizing:border-box; }
+        .ht-chip { background:#fff; border:3px solid; border-radius:8px; padding:4px 12px; cursor:pointer; margin:0 6px 6px 0; }
+        .ht-chip.on { box-shadow:0 0 0 3px rgba(0,0,0,.15); background:#f4f7f6; }
+        .ht-tbl { border-collapse:collapse; margin:8px 0; }
+        .ht-tbl th, .ht-tbl td { border:1px solid #ccc; padding:5px 12px; text-align:center; font-weight:bold; font-family:monospace; font-size:1.1em; }
+        .ht-tbl th { color:#fff; }
+        .ht-tbl td.keep { background:#d5f5e3; animation:htpop .5s; }
+        .ht-tbl td.drop { background:#fadbd8; text-decoration:line-through; animation:htpop .5s; }
+        @keyframes htpop { from { transform:scale(1.35); opacity:.3; } to { transform:scale(1); opacity:1; } }
+        .lit { font-size:1.6em; font-weight:bold; margin:0 2px; animation:htpop .6s; }
+        .mm-c { flex-direction:column; line-height:1.1; }
+        .mm-h b, .cd b { display:inline-block; transition:all .4s; }
+        .cd { font:bold 12px monospace; letter-spacing:1px; }
+        .mm-h b { margin:0 2px; font-size:1.15em; }
+        @keyframes dropfall { 0%{transform:none;opacity:1} 8%{transform:translateX(-3px) rotate(-12deg)} 16%{transform:translateX(3px) rotate(12deg)} 24%{transform:translateX(-3px) rotate(-12deg)} 32%{transform:translateX(3px) rotate(12deg)} 40%{transform:translateX(-3px) rotate(-12deg)} 48%{transform:translateX(3px) rotate(12deg)} 58%{transform:none;opacity:1} 100%{transform:translateY(18px) rotate(28deg);opacity:.12} }
+        @keyframes keepglow { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+        .dropfall { animation:dropfall 2s ease forwards; }
+        .fallen { transform:translateY(18px) rotate(28deg); opacity:.12; text-decoration:line-through; }
+        .keepglow { animation:keepglow .8s ease 2; background:rgba(39,174,96,.3); border-radius:3px; }
+        .kept { background:rgba(39,174,96,.3); border-radius:3px; box-shadow:0 0 0 2px #27ae60; }
+        .rule { margin:5px 0; font-size:1.05em; animation:htpop .6s both; }
+        #cover-status { text-align:center; margin-top:8px; font-size:.9em; color:#27ae60; font-weight:600; }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
@@ -372,10 +411,82 @@
             </div>
 
             <div id="group-legend" class="group-legend"></div>
+            <div id="cover-status"></div>
 
             <div class="result-box">
                 <span>Результат:</span>
                 <div id="formula-display" style="font-size: 1.5em; font-weight: bold; margin-top: 10px;">$F = 0$</div>
+            </div>
+        </div>
+
+        <div class="logic-card" id="howto-card" style="border-left-color: #8e44ad;">
+            <span class="card-title">🎓 Як це працює: склеювання країв, зсув, кодування груп</span>
+            <div class="controls-area">
+                <button class="btn" id="ht-src-demo" onclick="setSrc('demo')">🧪 Демо-карта</button>
+                <button class="btn" id="ht-src-mine" onclick="setSrc('mine')">📥 Взяти мою карту</button>
+                <div class="radio-group" id="ht-dmode"><span>Демо:</span>
+                    <label><input type="radio" name="dm" checked onchange="setDMode('dnf')"> ДНФ (1)</label>
+                    <label><input type="radio" name="dm" onchange="setDMode('cnf')"> КНФ (0)</label>
+                </div>
+            </div>
+            <div class="ht-pills">
+                <button class="ht-pill" id="ht-pill0" onclick="showStep(0)">1. Склеювання країв</button>
+                <button class="ht-pill" id="ht-pill1" onclick="showStep(1)">2. Циклічний зсув</button>
+                <button class="ht-pill" id="ht-pill2" onclick="showStep(2)">3. Кодування групи</button>
+            </div>
+            <div id="ht-empty" class="ht-note" style="display:none;">На карті немає клітинок потрібного значення, тож груп немає. Позначте клітинки вище або перемкніться на демо.</div>
+
+            <div id="ht-s0" class="ht-step">
+                <div class="ht-note">Сусідні стовпці (і рядки) в коді Грея відрізняються рівно одним бітом, <b>включно з крайніми</b>: <code>10</code> і <code>00</code> теж відрізняються одним бітом. Тому крайні стовпці — сусіди: склеїмо ліву й праву межі (циліндр), потім верх і низ (тор). На плоскій карті «розірвану» групу видно по відкритих кінцях: рамки на краю немає, бо група продовжується з протилежного боку. Аркуш напівпрозорий: спочатку його перевертаємо «на виворот» (крізь нього видно дзеркальні символи зворотного боку), потім згортаємо <b>до себе</b> — так краї, що склеюються, опиняються перед очима.</div>
+                <div class="ht-row"><div class="radio-group" style="flex-wrap:wrap;"><span>Склеювання тора:</span>
+                    <label><input type="radio" name="gord" checked onchange="glOrder('v')"> спочатку вертикальні краї (ліво↔право), потім горизонтальні (верх↔низ)</label>
+                    <label><input type="radio" name="gord" onchange="glOrder('h')"> спочатку горизонтальні краї (верх↔низ), потім вертикальні (ліво↔право)</label>
+                </div></div>
+                <div id="gl-box"></div>
+                <div class="ht-row">
+                    <button class="btn" id="gl-play" onclick="glPlay()">▶ Анімувати</button>
+                    <input type="range" id="gl-t" min="0" max="300" value="0" oninput="glSlide(this.value)">
+                    <span style="font-size:.8em;color:#777">перетягуйте мишею, щоб обертати</span>
+                </div>
+                <div id="gl-cap" class="ht-note"></div>
+            </div>
+
+            <div id="ht-s1" class="ht-step">
+                <div class="ht-note">Послідовність <code>00→01→11→10→(знову 00)</code> замкнена, тому її можна <b>циклічно зсувати</b>: у будь-якому положенні сусіди й надалі відрізняються одним бітом, і групи лишаються коректними. Зсувайте карту й дивіться, як «розірвана» група стає цільним прямокутником. <b>Але</b> довільно переставляти коди не можна: якщо поміняти місцями <code>01</code> і <code>11</code>, то <code>00</code> і <code>11</code> опиняться поруч і відрізнятимуться вже двома бітами.</div>
+                <div class="ht-row">
+                    <button class="btn" onclick="shMove(0,1)">← стовпці</button>
+                    <button class="btn" onclick="shMove(0,-1)">→ стовпці</button>
+                    <button class="btn" onclick="shMove(1,0)">↑ рядки</button>
+                    <button class="btn" onclick="shMove(-1,0)">↓ рядки</button>
+                    <button class="btn" onclick="shBest()">✨ Зробити групи цільними</button>
+                    <button class="btn btn-reset" onclick="shReset()">↺ Скинути</button>
+                </div>
+                <div id="sh-map" class="mm"></div>
+                <div id="sh-status" class="ht-note"></div>
+            </div>
+
+            <div id="ht-s2" class="ht-step">
+                <div class="ht-note">Ідея: усередині групи <b>змінні, що змінюються, зникають</b> (склеювання <i>X ∨ X̄ = 1</i>), а <b>сталі лишаються</b>. Оберіть групу й крокайте прямо на карті: кожна змінна має свій колір (у заголовках рядків/стовпців і в кодах клітинок).</div>
+                <div id="s3-chips"></div>
+                <div id="s3-body" style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+                    <div id="s3-map" class="mm" style="margin:0;"></div>
+                    <div style="flex:1;min-width:260px;">
+                        <div id="s3-legend" class="ht-note"></div>
+                        <div id="s3-msg" class="ht-note"></div>
+                        <div id="s3-out" style="text-align:center;min-height:60px;"></div>
+                        <div class="ht-row">
+                            <button class="btn" onclick="s3Go(-1)">◀</button>
+                            <button class="btn" onclick="s3Go(1)">▶ Далі</button>
+                            <button class="btn" onclick="s3Auto()">⏵ Авто</button>
+                            <button class="btn btn-reset" onclick="s3Go(-99)">↺</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ht-nav">
+                <button class="btn" id="ht-prev" onclick="showStep(ht.step-1)">◀ Назад</button>
+                <button class="btn" id="ht-next" onclick="showStep(ht.step+1)">Далі ▶</button>
             </div>
         </div>
     </div>
@@ -582,133 +693,101 @@
 
     // --- SOLVER ALGORITHM ---
 
+    function computeGroups(state, nv, mode) {
+        const target = mode === 'dnf' ? 1 : 0;
+        const total = state.filter(v => v === target).length;
+        const rs = nv === 3 ? [0, 1] : [0, 1, 3, 2], R = rs.length;
+        const colors = [0,1,2,3,4,5].map(i => `var(--c-grp-${i})`);
+        const dimsOf = {16:[[4,4]], 8:[[2,4],[4,2]], 4:[[1,4],[4,1],[2,2]], 2:[[1,2],[2,1]], 1:[[1,1]]};
+        const sizes = nv === 3 ? [8,4,2,1] : [16,8,4,2,1];
+        const covered = new Set(), raw = [];
+
+        function rect(r, c, h, w) {
+            const ids = [];
+            for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) {
+                const idx = (rs[(r + i) % R] << 2) | grayCodes3[(c + j) % 4];
+                if (state[idx] !== target) return null;
+                ids.push(idx);
+            }
+            return ids;
+        }
+
+        // Жадібний пошук від великих груп до малих. ЗУПИНКА: щойно покрито всі клітинки цільового значення.
+        search:
+        for (const s of sizes) for (const [h, w] of dimsOf[s]) {
+            if (h > R) continue;
+            for (let r = 0; r < R; r++) for (let c = 0; c < 4; c++) {
+                if (covered.size === total) break search;
+                const ids = rect(r, c, h, w);
+                if (ids && ids.some(i => !covered.has(i))) {
+                    raw.push({ indices: ids });
+                    ids.forEach(i => covered.add(i));
+                }
+            }
+        }
+
+        // Прибираємо надлишкові групи (повністю покриті іншими), починаючи з найменших/останніх
+        for (let i = raw.length - 1; i >= 0; i--) {
+            const others = new Set();
+            raw.forEach((g, j) => { if (j !== i && !g.removed) g.indices.forEach(x => others.add(x)); });
+            if (raw[i].indices.every(x => others.has(x))) raw[i].removed = true;
+        }
+        const groups = raw.filter(g => !g.removed);
+        groups.forEach((g, k) => { g.id = k; g.color = colors[k % 6]; g.term = getTerm(g.indices, mode, nv); });
+        return { groups, total, pruned: raw.length - groups.length };
+    }
+
     function solveKMap() {
         clearOverlays();
         const mode = document.querySelector('input[name="mode"]:checked').value;
         const targetVal = mode === 'dnf' ? 1 : 0;
-        
-        document.getElementById('mode-hint').innerText = 
+        const what = mode === 'dnf' ? 'одиниць' : 'нулів';
+        const status = document.getElementById('cover-status');
+        status.innerHTML = '';
+
+        document.getElementById('mode-hint').innerText =
             mode === 'dnf' ? "Групуємо одиниці (ДНФ)" : "Групуємо нулі (КНФ)";
 
-        // Check empty/full
-        let hasTarget = gridState.some(v => v === targetVal);
-        if(!hasTarget) {
+        if (!gridState.some(v => v === targetVal)) {
             document.getElementById('formula-display').innerText = mode === 'dnf' ? "$F = 0$" : "$F = 1$";
             MathJax.typesetPromise();
+            if (ht.src === 'mine') refreshHowto();
             return;
         }
-        let allTarget = gridState.every(v => v === targetVal);
-        if(allTarget) {
+        if (gridState.every(v => v === targetVal)) {
             document.getElementById('formula-display').innerText = mode === 'dnf' ? "$F = 1$" : "$F = 0$";
             MathJax.typesetPromise();
+            if (ht.src === 'mine') refreshHowto();
             return;
         }
 
-        let covered = new Set();
-        let groups = [];
-        const sizes = numVars === 3 ? [8, 4, 2, 1] : [16, 8, 4, 2, 1];
-        
-        // Colors
-        const colors = [
-            'var(--c-grp-0)', 'var(--c-grp-1)', 'var(--c-grp-2)', 
-            'var(--c-grp-3)', 'var(--c-grp-4)', 'var(--c-grp-5)'
-        ];
+        const res = computeGroups(gridState, numVars, mode);
+        drawGroups(res.groups);
+        updateLegend(res.groups);
 
-        let colorIdx = 0;
-
-        // Helper to map Logic Index back to visual presence
-        function checkRect(r, c, h, w) {
-            let indices = [];
-            const maxR = numVars === 3 ? 2 : 4;
-            const maxC = 4;
-            
-            for(let i=0; i<h; i++) {
-                for(let j=0; j<w; j++) {
-                    let curR = (r + i) % maxR;
-                    let curC = (c + j) % maxC;
-                    
-                    let rowBits = numVars === 3 ? curR : grayCodes4[curR];
-                    let colBits = grayCodes3[curC];
-                    let idx = (rowBits << 2) | colBits;
-                    
-                    if(gridState[idx] !== targetVal) return null;
-                    indices.push(idx);
-                }
-            }
-            return indices;
-        }
-
-        function getDims(size) {
-            let dims = [];
-            if(size === 16) dims.push([4,4]);
-            if(size === 8) { dims.push([2,4], [4,2]); }
-            if(size === 4) { dims.push([1,4], [4,1], [2,2]); }
-            if(size === 2) { dims.push([1,2], [2,1]); }
-            if(size === 1) { dims.push([1,1]); }
-            if(numVars === 3) return dims.filter(d => d[0] <= 2);
-            return dims;
-        }
-
-        for(let s of sizes) {
-            let dims = getDims(s);
-            for(let d of dims) {
-                let h = d[0], w = d[1];
-                const maxR = numVars === 3 ? 2 : 4;
-                
-                for(let r=0; r<maxR; r++) {
-                    for(let c=0; c<4; c++) {
-                        let indices = checkRect(r, c, h, w);
-                        if(indices) {
-                            // Check if useful (covers at least one new cell)
-                            let isUseful = false;
-                            for(let idx of indices) {
-                                if(!covered.has(idx)) isUseful = true;
-                            }
-                            
-                            if(isUseful) {
-                                const term = getTerm(indices, mode);
-                                const color = colors[colorIdx % colors.length];
-                                groups.push({ indices: indices, term: term, color: color, id: colorIdx });
-                                colorIdx++;
-                                indices.forEach(idx => covered.add(idx));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        drawGroups(groups);
-        updateLegend(groups);
-        
-        let formula = groups.map(g => g.term).join(mode === 'dnf' ? " \\vee " : " \\cdot ");
+        const formula = res.groups.map(g => g.term).join(mode === 'dnf' ? " \\vee " : " \\cdot ");
         document.getElementById('formula-display').innerText = `$F = ${formula}$`;
+        status.innerHTML = `✅ Усі ${res.total} ${what} покрито ${res.groups.length} групами — пошук зупинено.` +
+            (res.pruned ? ` Прибрано надлишкових груп: ${res.pruned}.` : '');
         MathJax.typesetPromise();
+        if (ht.src === 'mine') refreshHowto();
     }
 
-    function getTerm(indices, mode) {
-        let mask = numVars === 3 ? 7 : 15;
-        let val = indices[0];
+    function getTerm(indices, mode, nv = numVars) {
+        const val = indices[0];
         let diff = 0;
-        
         indices.forEach(idx => diff |= (val ^ idx));
-        
-        let literals = [];
-        const vars = numVars === 3 ? ['A','B','C'] : ['A','B','C','D'];
-        const totalBits = numVars;
-
-        for(let i=0; i<totalBits; i++) {
-            let bitPos = (totalBits - 1) - i; 
-            if( !((diff >> bitPos) & 1) ) {
-                let bitVal = (val >> bitPos) & 1;
-                let name = vars[i];
+        const literals = [], vars = ['A','B','C','D'];
+        for (let i = 0; i < nv; i++) {
+            const bitPos = nv - 1 - i;
+            if (!((diff >> bitPos) & 1)) {
+                const bitVal = (val >> bitPos) & 1, name = vars[i];
                 if (mode === 'dnf') literals.push(bitVal === 1 ? name : `\\overline{${name}}`);
                 else literals.push(bitVal === 0 ? name : `\\overline{${name}}`);
             }
         }
-        if(literals.length === 0) return "1";
-        if(mode === 'dnf') return literals.join("\\cdot ");
-        else return `(${literals.join(" \\vee ")})`;
+        if (literals.length === 0) return "1";
+        return mode === 'dnf' ? literals.join("\\cdot ") : `(${literals.join(" \\vee ")})`;
     }
 
     function clearOverlays() {
@@ -804,7 +883,318 @@
         });
     }
 
-    window.onload = initKMap;
+    // ===== HOWTO: «Як це працює» =====
+    const VAR_COL = ['#e74c3c', '#3498db', '#27ae60', '#e67e22'], VN = 'ABCD', GRAY = [0, 1, 3, 2];
+    const ht = { src: 'demo', dmode: 'dnf', step: 0, g: 0, p: 0, data: null };
+    const E = id => document.getElementById(id);
+    const bin = (x, n) => x.toString(2).padStart(n, '0');
+    const rowSeqOf = nv => nv === 3 ? [0, 1] : GRAY;
+    const cssCol = c => c.startsWith('var(') ? getComputedStyle(document.documentElement).getPropertyValue(c.slice(4, -1)).trim() : c;
+    // візуальна позиція клітинки idx при зсувах sr, sc
+    function visPos(idx, nv, sr = 0, sc = 0) {
+        const rs = rowSeqOf(nv), R = rs.length;
+        return [(rs.indexOf(idx >> 2) - sr + R) % R, (GRAY.indexOf(idx & 3) - sc + 4) % 4];
+    }
+
+    function getHowtoData() {
+        let nv, state, mode;
+        if (ht.src === 'mine') {
+            nv = numVars; state = gridState.slice();
+            mode = document.querySelector('input[name="mode"]:checked').value;
+        } else {
+            nv = 4; mode = ht.dmode;
+            const t = mode === 'dnf' ? 1 : 0;
+            state = Array(16).fill(1 - t);
+            [0, 2, 4, 6, 8, 10].forEach(i => state[i] = t);
+        }
+        const target = mode === 'dnf' ? 1 : 0;
+        return { nv, R: rowSeqOf(nv).length, state, mode, target, groups: computeGroups(state, nv, mode).groups };
+    }
+    function initHowto() { setSrc('demo'); }
+    function setSrc(s) {
+        ht.src = s;
+        ['demo', 'mine'].forEach(k => E('ht-src-' + k).classList.toggle('active', k === s));
+        E('ht-dmode').style.display = s === 'demo' ? 'flex' : 'none';
+        ht.g = 0; refreshHowto();
+    }
+    function setDMode(m) { ht.dmode = m; ht.g = 0; refreshHowto(); }
+    function refreshHowto() {
+        ht.data = getHowtoData();
+        ht.g = Math.min(ht.g, Math.max(0, ht.data.groups.length - 1));
+        showStep(ht.step);
+    }
+    function showStep(n) {
+        n = Math.max(0, Math.min(2, n)); ht.step = n;
+        [0, 1, 2].forEach(i => { E('ht-s' + i).style.display = i === n ? 'block' : 'none'; E('ht-pill' + i).classList.toggle('active', i === n); });
+        E('ht-prev').disabled = n === 0; E('ht-next').disabled = n === 2;
+        E('ht-empty').style.display = ht.data.groups.length ? 'none' : 'block';
+        [buildGL, buildShift, buildS3][n]();
+    }
+
+    // ---- Крок 1: Three.js ----
+    let gl = null;
+    function drawTex(d) {
+        const S = 160, K = 1.6, cv = document.createElement('canvas');
+        cv.width = 4 * S * K; cv.height = d.R * S * K;   // 1024 px по ширині (степінь двійки → мипмапи)
+        const c = cv.getContext('2d'), rs = rowSeqOf(d.nv);
+        c.scale(K, K);
+        const cellIdx = (r, col) => (rs[r] << 2) | GRAY[col];
+        c.fillStyle = '#fff'; c.fillRect(0, 0, 4 * S, d.R * S);
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        for (let r = 0; r < d.R; r++) for (let col = 0; col < 4; col++) {
+            const idx = cellIdx(r, col), x = col * S, y = r * S;
+            c.strokeStyle = '#bdc3c7'; c.lineWidth = 4; c.strokeRect(x + 2, y + 2, S - 4, S - 4);
+            c.fillStyle = d.state[idx] === d.target ? '#2c3e50' : '#bdc3c7';
+            c.font = 'bold 72px sans-serif'; c.fillText(d.state[idx], x + S / 2, y + S / 2 - 6);
+            c.fillStyle = '#95a5a6'; c.font = '20px monospace'; c.fillText(bin(idx, d.nv), x + S / 2, y + S - 20);
+        }
+        d.groups.forEach((g, gi) => {
+            const col = cssCol(g.color), set = new Set(g.indices), ins = 8 + gi * 9;
+            c.fillStyle = col; c.globalAlpha = .25;
+            g.indices.forEach(i => { const [r, cc] = visPos(i, d.nv); c.fillRect(cc * S, r * S, S, S); });
+            c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = 7; c.lineCap = 'round';
+            g.indices.forEach(i => {
+                const [r, cc] = visPos(i, d.nv), x = cc * S, y = r * S;
+                [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dr, dc]) => {
+                    if (set.has(cellIdx((r + dr + d.R) % d.R, (cc + dc + 4) % 4))) return; // сусід у групі (з урахуванням склейки) — рамки немає
+                    c.beginPath();
+                    if (dr === -1) { c.moveTo(x + ins, y + ins); c.lineTo(x + S - ins, y + ins); }
+                    else if (dr === 1) { c.moveTo(x + ins, y + S - ins); c.lineTo(x + S - ins, y + S - ins); }
+                    else if (dc === -1) { c.moveTo(x + ins, y + ins); c.lineTo(x + ins, y + S - ins); }
+                    else { c.moveTo(x + S - ins, y + ins); c.lineTo(x + S - ins, y + S - ins); }
+                    c.stroke();
+                });
+            });
+        });
+        return cv;
+    }
+    function buildGL() {
+        const d = ht.data, box = E('gl-box');
+        if (typeof THREE === 'undefined') { box.innerHTML = '<p style="padding:20px">Не вдалося завантажити Three.js (потрібен інтернет).</p>'; return; }
+        if (!gl) {
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            box.appendChild(renderer.domElement);
+            const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(40, 1, .1, 100), grp = new THREE.Group();
+            cam.position.set(0, 0, 10); scene.add(grp);
+            gl = { renderer, scene, cam, grp, t: 0, play: false, yaw: 0, pitch: .25, last: 0, w: 0, mesh: null, back: null, order: 'v' };
+            const el = renderer.domElement; let drag = null;
+            el.onpointerdown = e => { drag = [e.clientX, e.clientY]; el.setPointerCapture(e.pointerId); };
+            el.onpointermove = e => { if (!drag) return; gl.yaw += (e.clientX - drag[0]) * .01; gl.pitch = Math.max(-1.2, Math.min(1.2, gl.pitch + (e.clientY - drag[1]) * .01)); drag = [e.clientX, e.clientY]; };
+            el.onpointerup = () => drag = null;
+            requestAnimationFrame(glLoop);
+        }
+        if (gl.mesh) { gl.grp.remove(gl.mesh, gl.back); gl.mesh.geometry.dispose(); gl.mesh.material.map.dispose(); }
+        const W = 4, H = d.R, geo = new THREE.PlaneGeometry(W, H, 64, d.R * 16);
+        geo.userData = { W, H, uv: geo.attributes.uv.array.slice() };
+        const tex = new THREE.CanvasTexture(drawTex(d));
+        tex.anisotropy = gl.renderer.capabilities.getMaxAnisotropy();
+        // напівпрозорий аркуш: спочатку задня сторона (дзеркальні символи), потім передня
+        const mat = side => new THREE.MeshBasicMaterial({ map: tex, side, transparent: true, opacity: .8, depthWrite: false });
+        gl.back = new THREE.Mesh(geo, mat(THREE.BackSide)); gl.back.renderOrder = 1;
+        gl.mesh = new THREE.Mesh(geo, mat(THREE.FrontSide)); gl.mesh.renderOrder = 2;
+        gl.grp.add(gl.back, gl.mesh); gl.t = 0; gl.play = false;
+        E('gl-t').value = 0; E('gl-play').textContent = '▶ Анімувати'; glCaption();
+    }
+    function glPose(t) {
+        const ease = x => x * x * (3 - 2 * x), cl = x => Math.max(0, Math.min(1, x));
+        const a = ease(cl(t - 1)), b = ease(cl(t - 2));              // t: 0–1 переворот, 1–2 циліндр, 2–3 тор
+        const { W, H, uv } = gl.mesh.geometry.userData, pos = gl.mesh.geometry.attributes.position;
+        const hf = gl.order === 'h';                                  // 'h': спочатку верх↔низ
+        const P = hf ? H : W, Q = hf ? W : H;                         // P — вісь, що згортається першою, Q — другою
+        const r0 = P / (2 * Math.PI), Rm = 1.8 * r0;                  // радіуси тора: мала r0, велика 1.8·r0
+        const L = Q * (1 + (1.8 * P / Q - 1) * b);                    // друга вісь розтягується (тор з квадрата ізометрично не зробити)
+        const k = 2 * Math.PI * a / P, kv = 2 * Math.PI * b / L;
+        for (let i = 0; i < pos.count; i++) {
+            const sx = (uv[2 * i] - .5) * W, sy = (uv[2 * i + 1] - .5) * H;
+            const s = hf ? sy : sx, y = hf ? sx : sy;
+            let x, z, X, Y, Z;
+            if (k < 1e-5) { x = s; z = 0; } else { const q = 1 / k; x = q * Math.sin(s * k); z = q * (Math.cos(s * k) - 1); }
+            if (b > 0) {
+                const cz = z + r0, yy = y * L / Q;
+                if (kv < 1e-5) { X = x; Y = yy; Z = cz; }
+                else { const R = 1 / kv, p = yy * kv, sn = Math.sin(p), cs = Math.cos(p); X = x; Y = R * sn + cz * sn; Z = R * (cs - 1) + cz * cs; }
+            } else { X = x; Y = y; Z = z + r0 * a; }
+            if (hf) pos.setXYZ(i, Y, X, Z + Rm * b); else pos.setXYZ(i, X, Y, Z + Rm * b);
+        }
+        pos.needsUpdate = true;
+    }
+    function glLoop(ts) {
+        requestAnimationFrame(glLoop);
+        const box = E('gl-box');
+        if (!gl || !gl.mesh || !box.offsetParent || ht.step !== 0) { if (gl) gl.last = 0; return; }
+        const w = box.clientWidth;
+        if (w !== gl.w) { gl.w = w; gl.renderer.setSize(w, 380); gl.cam.aspect = w / 380; gl.cam.updateProjectionMatrix(); }
+        const dt = gl.last ? (ts - gl.last) / 1000 : 0; gl.last = ts;
+        if (gl.play) {
+            gl.t += dt / 2.2;
+            if (gl.t >= 3) { gl.t = 3; gl.play = false; E('gl-play').textContent = '▶ Анімувати'; }
+            E('gl-t').value = gl.t * 100; glCaption();
+        }
+        glPose(gl.t);
+        const e01 = Math.max(0, Math.min(1, gl.t)), turn = Math.PI * e01 * e01 * (3 - 2 * e01);   // переворот «на виворот»
+        gl.grp.rotation.set(gl.pitch, gl.yaw + turn + Math.sin(ts / 1100) * .5 * Math.max(0, Math.min(1, gl.t - 1)), 0);
+        gl.renderer.render(gl.scene, gl.cam);
+    }
+    function glPlay() { if (gl.t >= 3) gl.t = 0; gl.play = !gl.play; E('gl-play').textContent = gl.play ? '⏸ Пауза' : '▶ Анімувати'; }
+    function glSlide(v) { gl.t = v / 100; gl.play = false; E('gl-play').textContent = '▶ Анімувати'; glCaption(); }
+    function glCaption() {
+        const t = gl.t, hf = gl.order === 'h';
+        const first = hf ? 'горизонтальні краї (верхній і нижній)' : 'вертикальні краї (лівий і правий)';
+        const second = hf ? 'вертикальні краї (лівий і правий)' : 'горизонтальні краї (верхній і нижній)';
+        let m = t < .03 ? 'Плоска карта. Група на протилежних краях виглядає розірваною: рамки на краю немає, бо група продовжується з іншого боку. Натисніть «Анімувати».'
+              : t < .98 ? 'Перевертаємо аркуш «на виворот». Він трохи прозорий, тож крізь нього видно дзеркальні символи — це зворотний бік карти.'
+              : t < 1.03 ? 'Аркуш перевернуто. Тепер краї, що склеюються, звернені до вас — згортатимемо до себе.'
+              : t < 1.98 ? `Склеюємо ${first}: вони сходяться перед вами.`
+              : t < 2.03 ? '<b>Циліндр.</b> ' + (hf ? 'Верх і низ склеєні: групи, розірвані між верхом і низом, стали суцільними (ліво↔право ще розірвані).'
+                                                      : 'Ліво і право склеєні: група, що була на протилежних краях, тепер суцільний прямокутник (верх↔низ ще розірвані).')
+              : t < 2.98 ? `Тепер склеюємо ${second}: циліндр згинається в кільце.`
+              : '<b>Тор.</b> Обидві пари країв склеєні: чотири кутові клітинки стали суцільним квадратом. Карта Карно — це поверхня тора.';
+        if (ht.data.R === 2 && t > 2) m += ' <i>(Для 3 змінних лише 2 рядки, тор тут вироджений.)</i>';
+        if (t > 2.03) m += ' <i>Клітинки при цьому розтягуються: тор з квадрата без розтягу не зробити.</i>';
+        E('gl-cap').innerHTML = m;
+    }
+    function glOrder(o) {
+        if (!gl) return;
+        gl.order = o; gl.t = 0; gl.play = false; E('gl-t').value = 0; E('gl-play').textContent = '▶ Анімувати'; glCaption();
+    }
+
+    // ---- Спільна міні-карта (кроки 2 і 3) ----
+    const MM = { CELL: 56, G: 4, HD: 44 };
+    const vtag = i => `<b style="color:${VAR_COL[i]}">${VN[i]}</b>`;
+    function mkMap(box, d, hiG, codes) {
+        const { CELL, G, HD } = MM, R = d.R, nr = d.nv - 2, m = { ch: [], rh: [], chB: [], rhB: [], cells: {}, bits: {}, box, d };
+        box.innerHTML = '';
+        box.style.width = (HD + 4 * (CELL + G)) + 'px'; box.style.height = (HD + R * (CELL + G)) + 'px';
+        const mk = (cls, w, h) => { const e = document.createElement('div'); e.className = cls; e.style.width = w + 'px'; e.style.height = h + 'px'; box.appendChild(e); return e; };
+        const lab = (e, code, v0) => { e.innerHTML = code.split('').map((b, j) => `<b style="color:${VAR_COL[v0 + j]}">${b}</b>`).join(''); return [...e.children]; };
+        const corner = mk('mm-h', HD, HD); corner.style.left = corner.style.top = '0'; corner.style.transition = 'none';
+        corner.innerHTML = [...Array(nr).keys()].map(vtag).join('') + '\\' + [nr, nr + 1].map(vtag).join('');
+        for (let k = 0; k < 4; k++) { const e = mk('mm-h', CELL, HD); m.ch.push(e); m.chB.push(lab(e, bin(GRAY[k], 2), nr)); }
+        const rs = rowSeqOf(d.nv);
+        for (let k = 0; k < R; k++) { const e = mk('mm-h', HD, CELL); m.rh.push(e); m.rhB.push(lab(e, bin(rs[k], nr), 0)); }
+        for (let idx = 0; idx < 4 * R; idx++) {
+            const e = mk('mm-c', CELL, CELL), inG = hiG != null && d.groups[hiG].indices.includes(idx);
+            e.innerHTML = `<span style="color:${d.state[idx] === d.target ? '#2c3e50' : '#bdc3c7'}">${d.state[idx]}</span>` +
+                (codes && inG ? `<span class="cd">${bin(idx, d.nv).split('').map((b, i) => `<b style="color:${VAR_COL[i]}">${b}</b>`).join('')}</span>` : '');
+            if (inG) e.style.background = cssCol(d.groups[hiG].color) + '44';
+            m.cells[idx] = e; m.bits[idx] = [...e.querySelectorAll('.cd b')];
+        }
+        m.place = (sr, sc) => {
+            m.ch.forEach((e, k) => { e.style.top = '0'; e.style.left = (HD + ((k - sc + 4) % 4) * (CELL + G)) + 'px'; });
+            m.rh.forEach((e, k) => { e.style.left = '0'; e.style.top = (HD + ((k - sr + R) % R) * (CELL + G)) + 'px'; });
+            for (const idx in m.cells) { const [r, c] = visPos(+idx, d.nv, sr, sc); m.cells[idx].style.left = (HD + c * (CELL + G)) + 'px'; m.cells[idx].style.top = (HD + r * (CELL + G)) + 'px'; }
+        };
+        m.place(0, 0);
+        return m;
+    }
+    // зв'язні шматки групи без урахування склейки
+    function pieces(g, d, sr, sc) {
+        const R = d.R, m = Array.from({ length: R }, () => Array(4).fill(0)), boxes = [];
+        g.indices.forEach(i => { const [r, c] = visPos(i, d.nv, sr, sc); m[r][c] = 1; });
+        for (let r = 0; r < R; r++) for (let c = 0; c < 4; c++) if (m[r][c] === 1) {
+            let b = [r, r, c, c]; const q = [[r, c]]; m[r][c] = 2;
+            while (q.length) {
+                const [y, x] = q.pop();
+                b = [Math.min(b[0], y), Math.max(b[1], y), Math.min(b[2], x), Math.max(b[3], x)];
+                [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dy, dx]) => { const ny = y + dy, nx = x + dx; if (ny >= 0 && ny < R && nx >= 0 && nx < 4 && m[ny][nx] === 1) { m[ny][nx] = 2; q.push([ny, nx]); } });
+            }
+            boxes.push(b);
+        }
+        return boxes;
+    }
+
+    // ---- Крок 2: циклічний зсув ----
+    const sh = { r: 0, c: 0, m: null, t: null };
+    function buildShift() { sh.r = sh.c = 0; sh.m = mkMap(E('sh-map'), ht.data); shDraw(); }
+    function shMove(dr, dc) { sh.r = (sh.r + dr + ht.data.R) % ht.data.R; sh.c = (sh.c + dc + 4) % 4; shApply(); }
+    function shReset() { sh.r = sh.c = 0; shApply(); }
+    function shApply() {
+        sh.m.place(sh.r, sh.c);
+        sh.m.box.querySelectorAll('.mm-ov').forEach(e => e.remove());
+        clearTimeout(sh.t); sh.t = setTimeout(shDraw, 500);
+    }
+    function shDraw() {
+        const d = ht.data, { CELL, G, HD } = MM; let html = '';
+        sh.m.box.querySelectorAll('.mm-ov').forEach(e => e.remove());
+        d.groups.forEach((g, gi) => {
+            const ps = pieces(g, d, sh.r, sh.c), col = cssCol(g.color), o = gi * 3;
+            ps.forEach(b => {
+                const e = document.createElement('div'); e.className = 'mm-ov'; e.style.borderColor = col;
+                e.style.left = (HD + b[2] * (CELL + G) - 3 + o) + 'px'; e.style.top = (HD + b[0] * (CELL + G) - 3 + o) + 'px';
+                e.style.width = ((b[3] - b[2] + 1) * (CELL + G) - G + 6 - 2 * o) + 'px'; e.style.height = ((b[1] - b[0] + 1) * (CELL + G) - G + 6 - 2 * o) + 'px';
+                sh.m.box.appendChild(e);
+            });
+            html += `<span style="border:2px solid ${col};border-radius:6px;padding:2px 8px;margin-right:8px;background:#fff">$${g.term}$</span> ${ps.length === 1 ? '✅ ціла' : '✂️ розірвана на ' + ps.length + ' ч.'} &nbsp; `;
+        });
+        E('sh-status').innerHTML = html || 'Груп немає.';
+        MathJax.typesetPromise([E('sh-status')]);
+    }
+    function shBest() {
+        const d = ht.data; let best = null;
+        for (let r = 0; r < d.R; r++) for (let c = 0; c < 4; c++) {
+            const w = d.groups.filter(g => pieces(g, d, r, c).length === 1).length, cost = Math.min(r, d.R - r) + Math.min(c, 4 - c);
+            if (!best || w > best.w || (w === best.w && cost < best.cost)) best = { r, c, w, cost };
+        }
+        sh.r = best.r; sh.c = best.c; shApply();
+        if (best.w < d.groups.length) setTimeout(() => E('sh-status').innerHTML += '<br><b>Жоден зсув не робить усі групи цілими одночасно</b> — тут і потрібен тор (крок 1).', 560);
+    }
+
+    // ---- Крок 3: кодування групи (на самій карті) ----
+    let s3T = null;
+    function buildS3() {
+        const d = ht.data; clearInterval(s3T); ht.p = 0;
+        E('s3-body').style.display = d.groups.length ? 'flex' : 'none';
+        const box = E('s3-chips'); box.innerHTML = '';
+        if (!d.groups.length) return;
+        d.groups.forEach((g, i) => {
+            const b = document.createElement('button'); b.className = 'ht-chip' + (i === ht.g ? ' on' : ''); b.style.borderColor = cssCol(g.color);
+            b.innerHTML = `$${g.term}$`; b.onclick = () => { ht.g = i; buildS3(); }; box.appendChild(b);
+        });
+        ht.m3 = mkMap(E('s3-map'), d, ht.g, true);
+        E('s3-legend').innerHTML = d.nv === 4
+            ? `${vtag(0)}, ${vtag(1)} — перший і другий біт коду <b>рядка</b>; ${vtag(2)}, ${vtag(3)} — перший і другий біт коду <b>стовпця</b>. Кольори збігаються в заголовках і в кодах клітинок групи.`
+            : `${vtag(0)} — біт коду <b>рядка</b>; ${vtag(1)}, ${vtag(2)} — перший і другий біт коду <b>стовпця</b>. Кольори збігаються в заголовках і в кодах клітинок групи.`;
+        renderS3(); MathJax.typesetPromise([box]);
+    }
+    function s3Go(n) { ht.p = n === -99 ? 0 : Math.max(0, Math.min(ht.data.nv + 1, ht.p + n)); clearInterval(s3T); renderS3(); }
+    function s3Auto() { clearInterval(s3T); ht.p = 0; renderS3(); s3T = setInterval(() => { if (ht.p >= ht.data.nv + 1) return clearInterval(s3T); ht.p++; renderS3(); }, 2600); }
+    function renderS3() {
+        const d = ht.data, g = d.groups[ht.g], nv = d.nv, p = ht.p, cnf = d.mode === 'cnf', m = ht.m3, nr = nv - 2;
+        const idxs = g.indices.slice().sort((a, b) => a - b);
+        const bitOf = (x, i) => (x >> (nv - 1 - i)) & 1;
+        const verdict = [...Array(nv).keys()].map(i => idxs.every(x => bitOf(x, i) === bitOf(idxs[0], i)) ? bitOf(idxs[0], i) : -1);
+        // біти змінної i: у кодах клітинок групи + у заголовках осі
+        const bitsOf = i => [...idxs.map(x => m.bits[x][i]), ...(i >= nr ? m.chB.map(b => b[i - nr]) : m.rhB.map(b => b[i]))];
+        for (let i = 0; i < nv; i++) {
+            const els = bitsOf(i); els.forEach(e => e.className = ''); void m.box.offsetWidth;
+            const drop = verdict[i] < 0;
+            const cls = p > i + 1 ? (drop ? 'fallen' : 'kept') : p === i + 1 ? (drop ? 'dropfall' : 'keepglow') : '';
+            if (cls) els.forEach(e => e.classList.add(cls));
+        }
+        const lit = (i, inv) => `<span class="lit" style="color:${VAR_COL[i]};${inv ? 'text-decoration:overline;' : ''}">${VN[i]}</span>`;
+        let msg, out = '';
+        if (p === 0) msg = `Група має <b>${idxs.length}</b> клітинок; у кожній написано її код. Дивитимемось по черзі на кожну змінну: чи <b>зберігає вона значення</b> в усій групі?`;
+        else if (p <= nv) {
+            const i = p - 1;
+            msg = verdict[i] < 0
+                ? `Змінна ${vtag(i)}: у групі є і 0, і 1 → значення <b>не зберігається</b>. Ці біти «тремтять і відпадають» (склеювання ${VN[i]} ∨ ${VN[i]}̄ = 1): функція від ${VN[i]} тут не залежить.`
+                : `Змінна ${vtag(i)}: у всіх клітинках групи однакова (=${verdict[i]}) → значення <b>зберігається</b>, змінна лишається.`;
+        } else {
+            const kept = [...Array(nv).keys()].filter(i => verdict[i] >= 0);
+            msg = `Лишилися змінні, що зберігають значення. Тепер кодуємо кожну: ` + (cnf
+                ? 'КНФ (групуємо нулі): стала <b>0</b> → літера без риски, стала <b>1</b> → з рискою; літери з’єднуємо <b>∨</b> у дужках.'
+                : 'ДНФ (групуємо одиниці): стала <b>1</b> → літера без риски, стала <b>0</b> → з рискою; літери перемножуємо <b>·</b>.');
+            const parts = kept.map(i => lit(i, cnf ? verdict[i] === 1 : verdict[i] === 0));
+            out = kept.map((i, k) => { const inv = cnf ? verdict[i] === 1 : verdict[i] === 0;
+                return `<div class="rule" style="animation-delay:${k * .5}s">${vtag(i)} = ${verdict[i]} → ${inv ? '<b>з рискою</b>' : 'без риски'} → ${lit(i, inv)}</div>`; }).join('') +
+                `<div class="rule" style="animation-delay:${kept.length * .5}s;margin-top:10px">${cnf ? '(' + parts.join(' ∨ ') + ')' : (parts.join('·') || '1')} &nbsp;=&nbsp; $${g.term}$</div>`;
+        }
+        E('s3-msg').innerHTML = msg; E('s3-out').innerHTML = out;
+        if (out) MathJax.typesetPromise([E('s3-out')]);
+    }
+
+    window.onload = () => { initKMap(); initHowto(); };
 
 </script>
 </body>
