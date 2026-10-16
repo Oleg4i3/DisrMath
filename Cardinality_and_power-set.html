@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zen Sets</title>
-    
+
     <script>
         window.MathJax = {
             tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
@@ -77,6 +77,7 @@
             width: 100%;
             max-width: 1100px;
             padding: 0 20px 40px 20px;
+            box-sizing: border-box;
             display: none;
             animation: fadeIn 0.5s ease;
         }
@@ -107,6 +108,7 @@
             justify-content: center;
             align-items: center;
             font-size: 0.9rem;
+            flex-wrap: wrap;
         }
 
         .checkbox-wrapper {
@@ -118,11 +120,11 @@
 
         .problem-grid {
             display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
+            grid-template-columns: 1fr 1fr;
             gap: 30px;
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 900px) {
             .problem-grid { grid-template-columns: 1fr; }
         }
 
@@ -141,39 +143,50 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             border-bottom: 1px dashed #eee;
             padding-bottom: 5px;
         }
         .data-item:last-child { border-bottom: none; }
 
+        /* ---------- Чернетка (діаграма Венна) ---------- */
+        .draft-panel {
+            background: #fafafa;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
         .venn-wrapper {
             position: relative;
-            width: 300px;
-            height: 240px;
+            width: 440px;
+            height: 335px;
             margin: 0 auto;
+            flex-shrink: 0;
         }
 
         .circle {
             position: absolute;
             border-radius: 50%;
-            width: 160px;
-            height: 160px;
+            width: 280px;
+            height: 280px;
+            top: 45px;
             border: 2px solid;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             background: rgba(255,255,255,0.4);
         }
 
         .circle-a {
             border-color: var(--accent-primary);
-            left: 10px; top: 40px;
+            left: 0;
             background: rgba(108, 92, 231, 0.05);
         }
 
         .circle-b {
             border-color: var(--accent-secondary);
-            right: 10px; top: 40px;
+            right: 0;
             background: rgba(0, 184, 148, 0.05);
         }
 
@@ -188,24 +201,31 @@
 
         .venn-input {
             position: absolute;
-            width: 40px;
-            background: transparent;
-            border: 1px dashed #ccc;
+            box-sizing: border-box;
+            background: rgba(255,255,255,0.7);
+            border: 1px dashed #bbb;
             text-align: center;
             font-size: 1rem;
-            padding: 2px;
-            border-radius: 4px;
+            font-family: 'Consolas', 'Menlo', monospace;
+            padding: 6px 4px;
+            border-radius: 6px;
             z-index: 10;
         }
         .venn-input:focus { background: white; border: 1px solid var(--accent-primary); outline: none; }
 
-        /* Input positioning */
-        .v-only-a { top: 110px; left: 40px; }
-        .v-only-b { top: 110px; right: 40px; }
-        .v-inter { top: 110px; left: 128px; }
-        .v-outside { top: 10px; left: 10px; }
+        /* Input positioning (центри областей: A\B ≈ x80, ∩ ≈ x220, B\A ≈ x360) */
+        .v-only-a   { width: 130px; top: 160px; left: 15px; }
+        .v-inter    { width: 104px; top: 160px; left: 168px; }
+        .v-only-b   { width: 130px; top: 160px; left: 295px; }
+        .v-outside  { width: 130px; bottom: 5px; left: 5px; }
 
-        .venn-label { position: absolute; font-weight: bold; font-size: 0.9rem; }
+        .venn-label { position: absolute; font-weight: bold; font-size: 1rem; top: 12px; }
+        .venn-label.a { left: 130px; color: var(--accent-primary); }
+        .venn-label.b { left: 295px; color: var(--accent-secondary); }
+
+        @media (max-width: 520px) {
+            .venn-wrapper { transform: scale(0.72); transform-origin: top center; margin-bottom: -90px; }
+        }
 
         .btn {
             padding: 12px 24px;
@@ -224,19 +244,17 @@
         input[type="number"] { padding: 12px; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; flex: 1; }
 
         .feedback-msg { margin-top: 15px; font-weight: 600; min-height: 1.5rem; }
-        
+
         /* Power Set */
         .emoji-selector { font-size: 1.5rem; cursor: pointer; padding: 8px; border-radius: 8px; user-select: none; }
         .emoji-selector.selected { background: #dfe6e9; transform: scale(1.2); }
-        .subset-card { 
-            background: white; border: 1px solid var(--border); border-radius: 8px; 
+        .subset-card {
+            background: white; border: 1px solid var(--border); border-radius: 8px;
             padding: 10px; min-width: 60px; text-align: center; margin: 5px; display: inline-block;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-			
         }
-		
-		
-		/* Стилі для спойлера теорії */
+
+        /* Стилі для спойлера теорії */
         .theory-spoiler {
             background: white;
             border: 1px solid var(--border);
@@ -244,32 +262,28 @@
             margin-bottom: 20px;
             overflow: hidden;
         }
-        
+
         .theory-spoiler summary {
             padding: 12px 20px;
             cursor: pointer;
             font-weight: 600;
             background: #ecf0f1;
             transition: background 0.2s;
-            list-style: none; /* Прибирає стандартний трикутник в деяких браузерах */
+            list-style: none;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
-        .theory-spoiler summary:hover {
-            background: #dfe6e9;
-        }
+
+        .theory-spoiler summary:hover { background: #dfe6e9; }
 
         .theory-spoiler summary::after {
-            content: '+'; 
+            content: '+';
             font-weight: bold;
             font-size: 1.2rem;
         }
-        
-        .theory-spoiler[open] summary::after {
-            content: '−';
-        }
+
+        .theory-spoiler[open] summary::after { content: '−'; }
 
         .theory-content {
             padding: 15px 20px;
@@ -307,13 +321,13 @@
     <header>
         <h3>Операції з множинами</h3>
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('cardinality')">🔢 Потужність та Рівняння</button>
-            <button class="tab-btn" onclick="switchTab('powerset')">📦 Булеан</button>
+            <button class="tab-btn active" onclick="switchTab('cardinality', this)">🔢 Потужність та Рівняння</button>
+            <button class="tab-btn" onclick="switchTab('powerset', this)">📦 Булеан</button>
         </div>
     </header>
 
     <div id="cardinality" class="main-container active">
-        
+
         <div class="card">
             <div class="controls-bar">
                 <span>Налаштування відображення:</span>
@@ -327,51 +341,50 @@
                 </label>
             </div>
 
-<details class="theory-spoiler">
-            <summary>📚 Шпаргалка: Що означають ці значки?</summary>
-            <div class="theory-content">
-                <div class="theory-item">
-                    <div class="math-symbol">$\cup$</div>
-                    <div><strong>Об'єднання (АБО)</strong><br>Всі елементи, що є хоча б в одній множині.</div>
+            <details class="theory-spoiler">
+                <summary>📚 Шпаргалка: Що означають ці значки?</summary>
+                <div class="theory-content">
+                    <div class="theory-item">
+                        <div class="math-symbol">$\cup$</div>
+                        <div><strong>Об'єднання (АБО)</strong><br>Всі елементи, що є хоча б в одній множині.</div>
+                    </div>
+                    <div class="theory-item">
+                        <div class="math-symbol">$\cap$</div>
+                        <div><strong>Перетин (ТА)</strong><br>Елементи, що є одночасно в обох множинах.</div>
+                    </div>
+                    <div class="theory-item">
+                        <div class="math-symbol">$\setminus$</div>
+                        <div><strong>Різниця (МІНУС)</strong><br>Ті, що є в першій, але немає в другій (наприклад $A \setminus B$).</div>
+                    </div>
+                    <div class="theory-item">
+                        <div class="math-symbol">$A'$</div>
+                        <div><strong>Доповнення (НЕ)</strong><br>Все, що за межами кола A (всередині $\Omega$).</div>
+                    </div>
+                    <div class="theory-item">
+                        <div class="math-symbol">$\triangle$</div>
+                        <div><strong>Симетрична різниця</strong><br>Або тільки A, або тільки B (без їх спільної частини).</div>
+                    </div>
+                    <div class="theory-item">
+                        <div class="math-symbol">$\Omega$</div>
+                        <div><strong>Універсум</strong><br>Взагалі всі об'єкти, про які йде мова в задачі.</div>
+                    </div>
+                    <div class="theory-item">
+                        <div class="math-symbol">$|A|$</div>
+                        <div><strong>Потужність</strong><br>Просто кількість штук (елементів) у множині.</div>
+                    </div>
                 </div>
-                <div class="theory-item">
-                    <div class="math-symbol">$\cap$</div>
-                    <div><strong>Перетин (ТА)</strong><br>Елементи, що є одночасно в обох множинах.</div>
-                </div>
-                <div class="theory-item">
-                    <div class="math-symbol">$\setminus$</div>
-                    <div><strong>Різниця (МІНУС)</strong><br>Ті, що є в першій, але немає в другій (наприклад $A \setminus B$).</div>
-                </div>
-                <div class="theory-item">
-                    <div class="math-symbol">$A'$</div>
-                    <div><strong>Доповнення (НЕ)</strong><br>Все, що за межами кола A (всередині $\Omega$).</div>
-                </div>
-                <div class="theory-item">
-                    <div class="math-symbol">$\triangle$</div>
-                    <div><strong>Симетрична різниця</strong><br>Або тільки A, або тільки B (без їх спільної частини).</div>
-                </div>
-                <div class="theory-item">
-                    <div class="math-symbol">$\Omega$</div>
-                    <div><strong>Універсум</strong><br>Взагалі всі об'єкти, про які йде мова в задачі.</div>
-                </div>
-                <div class="theory-item">
-                    <div class="math-symbol">$|A|$</div>
-                    <div><strong>Потужність</strong><br>Просто кількість штук (елементів) у множині.</div>
-                </div>
-            </div>
-        </details>
-
+            </details>
 
             <div class="problem-grid">
                 <div>
                     <h3 style="margin-top:0">Задача <span style="color:var(--text-light); font-weight:normal;">#<span id="task-id">1</span></span></h3>
-                    
+
                     <div id="story-block">
                         <p class="problem-statement" id="story-text">...</p>
                     </div>
 
                     <div class="data-list" id="data-clues">
-                        </div>
+                    </div>
 
                     <div style="margin-top: 30px;">
                         <label style="font-weight:bold; display:block; margin-bottom:5px;" id="question-label">Знайти:</label>
@@ -384,23 +397,23 @@
                     </div>
                 </div>
 
-                <div style="background: #fafafa; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center;">
+                <div class="draft-panel">
                     <p style="color: var(--text-light); font-size: 0.85rem; text-align: center; margin-bottom: 10px;">
-                        ✏️ Чернетка (введи сюди проміжні значення)
+                        ✏️ Чернетка: пиши в області проміжні вирази, напр. <code>55-13-x-y</code>
                     </p>
-                    
+
                     <div class="venn-wrapper">
-                        <div class="venn-label" style="top: 25px; left: 20px; color: var(--accent-primary)">A</div>
-                        <div class="venn-label" style="top: 25px; right: 20px; color: var(--accent-secondary)">B</div>
-                        
+                        <div class="venn-label a">A</div>
+                        <div class="venn-label b">B</div>
+
                         <div class="circle circle-a"></div>
                         <div class="circle circle-b"></div>
 
-                        <input type="text" class="venn-input v-only-a" placeholder="A\B">
-                        <input type="text" class="venn-input v-inter" placeholder="∩">
-                        <input type="text" class="venn-input v-only-b" placeholder="B\A">
-                        <input type="text" class="venn-input v-outside" placeholder="(U)'">
-                        
+                        <input type="text" class="venn-input v-only-a" placeholder="A\B" autocomplete="off" spellcheck="false">
+                        <input type="text" class="venn-input v-inter" placeholder="A∩B" autocomplete="off" spellcheck="false">
+                        <input type="text" class="venn-input v-only-b" placeholder="B\A" autocomplete="off" spellcheck="false">
+                        <input type="text" class="venn-input v-outside" placeholder="(A∪B)'" autocomplete="off" spellcheck="false">
+
                         <div class="omega-label">$\Omega$</div>
                     </div>
                 </div>
@@ -412,7 +425,7 @@
         <div class="card" style="text-align: center;">
             <h3>Генератор Булеана</h3>
             <p>Обери елементи множини $A$:</p>
-            
+
             <div style="margin-bottom:20px;">
                 <span class="emoji-selector" onclick="toggleEmoji(this)" data-val="👾">👾</span>
                 <span class="emoji-selector" onclick="toggleEmoji(this)" data-val="🍕">🍕</span>
@@ -431,101 +444,192 @@
     </div>
 
     <script>
+        // --- HELPERS ---
+        function typeset(el) {
+            if (window.MathJax && MathJax.typesetPromise) {
+                return MathJax.typesetPromise(el ? [el] : undefined);
+            }
+        }
+
+        // Перша літера -> маленька (на відміну від toLowerCase не псує Python/JavaScript)
+        const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Fisher–Yates
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
         // --- LOGIC CORE ---
 
-        // Disjoint components (The Source of Truth)
         // r1 = Only A, r2 = Only B, r3 = Both, r4 = None
         let truth = { r1: 0, r2: 0, r3: 0, r4: 0 };
-        let currentTaskData = null; // Stores the generated puzzle structure
+        let currentTaskData = null;
 
+        // Поля: a, b, neg_a, neg_b — завжди повні фрази ("Не ...").
+        // Необов'язкові: both (A∩B), none ((A∪B)'), щоб описи були кумедніші.
         const themes = [
-            { 
-                name: "RPG Рейд", 
-                omega: "Всього героїв у гільдії", 
-                a: "Мають магічну зброю", 
+            {
+                name: "RPG Рейд",
+                omega: "Всього героїв у гільдії",
+                a: "Мають магічну зброю",
                 b: "Знають закляття лікування",
-                neg_a: "Воїни без магії",
-                neg_b: "Не вміють лікувати"
+                neg_a: "Не мають магічної зброї",
+                neg_b: "Не вміють лікувати",
+                both: "І зброя є, і лікують (мультикласові)",
+                none: "Ні зброї, ні лікування (мясо для боса)"
             },
-            { 
-                name: "Space Fleet", 
-                omega: "Всього кораблів на орбіті", 
-                a: "Мають гіпердвигун", 
+            {
+                name: "Space Fleet",
+                omega: "Всього кораблів на орбіті",
+                a: "Мають гіпердвигун",
                 b: "Оснащені лазерами",
-                neg_a: "На досвітловій швидкості",
-                neg_b: "Без лазерів"
+                neg_a: "Не мають гіпердвигуна",
+                neg_b: "Не оснащені лазерами",
+                both: "І гіпердвигун, і лазери (флагмани)",
+                none: "Ні гіпердвигуна, ні лазерів (літаючі баржі)"
             },
-            { 
-                name: "Dev Conference", 
-                omega: "Всього розробників", 
-                a: "Пишуть на Python", 
+            {
+                name: "Dev Conference",
+                omega: "Всього розробників",
+                a: "Пишуть на Python",
                 b: "Пишуть на JavaScript",
                 neg_a: "Не знають Python",
-                neg_b: "Не знають JS"
+                neg_b: "Не знають JS",
+                both: "Пишуть і на Python, і на JS (страждають в обох світах)",
+                none: "Не пишуть ні на Python, ні на JS (Rust-евангелісти)"
             },
-            { 
-                name: "Зоопарк", 
-                omega: "Всього тварин", 
-                a: "Їдять м'ясо", 
+            {
+                name: "Зоопарк",
+                omega: "Всього тварин",
+                a: "Їдять м'ясо",
                 b: "Вміють плавати",
-                neg_a: "Травоїдні",
-                neg_b: "Не плавають"
+                neg_a: "Не їдять м'яса",
+                neg_b: "Не плавають",
+                both: "Їдять м'ясо і плавають (акули-вегани тут не живуть)",
+                none: "Не їдять м'яса і не плавають"
+            },
+            {
+                name: "Сесія на носі",
+                omega: "Всього студентів на потоці",
+                a: "Ненавидять дискретку",
+                b: "Ненавидять матан",
+                neg_a: "Не ненавидять дискретку",
+                neg_b: "Не ненавидять матан",
+                both: "Ненавидять обидва предмети (страждають за двох)",
+                none: "Не ненавидять жодного з предметів (підозрілі зубрили)"
+            },
+            {
+                name: "Офісні коти",
+                omega: "Всього котів в офісі",
+                a: "Скидають речі зі столу",
+                b: "Сплять на клавіатурі",
+                neg_a: "Не скидають речей зі столу",
+                neg_b: "Не сплять на клавіатурі",
+                both: "Роблять і те, й інше (професіонали хаосу)",
+                none: "Не роблять ні того, ні іншого (підозріло спокійні)"
+            },
+            {
+                name: "Корпоратив",
+                omega: "Всього гостей на корпоративі",
+                a: "Танцюють на столах",
+                b: "Співають караоке",
+                neg_a: "Не танцюють на столах",
+                neg_b: "Не співають караоке",
+                both: "Танцюють і співають одночасно (завтра буде соромно)",
+                none: "Не танцюють і не співають (тримають оборону біля закусок)"
+            },
+            {
+                name: "Гуртожиток",
+                omega: "Всього мешканців гуртожитку",
+                a: "Варять локшину о 3-й ночі",
+                b: "Сплять на парах",
+                neg_a: "Не варять локшину вночі",
+                neg_b: "Не сплять на парах",
+                both: "Варять локшину вночі і сплять на парах (класика жанру)",
+                none: "Не варять локшину і не сплять на парах (дивні люди)"
+            },
+            {
+                name: "П'ятничний деплой",
+                omega: "Всього інженерів у команді",
+                a: "Деплоять у п'ятницю",
+                b: "Пишуть код без тестів",
+                neg_a: "Не деплоять у п'ятницю",
+                neg_b: "Пишуть код з тестами",
+                both: "Деплоять у п'ятницю і без тестів (безстрашні)",
+                none: "Не деплоять у п'ятницю і пишуть тести (нормальні люди)"
+            },
+            {
+                name: "Ніч перед дедлайном",
+                omega: "Всього студентів, що здають курсову",
+                a: "Пишуть курсову в останню ніч",
+                b: "П'ють енергетики",
+                neg_a: "Не пишуть курсову в останню ніч",
+                neg_b: "Не п'ють енергетики",
+                both: "Пишуть у останню ніч на енергетиках (серце, тримайся)",
+                none: "Не пишуть у останню ніч і без енергетиків (легенди, які існують)"
             }
         ];
 
-        // Variable definitions with calculation logic and descriptions
-        // t = theme object, r = region values {r1,r2,r3,r4}
+        // Опис кожної величини: tex, desc(тема), calc(регіони)
         const varDefs = {
-            'omega': { 
-                tex: "|\\Omega|", 
-                desc: (t) => t.omega, 
-                calc: (r) => r.r1 + r.r2 + r.r3 + r.r4 
+            'omega': {
+                tex: "|\\Omega|",
+                desc: (t) => t.omega,
+                calc: (r) => r.r1 + r.r2 + r.r3 + r.r4
             },
-            'a': { 
-                tex: "|A|", 
-                desc: (t) => t.a, 
-                calc: (r) => r.r1 + r.r3 
+            'a': {
+                tex: "|A|",
+                desc: (t) => t.a,
+                calc: (r) => r.r1 + r.r3
             },
-            'b': { 
-                tex: "|B|", 
-                desc: (t) => t.b, 
-                calc: (r) => r.r2 + r.r3 
+            'b': {
+                tex: "|B|",
+                desc: (t) => t.b,
+                calc: (r) => r.r2 + r.r3
             },
-            'intersection': { 
-                tex: "|A \\cap B|", 
-                desc: (t) => `${t.a} ТА ${t.b.toLowerCase()}`, 
-                calc: (r) => r.r3 
+            'intersection': {
+                tex: "|A \\cap B|",
+                desc: (t) => t.both || `${t.a} ТА ${lc(t.b)}`,
+                calc: (r) => r.r3
             },
-            'union': { 
-                tex: "|A \\cup B|", 
-                desc: (t) => `${t.a} АБО ${t.b.toLowerCase()}`, 
-                calc: (r) => r.r1 + r.r2 + r.r3 
+            'union': {
+                tex: "|A \\cup B|",
+                desc: (t) => `${t.a} АБО ${lc(t.b)}`,
+                calc: (r) => r.r1 + r.r2 + r.r3
             },
-            'diff_a_b': { 
-                tex: "|A \\setminus B|", 
-                desc: (t) => `Тільки ${t.a.toLowerCase()} (без ${t.b.toLowerCase()})`, 
-                calc: (r) => r.r1 
+            'diff_a_b': {
+                tex: "|A \\setminus B|",
+                desc: (t) => `${t.a}, але ${lc(t.neg_b)}`,
+                calc: (r) => r.r1
             },
-            'diff_b_a': { 
-                tex: "|B \\setminus A|", 
-                desc: (t) => `Тільки ${t.b.toLowerCase()}`, 
-                calc: (r) => r.r2 
+            'diff_b_a': {
+                tex: "|B \\setminus A|",
+                desc: (t) => `${t.b}, але ${lc(t.neg_a)}`,
+                calc: (r) => r.r2
             },
-            // --- Advanced / Tricky ones ---
-            'compl_a': { 
-                tex: "|A'|", 
-                desc: (t) => t.neg_a, 
-                calc: (r) => r.r2 + r.r4 
+            'compl_a': {
+                tex: "|A'|",
+                desc: (t) => t.neg_a,
+                calc: (r) => r.r2 + r.r4
             },
-            'compl_b': { 
-                tex: "|B'|", 
-                desc: (t) => t.neg_b, 
-                calc: (r) => r.r1 + r.r4 
+            'compl_b': {
+                tex: "|B'|",
+                desc: (t) => t.neg_b,
+                calc: (r) => r.r1 + r.r4
             },
-            'compl_union': { 
-                tex: "|(A \\cup B)'|", 
-                desc: (t) => "Жодного з двох варіантів", 
-                calc: (r) => r.r4 
+            'compl_union': {
+                tex: "|(A \\cup B)'|",
+                desc: (t) => t.none || "Жодної з двох властивостей",
+                calc: (r) => r.r4
             },
             'compl_inter': {
                 tex: "|(A \\cap B)'|",
@@ -534,8 +638,8 @@
             },
             'diff_compl_a_b': {
                 tex: "|A' \\setminus B'|",
-                desc: (t) => `Ті, що не ${t.a}, але ${t.b} (еквівалент B\\A)`, // Tricky logic description
-                calc: (r) => r.r2 // A' = {r2, r4}, B' = {r1, r4}. A'\B' = {r2}
+                desc: (t) => `${t.neg_a}, але ${lc(t.b)} (еквівалент B\\A)`,
+                calc: (r) => r.r2 // A' = {r2, r4}, B' = {r1, r4}, A'\B' = {r2}
             },
             'sym_diff': {
                 tex: "|A \\triangle B|",
@@ -544,12 +648,37 @@
             }
         };
 
-        function getRandomInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
+        // --- ПЕРЕВІРКА РОЗВ'ЯЗНОСТІ ---
+        // Кожна величина = лінійна комбінація (r1,r2,r3,r4). Вектор коефіцієнтів:
+        const vec = k => ['r1', 'r2', 'r3', 'r4'].map(r =>
+            varDefs[k].calc({ r1: 0, r2: 0, r3: 0, r4: 0, [r]: 1 }));
+
+        function rank(rows) {
+            const m = rows.map(r => [...r]);
+            let rk = 0;
+            for (let c = 0; c < 4 && rk < m.length; c++) {
+                const p = m.findIndex((r, i) => i >= rk && Math.abs(r[c]) > 1e-9);
+                if (p < 0) continue;
+                [m[rk], m[p]] = [m[p], m[rk]];
+                for (let i = 0; i < m.length; i++) {
+                    if (i !== rk) {
+                        const f = m[i][c] / m[rk][c];
+                        for (let j = c; j < 4; j++) m[i][j] -= f * m[rk][j];
+                    }
+                }
+                rk++;
+            }
+            return rk;
+        }
+
+        // 3 незалежні умови, і відповідь через них виражається (4 невідомі: ще потрібна 4-та рівність не потрібна,
+        // бо ціль лежить у лінійній оболонці умов)
+        function isSolvable(givens, target) {
+            const G = givens.map(vec);
+            return rank(G) === 3 && rank([...G, vec(target)]) === 3;
         }
 
         function generateTask() {
-            // 1. Generate Random Disjoint Sets
             truth = {
                 r1: getRandomInt(5, 25), // A only
                 r2: getRandomInt(5, 25), // B only
@@ -557,40 +686,28 @@
                 r4: getRandomInt(0, 10)  // None
             };
 
-            // 2. Pick a Theme
             const theme = themes[Math.floor(Math.random() * themes.length)];
 
-            // 3. Determine Difficulty & Select Variables
-            // We need a solvable set of givens. 
-            // Easy strategy: always give 3 "simple" independent overlapping infos, ask for 4th.
-            // Hard strategy: give complements.
-            
             const mode = Math.random() > 0.4 ? 'normal' : 'hard';
-            
-            let givensKeys = [];
-            let targetKey = '';
+            const pool = mode === 'normal'
+                ? ['a', 'b', 'intersection', 'union', 'omega', 'compl_union']
+                : ['compl_a', 'compl_b', 'diff_a_b', 'diff_compl_a_b', 'sym_diff', 'omega', 'intersection'];
 
-            if (mode === 'normal') {
-                // Classic Inclusion-Exclusion
-                const pool = ['a', 'b', 'intersection', 'union', 'omega', 'compl_union'];
-                // Shuffle and pick 3
-                const shuffled = pool.sort(() => 0.5 - Math.random());
-                givensKeys = shuffled.slice(0, 3);
-                targetKey = shuffled[3];
-            } else {
-                // Tricky Complements
-                const hardPool = ['compl_a', 'compl_b', 'diff_a_b', 'diff_compl_a_b', 'sym_diff', 'omega', 'intersection'];
-                const shuffled = hardPool.sort(() => 0.5 - Math.random());
-                givensKeys = shuffled.slice(0, 3);
-                targetKey = shuffled[3];
-                // Ensure solvability check? For this sim, providing 3 distinct overlapping regions usually works, 
-                // but to be safe let's add 'omega' or 'intersection' if not present to anchor the set.
-                if (!givensKeys.includes('omega') && !givensKeys.includes('intersection')) {
-                    givensKeys[2] = 'omega';
-                }
+            let givensKeys, targetKey;
+            let tries = 0;
+            do {
+                const sh = shuffle(pool);
+                givensKeys = sh.slice(0, 3);
+                targetKey = sh[3];
+                tries++;
+            } while (!isSolvable(givensKeys, targetKey) && tries < 500);
+
+            // Страховка (на практиці не спрацьовує)
+            if (!isSolvable(givensKeys, targetKey)) {
+                givensKeys = ['a', 'b', 'union'];
+                targetKey = 'intersection';
             }
 
-            // Store task data
             currentTaskData = {
                 theme: theme,
                 givens: givensKeys.map(k => ({ key: k, val: varDefs[k].calc(truth) })),
@@ -599,37 +716,32 @@
             };
 
             renderCurrentTask();
-            
-            // Clear inputs
+
             document.getElementById('user-answer').value = '';
             document.getElementById('card-feedback').innerText = '';
             document.querySelectorAll('.venn-input').forEach(i => i.value = '');
         }
 
         function renderCurrentTask() {
-            if(!currentTaskData) return;
+            if (!currentTaskData) return;
 
             const showStory = document.getElementById('show-story').checked;
             const showNotation = document.getElementById('show-notation').checked;
             const t = currentTaskData.theme;
 
-            // Update ID
             document.getElementById('task-id').innerText = currentTaskData.id;
 
-            // Update Story
             const storyEl = document.getElementById('story-text');
             if (showStory) {
                 storyEl.style.display = 'block';
-                storyEl.innerText = `Контекст: ${t.name}. Досліджуємо множини: A (${t.a}) та B (${t.b}).`;
+                storyEl.innerText = `Контекст: ${t.name}. ${t.omega} (Ω). Досліджуємо множини: A (${lc(t.a)}) та B (${lc(t.b)}).`;
             } else {
                 storyEl.style.display = 'none';
             }
 
-            // Update Givens List
             const listEl = document.getElementById('data-clues');
             listEl.innerHTML = '';
 
-            // Helper to build label
             const getLabel = (def) => {
                 let parts = [];
                 if (showNotation) parts.push(`$ ${def.tex} $`);
@@ -638,26 +750,23 @@
                 return parts.join(" ");
             };
 
-            // Safety check: if both unchecked
             if (!showStory && !showNotation) {
                 listEl.innerHTML = `<div style="color:red; text-align:center">Увімкніть хоча б один режим відображення!</div>`;
             } else {
                 currentTaskData.givens.forEach(item => {
                     const def = varDefs[item.key];
-                    const html = `
+                    listEl.innerHTML += `
                         <div class="data-item">
                             <span>${getLabel(def)}</span>
                             <strong>${item.val}</strong>
                         </div>`;
-                    listEl.innerHTML += html;
                 });
             }
 
-            // Update Question
             const targetDef = varDefs[currentTaskData.target.key];
             document.getElementById('question-label').innerHTML = `Знайти: ${getLabel(targetDef)}`;
 
-            MathJax.typesetPromise();
+            typeset();
         }
 
         function checkAnswer() {
@@ -681,12 +790,11 @@
         }
 
         // --- UI TABS ---
-        function switchTab(id) {
+        function switchTab(id, btn) {
             document.querySelectorAll('.main-container').forEach(d => d.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            // Update buttons visually (simple way)
-            event.target.classList.add('active');
+            btn.classList.add('active');
         }
 
         // --- POWER SET GEN ---
@@ -707,9 +815,7 @@
 
         function updateSetDisplay() {
             const arr = Array.from(selectedEmojis);
-            const el = document.getElementById('current-set-display');
-            el.innerText = arr.length ? arr.join(', ') : '\\emptyset';
-            if(!arr.length) MathJax.typesetPromise([el.parentElement]);
+            document.getElementById('current-set-display').innerText = arr.join(', ');
         }
 
         function generatePowerSet() {
@@ -730,7 +836,7 @@
                 span.innerHTML = `$${text}$`;
                 container.appendChild(span);
             }
-            MathJax.typesetPromise([container]);
+            typeset(container);
         }
 
         // Init
