@@ -6,129 +6,141 @@
 #ctl button{min-width:36px;height:30px;padding:0 8px;border:1px solid #b9c0d4;border-radius:6px;background:rgba(255,255,255,.88);color:#3040a0;font:600 13px Inter,"Segoe UI",sans-serif;cursor:pointer}
 #ctl button:hover{background:#fff;border-color:#3040a0}
 #ctl button.off{color:#8a93a8;background:rgba(235,238,246,.88)}</style></head>
-<body><canvas id="c" title="клік по хвилі — пуск/стоп; клік по смузі — вимкнути/увімкнути смугу"></canvas>
+<body><canvas id="c" data-fit="1" title="клік — увімкнути звук; далі: клік по смузі — вимкнути/увімкнути її, клік по хвилі — стоп"></canvas>
 <div id="ctl"><button id="muteBtn" title="вимкнути/увімкнути звук">🔊</button></div>
 <script>
 /* Банер: звуковий спектр.
    Без кліка: беззвучна демонстрація — сума гармонік 1…k (амплітуди 1/h) і її спектр.
-   Клік по хвилі: пуск/стоп loop.mp3 (по колу). Кожні SWITCH_SEC секунд по черзі лишаються лише
-   EDGE_BANDS нижніх (ФНЧ) або верхніх (ФВЧ) смуг. Клік по смузі спектра вимикає/вмикає її до
-   найближчого перемикання режиму (потім маска знову стає ФНЧ/ФВЧ). Кнопка 🔊 — загальний mute. */
-(function () {
+   Перший клік ЛИШЕ запускає loop.mp3 (по колу); далі кожні SWITCH_SEC с чергуються ФВЧ ⇄ ФНЧ
+   (лишаються EDGE_BANDS верхніх/нижніх смуг). Клік по смузі вимикає/вмикає її до найближчого перемикання,
+   клік по хвилі — стоп. Кнопка 🔊 — загальний mute. */
+function initSpectrumBanner(canvas, playBtn, muteBtn) {
 'use strict';
-
 /* ============ НАЛАШТУВАННЯ ============ */
-var AUDIO_FILE = 'loop.mp3';
-var SWITCH_SEC = 4;       // скільки секунд звучить один режим
-var EDGE_BANDS = 6;       // скільки смуг лишається (з 16)
-var FIRST_MODE = 'LPF';   // з якого режиму починати: 'LPF' (ФНЧ) або 'HPF' (ФВЧ)
-var MASTER_GAIN = 0.5;
-var F0 = 3, K_MAX = 6, HARM_T = 2.2;   // демо: основна частота (у бінах, НЕПАРНА), кількість гармонік, секунд на крок.
-                                       // Одночасно задає межу ФНЧ: ≈ (F0·K_MAX+F0/2)·fs/2048 → F0=3: ~0,47 кГц (глухо), F0=5: ~0,77 кГц
-var LIN_BANDS = K_MAX;                 // скільки перших смуг лінійні (шириною F0 бінів, з центром у h·F0); решта — логарифмічні
+const AUDIO_FILE = 'loop.mp3';
+const SWITCH_SEC = 4;        // скільки секунд звучить один режим
+const EDGE_BANDS = 6;        // скільки смуг лишається (з BANDS)
+const FIRST_MODE = 'HPF';    // з якого режиму починати: 'HPF' (ФВЧ) або 'LPF' (ФНЧ)
+const MASTER_GAIN = 0.5;
+const F0 = 3;                // основна частота демо в бінах (НЕПАРНА); задає і ширину лінійних смуг, тобто межу ФНЧ
+const K_MAX = 6, HARM_T = 2.2;   // демо: кількість гармонік, секунд на крок
+const LIN_BANDS = K_MAX;     // перші смуги лінійні (шириною F0 бінів, центр смуги h = h·F0), решта — логарифмічні
+const BANDS = 15, FFT_N = 4096;
+const TOP_FRAC = 0.675;      // верх останньої смуги = 0.675 від Найквіста (~16 кГц при 48 кГц): смугу 16…24 кГц прибрано
+/* Межі при fs = 48 кГц (бін = fs/FFT_N ≈ 11.7 Гц): ФНЧ ≈ 23…234 Гц, ФВЧ ≈ від 1 кГц до 16 кГц.
+   Збільшити F0 (3→5→7) — ФНЧ пропускає більше; зменшити FFT_N — теж. */
 
-var BANDS = 16, FFT_N = 2048;
-var canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
-var W = 0, H = 0, dpr = 1;
+const FONT = 'Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+const ctx = canvas.getContext('2d');
+const fit = canvas.getAttribute('data-fit') === '1';     // 1 — заповнює вікно (банер), 0 — фіксований розмір
+const W0 = canvas.width, H0 = canvas.height;
+let W = W0, H = H0, dpr = 1;
+function layout() {
+  dpr = window.devicePixelRatio || 1;
+  if (fit) { W = Math.max(1, window.innerWidth); H = Math.max(1, window.innerHeight); }
+  else { W = W0; H = H0; canvas.style.width = W0 + 'px'; }
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', layout);
 
-/* ---------- FFT (Кулі—Тьюки, radix-2) і логарифмічні смуги ---------- */
-var timeData = new Float32Array(FFT_N);
-var re = new Float32Array(FFT_N), im = new Float32Array(FFT_N);
-/* Розкладка смуг: перші LIN_BANDS — лінійні, шириною F0 біна, смуга h має центр рівно в біні h·F0
-   (тому кожна гармоніка 1…K_MAX потрапляє в СВОЮ смугу точно по центру). Далі — логарифмічні смуги до FFT_N/2.
-   Суто логарифмічна розкладка (як було) цього не дозволяє: гармоніки йдуть лінійно, смуги — у геометричній прогресії. */
-var bandEdges = (function () {
-  var e = [], half = (F0 - 1) / 2, start = F0 - half, top = FFT_N / 2;
-  for (var b = 0; b <= LIN_BANDS; b++) e.push(start + F0 * b);
-  var nLog = BANDS - LIN_BANDS, from = e[LIN_BANDS];
-  for (var j = 1; j <= nLog; j++) e.push(Math.round(from * Math.pow(top / from, j / nLog)));
+/* ---------- FFT (Кулі—Тьюки, radix-2) і смуги ---------- */
+const timeData = new Float32Array(FFT_N);
+const re = new Float32Array(FFT_N), im = new Float32Array(FFT_N);
+/* Лінійні смуги: смуга h містить біни h·F0±(F0-1)/2, її центр — рівно h·F0, тому кожна гармоніка 1…K_MAX
+   потрапляє у СВОЮ смугу точно по центру. Чисто логарифмічна розкладка цього не дозволяє:
+   гармоніки йдуть лінійно, а смуги — в геометричній прогресії. */
+const bandEdges = (function () {
+  const e = [], half = (F0 - 1) / 2, start = F0 - half, top = Math.round(FFT_N / 2 * TOP_FRAC);
+  for (let b = 0; b <= LIN_BANDS; b++) e.push(start + F0 * b);
+  const nLog = BANDS - LIN_BANDS, from = e[LIN_BANDS];
+  for (let j = 1; j <= nLog; j++) e.push(Math.round(from * Math.pow(top / from, j / nLog)));
   return e;
 })();
-var bandVals = new Array(BANDS).fill(0);
-var bandMuted = new Array(BANDS).fill(false);
+const bandVals = new Array(BANDS).fill(0);
+const bandMuted = new Array(BANDS).fill(false);
 
 function fftInPlace() {
-  var n = re.length;
-  for (var i = 1, j = 0; i < n; i++) {
-    var bit = n >> 1;
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
     for (; j & bit; bit >>= 1) j ^= bit;
     j ^= bit;
-    if (i < j) { var tr = re[i]; re[i] = re[j]; re[j] = tr; var ti = im[i]; im[i] = im[j]; im[j] = ti; }
+    if (i < j) { const tr = re[i]; re[i] = re[j]; re[j] = tr; const ti = im[i]; im[i] = im[j]; im[j] = ti; }
   }
-  for (var len = 2; len <= n; len <<= 1) {
-    var ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), half = len >> 1;
-    for (var s = 0; s < n; s += len) {
-      var cr = 1, ci = 0;
-      for (var k = 0; k < half; k++) {
-        var i1 = s + k, i2 = i1 + half;
-        var vr = re[i2] * cr - im[i2] * ci, vi = re[i2] * ci + im[i2] * cr;
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), half = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < half; k++) {
+        const i1 = i + k, i2 = i1 + half;
+        const vr = re[i2] * cr - im[i2] * ci, vi = re[i2] * ci + im[i2] * cr;
         re[i2] = re[i1] - vr; im[i2] = im[i1] - vi;
         re[i1] += vr;         im[i1] += vi;
-        var ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+        const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
       }
     }
   }
 }
 function bandsFromTimeData(useHann) {
-  /* Демо-сигнал має цілі частоти в бінах (точно ціле число періодів у кадрі), тож без вікна
-     витоку немає: одна гармоніка = один стовпчик. Для реального звуку потрібне вікно Ханна. */
-  for (var i = 0; i < FFT_N; i++) {
-    var w = useHann ? 0.5 * (1 - Math.cos(2 * Math.PI * i / FFT_N)) : 1;
-    re[i] = timeData[i] * w;
-    im[i] = 0;
+  /* Демо-сигнал має цілі частоти в бінах (ціле число періодів у кадрі), тож без вікна витоку немає:
+     одна гармоніка = один стовпчик. Для реального звуку потрібне вікно Ханна. */
+  for (let i = 0; i < FFT_N; i++) {
+    const w = useHann ? 0.5 * (1 - Math.cos(2 * Math.PI * i / FFT_N)) : 1;
+    re[i] = timeData[i] * w; im[i] = 0;
   }
   fftInPlace();
-  for (var b = 0; b < BANDS; b++) {
-    var m = 0;
-    for (var k = bandEdges[b]; k < Math.max(bandEdges[b] + 1, bandEdges[b + 1]); k++) {
-      var mag = Math.hypot(re[k], im[k]); if (mag > m) m = mag;
+  for (let b = 0; b < BANDS; b++) {
+    let m = 0;
+    for (let k = bandEdges[b]; k < Math.max(bandEdges[b] + 1, bandEdges[b + 1]); k++) {
+      const mag = Math.hypot(re[k], im[k]); if (mag > m) m = mag;
     }
-    var db = 20 * Math.log10((m + 1e-6) / FFT_N);
+    const db = 20 * Math.log10((m + 1e-6) / FFT_N);
     bandVals[b] += (Math.max(0, Math.min(1, (db + 72) / 54)) - bandVals[b]) * 0.4;
   }
 }
 
 /* ---------- беззвучне демо: сума гармонік 1…k ---------- */
-var idleT0 = performance.now();
-var idleK = 1;
+const idleT0 = performance.now();
+let idleK = 1;
 function synthIdle(now) {
-  var s = ((now - idleT0) / 1000) % (HARM_T * K_MAX);
+  const s = ((now - idleT0) / 1000) % (HARM_T * K_MAX);
   idleK = Math.min(K_MAX, Math.floor(s / HARM_T) + 1);
-  for (var i = 0; i < FFT_N; i++) {
-    var x = 0;
-    for (var h = 1; h <= idleK; h++) x += Math.sin(2 * Math.PI * F0 * h * i / FFT_N) / h;
+  for (let i = 0; i < FFT_N; i++) {
+    let x = 0;
+    for (let h = 1; h <= idleK; h++) x += Math.sin(2 * Math.PI * F0 * h * i / FFT_N) / h;
     timeData[i] = x;
   }
-  var m = 1e-9;
-  for (var j = 0; j < FFT_N; j++) { var a = Math.abs(timeData[j]); if (a > m) m = a; }
-  var g = 0.8 / m;
-  for (var q = 0; q < FFT_N; q++) timeData[q] *= g;
+  let m = 1e-9;
+  for (let j = 0; j < FFT_N; j++) { const a = Math.abs(timeData[j]); if (a > m) m = a; }
+  const g = 0.8 / m;
+  for (let q = 0; q < FFT_N; q++) timeData[q] *= g;
 }
 
-/* ---------- аудіо-граф: loop.mp3 → 16 смугових фільтрів → master → вихід
-               (аналізатор стоїть ДО master, тож картинка не залежить від гучності) ---------- */
-var actx = null, analyser = null, master = null, bankIn = null, src = null, loopBuf = null;
-var bandGains = [];
-var running = false, loading = false, errMsg = '';
-var muted = false, edited = false, pendingFlips = [];
-var geom = {specY: 0, specH: 0, pad: 14, barW: 0, bgap: 4};
-var mode = FIRST_MODE, modeT0 = 0;
+/* ---------- аудіо-граф: loop.mp3 → смугові фільтри → master → вихід
+               (аналізатор стоїть ДО master, тож картинка не залежить від mute) ---------- */
+let actx = null, analyser = null, master = null, bankIn = null, src = null, loopBuf = null;
+const bandGains = [];
+let running = false, loading = false, errMsg = '';
+let muted = false, edited = false;
+let mode = FIRST_MODE, modeT0 = 0;
+const geom = { specY: 0, specH: 0, pad: 14, barW: 0, bgap: 4 };
 
 function ensureAudio() {
   if (actx) return true;
   try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
   catch (e) { errMsg = 'Web Audio недоступний'; return false; }
-  master = actx.createGain(); master.gain.value = MASTER_GAIN;
+  master = actx.createGain(); master.gain.value = muted ? 0 : MASTER_GAIN;
   analyser = actx.createAnalyser(); analyser.fftSize = FFT_N;
   bankIn = actx.createGain();
-  var sumBus = actx.createGain();
-  for (var b = 0; b < BANDS; b++) {
-    var fLo = Math.max(1, bandEdges[b] * actx.sampleRate / FFT_N);
-    var fHi = Math.max(fLo + 1, bandEdges[b + 1] * actx.sampleRate / FFT_N);
-    var f = actx.createBiquadFilter(); f.type = 'bandpass';
+  const sumBus = actx.createGain();
+  for (let b = 0; b < BANDS; b++) {
+    const fLo = Math.max(1, bandEdges[b] * actx.sampleRate / FFT_N);
+    const fHi = Math.max(fLo + 1, bandEdges[b + 1] * actx.sampleRate / FFT_N);
+    const f = actx.createBiquadFilter(); f.type = 'bandpass';
     f.frequency.value = Math.sqrt(fLo * fHi);
     f.Q.value = Math.max(0.7, Math.sqrt(fLo * fHi) / (fHi - fLo));
-    var g = actx.createGain(); g.gain.value = 1;
+    const g = actx.createGain(); g.gain.value = 1;
     bankIn.connect(f); f.connect(g); g.connect(sumBus);
     bandGains.push(g);
   }
@@ -138,23 +150,24 @@ function ensureAudio() {
 }
 function applyBandMutes() {
   if (!actx) return;
-  var t = actx.currentTime;
-  for (var b = 0; b < BANDS; b++) bandGains[b].gain.setTargetAtTime(bandMuted[b] ? 0 : 1, t, 0.02);
+  const t = actx.currentTime;
+  for (let b = 0; b < BANDS; b++) bandGains[b].gain.setTargetAtTime(bandMuted[b] ? 0 : 1, t, 0.02);
 }
 function applyMute() {
   if (actx) master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, actx.currentTime, 0.02);
 }
 function updateBtns() {
-  var mb = document.getElementById('muteBtn');
-  mb.textContent = muted ? '🔇' : '🔊'; mb.classList.toggle('off', muted);
+  if (playBtn) playBtn.textContent = running ? '⏸' : '▶';
+  if (muteBtn) { muteBtn.textContent = muted ? '🔇' : '🔊'; muteBtn.classList.toggle('off', muted); }
 }
-function setMode(m) {
+function setMode(m) {                      // режим ФНЧ/ФВЧ; ручні правки скидаються
   mode = m; modeT0 = performance.now(); edited = false;
-  for (var b = 0; b < BANDS; b++) {
+  for (let b = 0; b < BANDS; b++) {
     bandMuted[b] = (m === 'HPF') ? (b < BANDS - EDGE_BANDS) : (b >= EDGE_BANDS);
   }
   applyBandMutes();
 }
+function flipBand(b) { bandMuted[b] = !bandMuted[b]; edited = true; applyBandMutes(); }
 function stopSource() {
   if (src) { try { src.stop(); } catch (e) {} try { src.disconnect(); } catch (e) {} src = null; }
 }
@@ -167,98 +180,85 @@ function playSource() {
 async function startAudio() {
   if (loading) return;
   errMsg = '';
-  if (!ensureAudio()) return;
-  loading = true;
+  if (!ensureAudio()) { updateBtns(); return; }
+  loading = true; updateBtns();
   try {
     if (actx.state === 'suspended') await actx.resume();   // перший await — всередині жесту кліку
     if (!loopBuf) {
-      var resp = await fetch(AUDIO_FILE);
+      const resp = await fetch(AUDIO_FILE);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       loopBuf = await actx.decodeAudioData(await resp.arrayBuffer());
     }
     playSource(); applyMute();
-    setMode(FIRST_MODE);
-    while (pendingFlips.length) flipBand(pendingFlips.pop());   // клік по смузі, що запустив звук
+    setMode(FIRST_MODE);                                   // одразу авто-чергування
     running = true;
   } catch (e) {
     errMsg = (location.protocol === 'file:')
       ? AUDIO_FILE + ' з file:// недоступний — потрібен http-сервер'
       : AUDIO_FILE + ': ' + ((e && e.message) ? e.message : e);
   }
-  loading = false;
+  loading = false; updateBtns();
 }
 function stopAudio() {
   stopSource(); running = false;
   bandMuted.fill(false); edited = false; applyBandMutes();
-}
-function flipBand(b) {
-  bandMuted[b] = !bandMuted[b]; edited = true; applyBandMutes();
+  updateBtns();
 }
 canvas.addEventListener('click', function (e) {
   if (loading) return;
-  var r = canvas.getBoundingClientRect();
-  var x = e.clientX - r.left, y = e.clientY - r.top;
-  if (y >= geom.specY && y <= geom.specY + geom.specH) {            // клік по смузі спектра
-    var b = Math.floor((x - geom.pad - geom.bgap) / (geom.barW + geom.bgap));
-    if (b >= 0 && b < BANDS) {
-      if (running) flipBand(b);
-      else { pendingFlips.push(b); startAudio(); }                   // щоб результат було чути одразу
-      return;
-    }
+  if (!running) { startAudio(); return; }                  // перший клік ЛИШЕ запускає музику
+  const r = canvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (W / r.width), y = (e.clientY - r.top) * (H / r.height);
+  if (y >= geom.specY && y <= geom.specY + geom.specH) {   // клік по смузі спектра
+    const b = Math.floor((x - geom.pad - geom.bgap) / (geom.barW + geom.bgap));
+    if (b >= 0 && b < BANDS) { flipBand(b); return; }
   }
-  if (running) stopAudio(); else startAudio();                       // клік по хвилі — пуск/стоп
+  stopAudio();                                             // клік по хвилі — стоп
 });
-document.getElementById('muteBtn').addEventListener('click', function () {
+if (playBtn) playBtn.addEventListener('click', function () {
+  if (loading) return;
+  if (running) stopAudio(); else startAudio();
+});
+if (muteBtn) muteBtn.addEventListener('click', function () {
   muted = !muted; applyMute(); updateBtns();
 });
-updateBtns();
 
 /* ---------- малювання ---------- */
-function layout() {
-  dpr = window.devicePixelRatio || 1;
-  W = Math.max(1, window.innerWidth); H = Math.max(1, window.innerHeight);
-  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-window.addEventListener('resize', layout);
-
-var FONT = 'Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
-
 function draw(now) {
-  var pad = 14, gap = 12, hintH = 22;
-  var innerH = H - 2 * pad - hintH;
-  var waveH = Math.round(innerH * 0.42), waveW = W - 2 * pad;
-  var specY = pad + waveH + gap, specH = H - pad - hintH - specY;
+  const small = W < 600;
+  const pad = small ? 10 : 14, gap = small ? 8 : 12, hintH = small ? 20 : 22;
+  const innerH = H - 2 * pad - hintH;
+  const waveH = Math.round(innerH * 0.42), waveW = W - 2 * pad;
+  const specY = pad + waveH + gap, specH = H - pad - hintH - specY;
 
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
 
   /* осцилограма */
   ctx.fillStyle = '#f5f6fa'; ctx.fillRect(pad, pad, waveW, waveH);
   ctx.strokeStyle = '#dde0ea'; ctx.lineWidth = 0.5;
-  for (var y = 12; y < waveH; y += 12) {
+  for (let y = 12; y < waveH; y += 12) {
     ctx.beginPath(); ctx.moveTo(pad, pad + y); ctx.lineTo(pad + waveW, pad + y); ctx.stroke();
   }
-  var midY = pad + waveH / 2;
+  const midY = pad + waveH / 2, span = running ? FFT_N / 2 : FFT_N;   // демо — весь буфер, звук — перша половина
   ctx.beginPath(); ctx.strokeStyle = '#3040a0'; ctx.lineWidth = 1.6;
-  for (var x = 0; x < waveW; x++) {
-    var idx = Math.min(FFT_N - 1, Math.floor(x * (running ? FFT_N / 2 : FFT_N) / waveW));   // демо — весь буфер (кілька періодів), звук — перша половина
-    var yy = midY - timeData[idx] * (waveH / 2) * 0.92;
+  for (let x = 0; x < waveW; x++) {
+    const yy = midY - timeData[Math.min(FFT_N - 1, Math.floor(x * span / waveW))] * (waveH / 2) * 0.92;
     if (x === 0) ctx.moveTo(pad + x, yy); else ctx.lineTo(pad + x, yy);
   }
   ctx.stroke();
 
   /* спектр: BANDS стовпчиків */
   ctx.fillStyle = '#f5f6fa'; ctx.fillRect(pad, specY, waveW, specH);
-  var bgap = 4, barW = (waveW - bgap * (BANDS + 1)) / BANDS;
+  const bgap = small ? 3 : 4, barW = (waveW - bgap * (BANDS + 1)) / BANDS;
   geom.specY = specY; geom.specH = specH; geom.pad = pad; geom.barW = barW; geom.bgap = bgap;
-  for (var i = 0; i < BANDS; i++) {
-    var bx = pad + bgap + i * (barW + bgap);
-    var bh = Math.max(2, bandVals[i] * (specH - 8)), by = specY + specH - 4 - bh;
+  for (let i = 0; i < BANDS; i++) {
+    const bx = pad + bgap + i * (barW + bgap);
+    const bh = Math.max(2, bandVals[i] * (specH - 8)), by = specY + specH - 4 - bh;
     if (bandMuted[i]) {
       ctx.fillStyle = 'rgba(148,163,184,0.16)'; ctx.fillRect(bx, specY + 4, barW, specH - 8);   // «вимкнена» смуга
       ctx.fillStyle = 'rgba(148,163,184,0.55)'; ctx.fillRect(bx, by, barW, bh);
     } else {
-      var grad = ctx.createLinearGradient(0, by, 0, specY + specH - 4);
+      const grad = ctx.createLinearGradient(0, by, 0, specY + specH - 4);
       grad.addColorStop(0, 'rgba(120,220,140,0.95)'); grad.addColorStop(1, 'rgba(80,180,100,0.55)');
       ctx.fillStyle = grad; ctx.fillRect(bx, by, barW, bh);
     }
@@ -268,36 +268,37 @@ function draw(now) {
 
   /* плашка режиму + прогрес до перемикання */
   if (running) {
-    var isLP = (mode === 'LPF');
-    var title = isLP ? 'ФНЧ' : 'ФВЧ';
-    var sub = (isLP ? 'нижні ' + EDGE_BANDS + ' смуг' : 'верхні ' + EDGE_BANDS + ' смуг') + (edited ? ' · змінено вручну' : '');
-    ctx.font = '700 17px ' + FONT;
-    var tw = ctx.measureText(title).width;
-    ctx.font = '12px ' + FONT;
-    var sw = ctx.measureText(sub).width;
-    var pw = tw + sw + 34, ph = 28, px = pad + waveW - pw - 8, py = pad + 8;
+    const isLP = (mode === 'LPF');
+    const title = isLP ? 'ФНЧ' : 'ФВЧ';
+    const sub = (isLP ? 'нижні ' : 'верхні ') + EDGE_BANDS + ' смуг' + (edited ? ' · вручну' : '');
+    const f1 = small ? 14 : 17, f2 = small ? 11 : 12;
+    ctx.font = '700 ' + f1 + 'px ' + FONT; const tw = ctx.measureText(title).width;
+    ctx.font = f2 + 'px ' + FONT; const sw = ctx.measureText(sub).width;
+    const pw = tw + sw + 30, ph = small ? 24 : 28, px = pad + waveW - pw - 6, py = pad + 6;
     ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.fillRect(px, py, pw, ph);
     ctx.strokeStyle = '#3040a0'; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#3040a0'; ctx.font = '700 17px ' + FONT; ctx.fillText(title, px + 10, py + ph / 2 + 1);
-    ctx.fillStyle = '#56627a'; ctx.font = '12px ' + FONT; ctx.fillText(sub, px + 10 + tw + 14, py + ph / 2 + 1);
-    var frac = Math.min(1, (now - modeT0) / (SWITCH_SEC * 1000));
+    ctx.fillStyle = '#3040a0'; ctx.font = '700 ' + f1 + 'px ' + FONT; ctx.fillText(title, px + 9, py + ph / 2 + 1);
+    ctx.fillStyle = '#56627a'; ctx.font = f2 + 'px ' + FONT; ctx.fillText(sub, px + 9 + tw + 12, py + ph / 2 + 1);
+    const frac = Math.min(1, (now - modeT0) / (SWITCH_SEC * 1000));
     ctx.fillStyle = '#3040a0'; ctx.fillRect(pad, pad + waveH - 3, waveW * frac, 3);
   }
 
-  /* підказка знизу */
-  var hint;
+  /* підказка знизу (стискається, щоб влізти) */
+  let hint;
   if (loading) hint = 'завантаження…';
   else if (errMsg) hint = errMsg;
-  else if (running) hint = AUDIO_FILE + ' · ФНЧ ⇄ ФВЧ кожні ' + SWITCH_SEC + ' с · смуга: клік — вимк/увімк · хвиля: клік — стоп';
-  else hint = 'без звуку: ' + (idleK === 1 ? 'основна гармоніка' : 'сума гармонік 1…' + idleK) + ' · клік по хвилі — увімкнути звук';
-  ctx.font = '12px ' + FONT; ctx.textAlign = 'center';
+  else if (running) hint = AUDIO_FILE + ' · ФВЧ ⇄ ФНЧ кожні ' + SWITCH_SEC + ' с · клік по смузі — вимк/увімк · по хвилі — стоп';
+  else hint = 'без звуку: ' + (idleK === 1 ? 'основна гармоніка' : 'сума гармонік 1…' + idleK) + ' · клік — увімкнути звук';
+  let fs = 12; ctx.font = fs + 'px ' + FONT;
+  while (fs > 8 && ctx.measureText(hint).width > W - 8) { fs--; ctx.font = fs + 'px ' + FONT; }
+  ctx.textAlign = 'center';
   ctx.fillStyle = errMsg ? '#b3402a' : 'rgba(29,36,51,0.6)';
   ctx.fillText(hint, W / 2, H - pad / 2 - hintH / 2 + 4);
 }
 
 function frame() {
-  var now = performance.now();
+  const now = performance.now();
   if (running && actx && analyser) {
     if (now - modeT0 >= SWITCH_SEC * 1000) setMode(mode === 'LPF' ? 'HPF' : 'LPF');
     analyser.getFloatTimeDomainData(timeData);
@@ -308,7 +309,8 @@ function frame() {
   draw(now);
   requestAnimationFrame(frame);
 }
-layout();
-frame();
-})();
+layout(); updateBtns(); frame();
+}
+
+initSpectrumBanner(document.getElementById('c'), null, document.getElementById('muteBtn'));
 </script></body></html>
