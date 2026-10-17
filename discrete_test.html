@@ -36,6 +36,7 @@ table{border-collapse:collapse}td,th{border:1px solid var(--ln);padding:3px 8px;
 .sw{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #888;margin-right:6px}
 .big{font:700 3.4rem Georgia,serif;line-height:1.1}.big2{font:600 1.5rem Georgia,serif;margin:6px 0 12px}
 .done .pm,.done .c0,.done .cl,.done #kb,.done #ag,.done .gp{pointer-events:none}
+.mc{font:12px/1.4 ui-monospace,Consolas,monospace;color:#567;margin:12px 0 0;white-space:nowrap}
 @media print{#bar,section,#start,.np{display:none!important}body{background:#fff}#rp{border:0}}
 #cap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:center;justify-content:center}
 .rc{background:#fff;border:1px solid #d3d3d3;border-radius:3px;box-shadow:0 0 6px rgba(0,0,0,.35);width:min(400px,96vw);font-family:Roboto,Arial,sans-serif;color:#222}
@@ -68,6 +69,8 @@ const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]
 const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const rd=x=>Math.round(x*10)/10,bits=(x,n)=>x.toString(2).padStart(n,'0'),pc=x=>{let c=0;while(x){c+=x&1;x>>=1}return c};
 const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+/* контрольний код протоколу (FNV-1a + «сіль»); той самий SALT має стояти в userscript для Classroom */
+const SALT='dm-2c991a600e',sig=t=>{let h=2166136261;for(const c of t+SALT){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16).padStart(8,'0')};
 const C=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
 const fact=n=>n<=1?1:n*fact(n-1);
 const plural=(n,one,few,many)=>{const a=n%10,b=n%100;return a==1&&b!=11?one:a>=2&&a<=4&&(b<12||b>14)?few:many};
@@ -151,11 +154,11 @@ const REL=[["Число a ділиться на число b, a,b∈ℕ","100101
 ["«Бути дочкою» на множині жінок","0101100000","«Дочка» — пряма дочка (онука не вважається); у множині є ланцюжки «бабуся — мама — дочка»."],["Перпендикулярність на множині прямих площини","0110000000"]];
 const CORR=[["Імена у списку контактів → їхні телефонні номери","10110","Кожен контакт має принаймні один номер (контактів без номера немає); контакт може мати кілька номерів; кожен номер належить рівно одному контакту."],
 ["Автомобілі України → усі виготовлені номерні знаки","11010","Кожен автомобіль має рівно один знак (незареєстровані авто не розглядаємо); один знак не може бути на двох автомобілях. Серед виготовлених знаків є такі, що ще лежать на складі й нікому не видані, — вони не мають прообразу."],["x∈ℝ → y∈[0;∞), y=x²","11100"],["x∈ℝ → y∈ℝ, y=x²","11000"],
-["Злочини → передбачені законом покарання","11100","Кожному злочину відповідає одне основне покарання; кожне покарання передбачене за якийсь злочин; різним злочинам може відповідати те саме покарання."],
+["Злочини → передбачені законом максимальні покарання","11100","Кожному злочину відповідає одне максимальне покарання; кожне покарання передбачене за якийсь злочин; різним злочинам може відповідати те саме покарання."],
 ["Студенти групи → варіанти контрольної, підготовлені із запасом","11010","Кожен студент отримує один варіант; різні студенти — різні варіанти; варіантів більше, ніж студентів."],
 ["Пасажири → квитки на літак","11010","Кожен пасажир повинен мати квиток; не може мати кілька квитків на один і той самий рейс; квиток належить одному пасажиру; не всі квитки можуть бути продані."],
-["Звірі в зоопарку → клітки","11100","Кожен звір сидить в одній клітці; у клітці може бути кілька звірів; порожніх кліток немає."],
-["Обласні центри України → аеропорти в них","01110","Не в кожному центрі є аеропорт; в кожному — не більше одного; кожен аеропорт стоїть в одному з центрів."],
+["Звірі в зоопарку → клітки","01000","Іноді звірі у вольєрах; у клітці може бути кілька звірів; Є тимчасово порожні клітки."],
+["Обласні центри України → українські аеропорти","00000","Не в кожному центрі є аеропорт; в Києві навіть кілька; аеропорти є не тільки в облцентрах."],
 ["Люди → професії","00100","Є люди без професії та з кількома; кожна професія має хоча б одного представника; у кожної професії кілька представників."],["m∈ℤ → n∈2ℤ, n=2m","11111"],["x∈ℝ → y∈ℝ, y=eˣ","11010"],["x∈ℝ → y∈ℝ, y=√x","01010","√x — арифметичний (невід’ємний) корінь; у ℝ від’ємні числа кореня не мають."]];
 const DR="Рефлексивне: aRa для всіх a. Антирефлексивне: жодне aRa. Симетричне: aRb ⇒ bRa. Антисиметричне: aRb і bRa ⇒ a=b. Асиметричне: aRb ⇒ не bRa. Транзитивне: aRb, bRc ⇒ aRc. Повноти: для a≠b виконано aRb або bRa. Порядку: рефлексивне + антисиметричне + транзитивне. Строгого порядку: антирефлексивне + транзитивне. Еквівалентності: рефлексивне + симетричне + транзитивне.";
 const DC="Всюди означена: кожен елемент першої множини має образ. Функціональна: образ не більш ніж один. Сюр’єктивна: кожен елемент другої множини має прообраз. Ін’єктивна: кожен елемент другої множини має не більше одного прообразу. Біективна: всюди означена, функціональна, сюр’єктивна та ін’єктивна одночасно.";
@@ -285,7 +288,8 @@ async function fin(){if(done||!confirm('Завершити контрольну?
  done=true;clearInterval(tick);const ms=Date.now()-t0;document.body.classList.add('done');const cap=await runCaptcha();
  const a=g1().reduce((x,y)=>x+y,0),b=g2(),c=gq('#t3',T.t3),d=gq('#t4',T.t4),p=[a,b,c,d].map(rd),tot=rd(a+b+c+d);
  $$('#app .ni').forEach(e=>e.disabled=true);
- const rep=`<h2>Протокол контрольної роботи</h2><p><b>${esc(NAME)}</b><br>Дата й час здачі: ${new Date().toLocaleString('uk-UA')}<br>Витрачений час: ${fmt(ms)}<br>Довіра за капчею: ${cap.pct}% (капча ${cap.v})<br>Код варіанта: ${seed.toString(16)}</p><div class="big">${tot} / 20</div><div class="big2">${p.join(' / ')} <small>(максимум ${[6,T.t4.imp?6:4,5,T.t4.imp?3:5].join(' / ')})</small></div><button class="b np" onclick="print()">Зберегти як PDF</button>`;
+ const mxs=[6,T.t4.imp?6:4,5,T.t4.imp?3:5],mx=rd(mxs.reduce((x,y)=>x+y,0)),pl=p.join(','),sd=seed.toString(16),mc=`DM1|${tot}|${mx}|${pl}|${sd}|${sig([tot,mx,pl,sd].join('|'))}`;
+ const rep=`<h2>Протокол контрольної роботи</h2><p><b>${esc(NAME)}</b><br>Дата й час здачі: ${new Date().toLocaleString('uk-UA')}<br>Витрачений час: ${fmt(ms)}<br>Довіра за капчею: ${cap.pct}% (капча ${cap.v})<br>Код варіанта: ${seed.toString(16)}</p><div class="big">${tot} / ${mx}</div><div class="big2">${p.join(' / ')} <small>(максимум ${mxs.join(' / ')})</small></div><p class="mc">Контрольний код: <span>${mc}</span></p><button class="b np" onclick="print()">Зберегти як PDF</button>`;
  $('#rp').innerHTML=rep;$('#rp').hidden=false;document.title=`${NAME}_${tot}`;scrollTo(0,0);
  try{localStorage.setItem(KEY,JSON.stringify({done:1,rep}))}catch(e){}}
 $('#go').onclick=()=>{const n=$('#nm').value.trim();if(!n)return alert('Введіть прізвище та ім’я');begin(n)};
