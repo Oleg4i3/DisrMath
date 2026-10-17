@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Контрольна з дискретної математики</title>
+<style>
+:root{--bg:#eef2f6;--ink:#1b2733;--ac:#0f766e;--ok:#d6f2e4;--bad:#fbd9d9;--ln:#c5d0db}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:900px;margin:0 auto;padding:12px}
+section,#start,#rp{background:#fff;border:1px solid var(--ln);border-radius:8px;padding:16px;margin:14px 0}
+h2{font:600 1.3rem Georgia,serif;margin:0 0 8px}h2 i{float:right;font:500 .9rem system-ui;color:var(--ac)}h3{margin:14px 0 6px;font-size:1rem}
+#bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+#tm{font:600 1.2rem ui-monospace,monospace}
+button,input,select{font:inherit}button{cursor:pointer}
+.b{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:7px 14px}
+input[type=text],input[type=number],select{border:1px solid var(--ln);border-radius:6px;padding:5px 8px}
+#t2 .wrap table{margin:0}#t2 th.v{vertical-align:bottom;padding:6px 2px}#t2 th.v span{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:600;font-size:.88rem}
+#t2 td+td{padding:3px 2px}#t2 .pm{min-width:30px;height:30px}
+#t2 th:first-child,#t2 td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 var(--ln)}#t2 th:first-child{vertical-align:bottom}
+.k1{display:grid;grid-template-columns:max-content 1fr;gap:28px;align-items:start}.k1 h3{margin-top:0}.k1r{position:sticky;top:58px}
+@media(max-width:760px){.k1{grid-template-columns:1fr}.k1r{position:static}}
+table{border-collapse:collapse}td,th{border:1px solid var(--ln);padding:3px 8px;text-align:center}
+.c0,.pm{min-width:34px;border:1px solid var(--ln);background:#f7f9fb;border-radius:4px}
+.km{display:grid;grid-template-columns:repeat(5,52px);gap:2px;width:max-content;margin-bottom:8px}
+.hd{display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#567}
+.cl{height:52px;display:flex;align-items:center;justify-content:center;border:1px solid var(--ln);cursor:pointer;font-weight:600}
+.cl.sel{background:#fff3b0}
+.gp{display:inline-block;border:2px solid;border-radius:12px;padding:1px 10px;margin:6px 6px 0 0;cursor:pointer}
+.fd{font-size:1.3rem;min-height:2.2rem;border-bottom:2px solid var(--ink);margin:6px 0}
+.n{text-decoration:overline}
+#kb button{min-width:40px;margin:2px;padding:4px 8px}
+.ok{background:var(--ok)!important}.bad{background:var(--bad)!important}
+.fb{margin-top:8px}.hint{color:#567;font-size:.9rem}.wrap{overflow-x:auto}
+.ln{display:inline-block;margin:4px 14px 4px 0}.ans{color:#a11}
+#dr{position:relative;width:360px;max-width:100%;aspect-ratio:360/260;border:1px dashed var(--ln);margin-top:6px}
+#dr svg,#dr canvas{position:absolute;inset:0;width:100%;height:100%}#dr canvas{touch-action:none;cursor:crosshair;opacity:.5}.rg{position:absolute;width:48px;height:22px;padding:0 2px;font-size:12px;text-align:center;border:1px dashed #9ab;border-radius:5px;background:rgba(255,255,255,.7)}
+.sw{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #888;margin-right:6px}
+.big{font:700 3.4rem Georgia,serif;line-height:1.1}.big2{font:600 1.5rem Georgia,serif;margin:6px 0 12px}
+.done .pm,.done .c0,.done .cl,.done #kb,.done #ag,.done .gp{pointer-events:none}
+@media print{#bar,section,#start,.np{display:none!important}body{background:#fff}#rp{border:0}}
+#cap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:center;justify-content:center}
+.rc{background:#fff;border:1px solid #d3d3d3;border-radius:3px;box-shadow:0 0 6px rgba(0,0,0,.35);width:min(400px,96vw);font-family:Roboto,Arial,sans-serif;color:#222}
+.rc .box{display:flex;align-items:center;gap:14px;padding:18px;background:#f9f9f9}
+.chk{width:28px;height:28px;border:2px solid #c1c1c1;border-radius:2px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.hd2{background:#4a90e2;color:#fff;padding:16px 20px}.hd2 small{display:block;font-size:.85rem}.hd2 b{display:block;font-size:1.6rem;line-height:1.2}
+.tl{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px}
+.tile{aspect-ratio:1;background:#eef1f5;display:flex;align-items:center;justify-content:center;text-align:center;font-size:1rem;cursor:pointer;position:relative;padding:4px;user-select:none;transition:transform .12s}
+.tile.on{transform:scale(.84)}.tile.on::after{content:'✓';position:absolute;left:-6px;top:-6px;width:22px;height:22px;border-radius:50%;background:#4a90e2;color:#fff;font-size:14px;line-height:22px}
+.rc .ft{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid #ddd}
+.vb{background:#4a90e2;color:#fff;border:0;border-radius:3px;padding:10px 22px;font-weight:700;letter-spacing:.5px}
+#gl3 canvas{display:block;width:100%!important;height:auto!important}
+.sp{width:22px;height:22px;border:3px solid #ccc;border-top-color:#4a90e2;border-radius:50%;animation:rot 1s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+</style></head><body>
+<div id="bar" hidden><b>Контрольна</b><span id="tm">00:00</span><button class="b" id="fin">Завершити</button></div>
+<main>
+<div id="start"><h2>Контрольна: дискретна математика</h2>
+<p>Таймер лише відліковує час. Варіант визначається прізвищем та ім’ям, тому оновлення сторінки його не змінює; відповіді зберігаються автоматично.</p>
+<input type="text" id="nm" placeholder="Прізвище та ім’я" size="30"> <button class="b" id="go">Почати</button></div>
+<div id="rp" hidden></div>
+<div id="app" hidden><section id="t1"></section><section id="t2"></section><section id="t3"></section><section id="t4"></section></div>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],KEY='dm-test-v2';
+let R,seed,NAME,t0,tick,done=false,T={},st={};
+const seedFrom=s=>{let h=2166136261;for(const c of s.trim().toLowerCase()){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}
+ h^=h>>>16;h=Math.imul(h,0x85ebca6b);h^=h>>>13;h=Math.imul(h,0xc2b2ae35);h^=h>>>16;return h>>>0};const mul=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1)),pick=a=>a[ri(0,a.length-1)];
+const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const rd=x=>Math.round(x*10)/10,bits=(x,n)=>x.toString(2).padStart(n,'0'),pc=x=>{let c=0;while(x){c+=x&1;x>>=1}return c};
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const C=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
+const fact=n=>n<=1?1:n*fact(n-1);
+const plural=(n,one,few,many)=>{const a=n%10,b=n%100;return a==1&&b!=11?one:a>=2&&a<=4&&(b<12||b>14)?few:many};
+const joinList=a=>a.length==1?a[0]:a.slice(0,-1).join(', ')+' і '+a[a.length-1];
+const COL=['#e11d48','#2563eb','#16a34a','#9333ea','#f59e0b','#0891b2','#ea580c','#475569'];
+
+/* ---------- Завдання 1 ---------- */
+const SEG=["abcdef","bc","abdeg","abcdg","bcfg","acdfg","acdefg","abc","abcdefg","abcdfg","abcefg","cdefg","adef","bcdeg","adefg","aefg"];
+const PR=[2,3,5,7,11,13];
+const DEC=[["простих чисел",i=>PR.includes(i)],["простих непарних чисел",i=>PR.includes(i)&&i%2],["чисел, кратних трьом",i=>i%3==0],["непарних чисел, кратних трьом",i=>i%3==0&&i%2],["чисел, кратних п’яти",i=>i%5==0],["парних чисел",i=>i%2==0]];
+const G7={a:[10,2,40,7],g:[10,46,40,7],d:[10,91,40,7],f:[2,10,7,36],b:[51,10,7,36],e:[2,54,7,36],c:[51,54,7,36]};
+const svg7=s=>`<svg viewBox="0 0 60 100" width="54" style="float:right">${Object.entries(G7).map(([k,r])=>`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="2" fill="${k==s?'#e11d48':'#d9dfe6'}"/>`).join('')}</svg>`;
+function gen1(){const k=ri(0,12);
+ if(k<7){const s="abcdefg"[k];return{seg:s,F:SEG.map(x=>+x.includes(s)),html:`${svg7(s)}<p>Побудуйте мінімальну формулу для керування сегментом індикатора, виділеним червоним на малюнку, що перетворює 4-бітний код (A — старший біт) у цифру або літеру 0–9, A, b, C, d, E, F.</p>`}}
+ const[n,f]=DEC[k-7];return{F:[...Array(16).keys()].map(i=>+!!f(i)),html:`<p>Побудуйте мінімальну формулу дешифратора ${n}: на виході 1, якщо 4-бітне число (0000–1111, A — старший біт) таке, і 0 в іншому разі.</p>`}}
+const cube=(m,v)=>{let s=0;for(let i=0;i<16;i++)if((i&m)==v)s|=1<<i;return s};
+function refm(F,t){const Tm=F.reduce((s,f,i)=>f==t?s|1<<i:s,0),imp=[];
+ for(let m=0;m<16;m++)for(let v=0;v<16;v++)if((v&m)==v){const s=cube(m,v);if((s&Tm)==s)imp.push({s,l:pc(m),m,v})}
+ const pr=imp.filter(a=>!imp.some(b=>b.s!=a.s&&(a.s&b.s)==a.s));let bc=1e9,covers=[];
+ /* мінімум: спершу сумарна кількість літер (довжина формули), потім кількість доданків/множників */
+ (function rec(i,ch,u,l){const c=l*100+ch.length;if(c>bc)return;if(u==Tm){if(c<bc){bc=c;covers=[ch]}else covers.push(ch);return}
+  if(i>=pr.length)return;rec(i+1,[...ch,pr[i].s],u|pr[i].s,l+pr[i].l);rec(i+1,ch,u,l)})(0,[],0,0);
+ return{pr,covers,min:Math.floor(bc/100)}}
+const gScore=(G,cv)=>{G=[...new Set(G)];let b=0;if(!G.length)return 0;for(const c of cv){const k=G.filter(g=>c.includes(g)).length;b=Math.max(b,(k-(G.length-k))/c.length)}return Math.max(0,b)};
+const th=t=>t[0]=='!'?`<span class="n">${t[1]}</span>`:t,TK=['A','B','C','D','!A','!B','!C','!D','∨','·','(',')'];
+/* знак «·» можна пропускати (як множення в арифметиці): між сусідніми літерою/дужкою вставляємо його автоматично; ∧ старша за ∨ */
+const isEnd=t=>/^!?[A-D]$/.test(t)||t==')',isBeg=t=>/^!?[A-D]$/.test(t)||t=='(';
+const nrm=tok=>{const o=[];tok.forEach((t,i)=>{if(i&&isEnd(tok[i-1])&&isBeg(t))o.push('·');o.push(t)});return o};
+function fEval(tok){tok=nrm(tok);const s=tok.join(''),L='!?[A-D]',f=`(?:${L}|\\(${L}(?:∨${L})*\\))`;
+ const dn=new RegExp(`^${L}(·${L})*(∨${L}(·${L})*)*$`),cn=new RegExp(`^${f}(·${f})*$`);let eq=true;
+ try{const ex=tok.map(t=>t=='∨'?'||':t=='·'?'&&':t[0]=='!'?`!v[${t.charCodeAt(1)-65}]`:/[A-D]/.test(t)?`v[${t.charCodeAt(0)-65}]`:t).join(' ');
+  const fn=new Function('v','return !!('+ex+')');for(let i=0;i<16;i++){const v=[3,2,1,0].map(j=>i>>j&1);if(+fn(v)!=T.t1.F[i])eq=false}}catch(e){eq=false}
+ return{eq,form:{dnf:dn.test(s),cnf:cn.test(s)},lit:tok.filter(t=>/[A-D]/.test(t)).length}}
+function refFormula(r,t){return r.covers[0].map(s=>{const p=r.pr.find(p=>p.s==s),L=[];for(let j=0;j<4;j++){const b=3-j;if(p.m>>b&1){const v=p.v>>b&1;L.push(lit(j,t?!v:!!v))}}return t?L.join('·'):'('+L.join('∨')+')'}).join(t?' ∨ ':' · ')}
+const lit=(j,n)=>n?`<span class="n">${'ABCD'[j]}</span>`:'ABCD'[j],GR=[0,1,3,2];
+const HEX="0123456789AbCdEF";
+const glyph=i=>`<svg viewBox="-4 -4 68 108" width="22" style="vertical-align:middle">${Object.entries(G7).map(([k,r])=>`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="2" fill="${SEG[i].includes(k)?'#1b2733':'#e3e8ee'}"/>`).join('')}</svg> <small>${HEX[i]}</small>`;
+function draw(){const sg=T.t1.seg;let h=`<table><tr><th>A<th>B<th>C<th>D${sg?'<th>Символ':''}<th>F`;
+ for(let i=0;i<16;i++)h+=`<tr><td>${[3,2,1,0].map(j=>i>>j&1).join('<td>')}${sg?'<td>'+glyph(i):''}<td><button class="c0" data-i="${i}">${st.tbl[i]??'?'}</button>`;
+ $('#tbl').innerHTML=h+'</table>';
+ h='<div class="km"><div class="hd">AB＼CD</div>'+GR.map(c=>`<div class="hd">${bits(c,2)}</div>`).join('');
+ GR.forEach(r=>{h+=`<div class="hd">${bits(r,2)}</div>`;GR.forEach(c=>{const i=r<<2|c,gs=st.groups.map((g,k)=>g>>i&1?k:-1).filter(k=>k>=0),sh=gs.map((k,n)=>`inset 0 0 0 ${3+3*n}px ${COL[k%8]}`).join(',');
+  h+=`<div class="cl${st.sel>>i&1?' sel':''}" data-i="${i}" style="box-shadow:${sh||'none'}">${st.tbl[i]??'·'}</div>`})});
+ $('#km').innerHTML=h+'</div>';
+ $('#gl').innerHTML=st.groups.map((g,k)=>`<span class="gp" data-k="${k}" style="border-color:${COL[k%8]}">Група ${k+1} ✕</span>`).join('');
+ $('#fd').innerHTML='F = '+(st.tok.map(th).join(' ')||'…')}
+function r1(){$('#t1').innerHTML=`<h2>Завдання 1 <i>6 б.</i></h2>${T.t1.html}
+<div class="k1"><div class="k1l"><h3>1. Таблиця істинності</h3><p class="hint">Натискайте клітинку F, щоб змінити значення.</p><div id="tbl"></div></div>
+<div class="k1r"><h3>2. Карта Карно</h3><p>Форма: <label><input type="radio" name="md" value="dnf" ${st.mode=='dnf'?'checked':''}> ДНФ (групи з 1)</label> <label><input type="radio" name="md" value="cnf" ${st.mode=='cnf'?'checked':''}> КНФ (групи з 0)</label></p>
+<p class="hint">Позначте клітинки однієї групи (карта «склеєна» по краях) і натисніть «Зафіксувати групу».</p><div id="km"></div><button class="b" id="ag">Зафіксувати групу</button><div id="gl"></div></div></div>
+<h3>3. Мінімальна формула</h3><p class="hint">Знак «·» можна не вводити: A B ∨ C означає A·B ∨ C (кон’юнкція виконується раніше за диз’юнкцію).</p><div id="fd" class="fd"></div><div id="kb"></div><div class="fb" id="fb1"></div>`;
+ $$('[name=md]').forEach(r=>r.onchange=()=>{st.mode=r.value;st.groups=[];st.sel=0;st.tok=[];draw()});
+ $('#tbl').onclick=e=>{const i=e.target.dataset.i;if(i==null||done)return;st.tbl[i]=st.tbl[i]===null?0:1-st.tbl[i];draw()};
+ $('#km').onclick=e=>{const i=e.target.dataset.i;if(i==null||done)return;st.sel^=1<<i;draw()};
+ $('#ag').onclick=()=>{if(st.sel&&!st.groups.includes(st.sel))st.groups.push(st.sel);st.sel=0;draw()};
+ $('#gl').onclick=e=>{const k=e.target.dataset.k;if(k==null||done)return;st.groups.splice(k,1);draw()};
+ $('#kb').innerHTML=TK.map(t=>`<button data-t="${t}">${th(t)}</button>`).join('')+'<button data-t="<">⌫</button><button data-t="x">Очистити</button>';
+ $('#kb').onclick=e=>{const t=e.target.closest('button')?.dataset.t;if(!t||done)return;if(t=='<')st.tok.pop();else if(t=='x')st.tok=[];else st.tok.push(t);draw()};
+ draw()}
+function g1(){const F=T.t1.F,t=st.mode=='dnf'?1:0,r=refm(F,t),G=[...new Set(st.groups)];
+ let tb=0;$$('#tbl .c0').forEach(b=>{const i=+b.dataset.i,ok=st.tbl[i]===F[i];tb+=ok;b.classList.add(ok?'ok':'bad');if(!ok)b.textContent=`${st.tbl[i]??'?'}→${F[i]}`});
+ let Tm=0;F.forEach((f,i)=>{if(f==t)Tm|=1<<i});
+ const fe=fEval(st.tok),ok=fe.eq&&fe.form[st.mode],nonmin=ok&&fe.lit>r.min,fs=ok?(nonmin?.6:1):fe.eq?.3:0,
+  valid=G.length>0&&G.every(g=>(g&Tm)==g)&&G.reduce((u,g)=>u|g,0)==Tm,
+  /* формула правильна, але не мінімальна (напр., не помічено групу, «розірвану» по краях): зараховуємо, знімаємо лише 1 бал за немінімальність (через формулу) */
+  gs=nonmin&&valid?1:gScore(G,r.covers);
+ const best=r.covers.reduce((a,c)=>G.filter(g=>c.includes(g)).length>G.filter(g=>a.includes(g)).length?c:a,r.covers[0]),miss=best.filter(c=>!G.includes(c)).length;
+ $('#gl').innerHTML=G.map((g,k)=>{const good=r.covers.some(c=>c.includes(g)),pr=r.pr.some(p=>p.s==g);return`<div class="${good?'ok':'bad'}" style="padding:2px 8px;margin-top:4px">Група ${k+1}: ${good?'✓ правильна':pr?'максимальна, але не потрібна в мінімальному покритті':(g&Tm)==g?'коректна, але не максимальна (існує більша група, можливо «розірвана» по краях карти)':'✗ містить клітинки з протилежним значенням'}</div>`}).join('');
+ $('#fb1').innerHTML=`<div class="${fs==1?'ok':'bad'}" style="padding:6px 10px">${miss?`Пропущено груп: ${miss} (перевірте групи, що «склеюються» по краях карти). `:''}Формула: ${!fe.eq?'не еквівалентна функції':!ok?'еквівалентна, але не має вигляду '+(st.mode=='dnf'?'ДНФ':'КНФ'):fe.lit==r.min?'правильна й мінімальна':'правильна, але не мінімальна (−1 бал за немінімальність)'}. Еталон: F = ${refFormula(r,t)}</div>`;
+ return[tb/16,gs*2.5,fs*2.5]}
+
+/* ---------- Завдання 2 ---------- */
+const RC=["Рефлексивне","Антирефлексивне","Симетричне","Антисиметричне","Асиметричне","Транзитивне","Повноти","Порядку","Строгого порядку","Еквівалентності"];
+const CC=["Всюди означена","Функціональна","Сюр’єктивна","Ін’єктивна","Біективна"];
+const REL=[["Число a ділиться на число b, a,b∈ℕ","1001010100"],["«Вчитися в одній групі» на множині студентів","1010010001","Груп щонайменше дві; у кожній групі щонайменше двоє студентів; кожен студент — лише в одній групі."],
+["Товар a дорожчий за товар b","0101110010","Існують різні товари з однаковою ціною."],["«Давати однакову остачу при діленні на 4» на ℕ","1010010001"],
+["«Бути рідним братом» на множині чоловіків","0110000000","Брат — інша особа (не сам чоловік); є чоловіки, що мають брата."],["«Перемогти» на множині {камінь, ножиці, папір}","0101101000"],
+["«Лежати на однаковій відстані від початку координат» на площині","1010010001"],["x²=y² на ℝ","1010010001"],["«Стояти після» у черзі (стояти позиційно пізніше)","0101111010"],
+["Пряма x не має спільних точок з прямою y (на площині)","0110000000","Пряма сама з собою має спільні точки; прямих щонайменше дві."],["«Бути рівними за модулем» на множині 3D-векторів","1010010001"],
+["x+y — парне число, x,y∈ℤ","1010010001"],["x+y — непарне число, x,y∈ℤ","0110000000"],["x≤y на ℝ","1001011100"],["«Бути підмножиною» на множині підмножин {1,2,3}","1001010100"],
+["«Бути дочкою» на множині жінок","0101100000","«Дочка» — пряма дочка (онука не вважається); у множині є ланцюжки «бабуся — мама — дочка»."],["Перпендикулярність на множині прямих площини","0110000000"]];
+const CORR=[["Імена у списку контактів → їхні телефонні номери","10110","Кожен контакт має принаймні один номер (контактів без номера немає); контакт може мати кілька номерів; кожен номер належить рівно одному контакту."],
+["Автомобілі України → усі виготовлені номерні знаки","11010","Кожен автомобіль має рівно один знак (незареєстровані авто не розглядаємо); один знак не може бути на двох автомобілях. Серед виготовлених знаків є такі, що ще лежать на складі й нікому не видані, — вони не мають прообразу."],["x∈ℝ → y∈[0;∞), y=x²","11100"],["x∈ℝ → y∈ℝ, y=x²","11000"],
+["Злочини → передбачені законом покарання","11100","Кожному злочину відповідає одне основне покарання; кожне покарання передбачене за якийсь злочин; різним злочинам може відповідати те саме покарання."],
+["Студенти групи → варіанти контрольної, підготовлені із запасом","11010","Кожен студент отримує один варіант; різні студенти — різні варіанти; варіантів більше, ніж студентів."],
+["Пасажири → квитки на літак","11010","Кожен пасажир повинен мати квиток; не може мати кілька квитків на один і той самий рейс; квиток належить одному пасажиру; не всі квитки можуть бути продані."],
+["Звірі в зоопарку → клітки","11100","Кожен звір сидить в одній клітці; у клітці може бути кілька звірів; порожніх кліток немає."],
+["Обласні центри України → аеропорти в них","01110","Не в кожному центрі є аеропорт; в кожному — не більше одного; кожен аеропорт стоїть в одному з центрів."],
+["Люди → професії","00100","Є люди без професії та з кількома; кожна професія має хоча б одного представника; у кожної професії кілька представників."],["m∈ℤ → n∈2ℤ, n=2m","11111"],["x∈ℝ → y∈ℝ, y=eˣ","11010"],["x∈ℝ → y∈ℝ, y=√x","01010","√x — арифметичний (невід’ємний) корінь; у ℝ від’ємні числа кореня не мають."]];
+const DR="Рефлексивне: aRa для всіх a. Антирефлексивне: жодне aRa. Симетричне: aRb ⇒ bRa. Антисиметричне: aRb і bRa ⇒ a=b. Асиметричне: aRb ⇒ не bRa. Транзитивне: aRb, bRc ⇒ aRc. Повноти: для a≠b виконано aRb або bRa. Порядку: рефлексивне + антисиметричне + транзитивне. Строгого порядку: антирефлексивне + транзитивне. Еквівалентності: рефлексивне + симетричне + транзитивне.";
+const DC="Всюди означена: кожен елемент першої множини має образ. Функціональна: образ не більш ніж один. Сюр’єктивна: кожен елемент другої множини має прообраз. Ін’єктивна: кожен елемент другої множини має не більше одного прообразу. Біективна: всюди означена, функціональна, сюр’єктивна та ін’єктивна одночасно.";
+function gen2(){const rel=R()<.5,cols=rel?RC:CC,items=shuf(rel?REL:CORR).slice(0,5);return{rel,cols,items,val:items.map(()=>Array(cols.length).fill(''))}}
+function r2(){const q=T.t2;$('#t2').innerHTML=`<h2>Завдання 2 <i>${T.t4.imp?6:4} б.</i></h2><p>Для кожного ${q.rel?'відношення':'відповідності'} позначте властивості, які воно має (натискайте клітинку: + / −). Підказки до неоднозначних прикладів — у розгортних блоках.</p><details><summary>Означення</summary><p>${q.rel?DR:DC}</p></details>
+<div class="wrap"><table><tr><th>${q.rel?'Відношення':'Відповідність'}${q.cols.map(c=>`<th class="v"><span>${c}</span>`).join('')}${q.items.map((it,r)=>`<tr><td style="text-align:left;min-width:220px">${it[0]}${it[2]?`<details><summary>Підказка</summary>${it[2]}</details>`:''}${q.cols.map((c,k)=>`<td><button class="pm" data-r="${r}" data-k="${k}">${q.val[r][k]||'·'}</button>`).join('')}`).join('')}</table></div>${T.t4.imp?`<p style="margin-top:12px">Додаткове питання. Скількома способами можна заповнити цю таблицю (у кожну клітинку властивостей можна поставити «+», «−» або залишити її порожньою)? <input class="ni" type="text" size="28" placeholder="число або арифметичний вираз"></p>`:''}`;
+ $('#t2').onclick=e=>{const b=e.target.closest('.pm');if(!b||done)return;const{r,k}=b.dataset,v=q.val[r][k],n=v==''?'+':v=='+'?'−':'';q.val[r][k]=n;b.textContent=n||'·'}}
+function pn(s){s=s.replace(/[\s_]/g,'').replace(/\*\*/g,'^');let m;
+ if(/^\d{1,40}$/.test(s))return BigInt(s);
+ if(m=s.match(/^(\d{1,3})\^\(?(\d{1,2})\)?$/))return BigInt(m[1])**BigInt(m[2]);
+ if(m=s.match(/^\((\d{1,3})\^(\d{1,2})\)\^\(?(\d{1,2})\)?$/))return(BigInt(m[1])**BigInt(m[2]))**BigInt(m[3]);
+ return null}
+function g2(){const q=T.t2,cells=q.items.length*q.cols.length;let ok=0;$$('#t2 .pm').forEach(b=>{const{r,k}=b.dataset,tr=q.items[r][1][k]=='1'?'+':'−',g=q.val[r][k]==tr;ok+=g;b.classList.add(g?'ok':'bad');if(!g)b.textContent=`${q.val[r][k]||'·'}→${tr}`});
+ let ex=0;if(T.t4.imp){const e=$('#t2 .ni'),A=3n**BigInt(cells),v=pn(e.value),g=v!==null&&v===A;e.classList.add(g?'ok':'bad');if(!g)e.insertAdjacentHTML('afterend',` <b class="ans">(3^${cells} = ${A})</b>`);ex=2*g}
+ return 4*ok/cells+ex}
+
+/* ---------- Завдання 3 і 4 ---------- */
+const V2={'|A|':[1,0,1,0],'|B|':[0,1,1,0],'|A∩B|':[0,0,1,0],'|A∪B|':[1,1,1,0],'|Ω|':[1,1,1,1],'|(A∪B)′|':[0,0,0,1],'|A′|':[0,1,0,1],'|B′|':[1,0,0,1],'|A∖B|':[1,0,0,0],'|A△B|':[1,1,0,0],'|(A∩B)′|':[1,1,0,1]};
+function rank(rows){const m=rows.map(r=>[...r]);let rk=0;for(let c=0;c<4&&rk<m.length;c++){const p=m.findIndex((r,i)=>i>=rk&&Math.abs(r[c])>1e-9);if(p<0)continue;[m[rk],m[p]]=[m[p],m[rk]];for(let i=0;i<m.length;i++)if(i!=rk){const f=m[i][c]/m[rk][c];for(let j=c;j<4;j++)m[i][j]-=f*m[rk][j]}rk++}return rk}
+const TH2=[["студентів курсу","вивчають англійську","вивчають німецьку"],["туристів у групі","були в Парижі","були в Римі"],["учнів класу","ходять на футбол","ходять на плавання"],["працівників офісу","їздять на роботу автобусом","їздять на роботу велосипедом"]];
+const dsc=(k,[om,a,b])=>({'|A|':a,'|B|':b,'|A∩B|':`${a} і ${b}`,'|A∪B|':`${a} або ${b}`,'|Ω|':`усього ${om}`,'|(A∪B)′|':`не ${a} і не ${b}`,'|A′|':`не ${a}`,'|B′|':`не ${b}`,'|A∖B|':`${a}, але не ${b}`,'|A△B|':'виконують рівно одну з двох умов','|(A∩B)′|':'не виконують обох умов одночасно'})[k];
+function gen3(){const t=ri(0,3);
+ if(t==0){let A,B,i;
+  for(;;){const a=ri(3,5),b=ri(3,5);i=ri(1,Math.min(a,b)-1);if((a-i)*(b-i)>12)continue;const u=shuf([1,2,3,4,5,6,7,8,9]),I=u.slice(0,i),srt=x=>x.sort((p,q)=>p-q);A=srt([...I,...u.slice(i,a)]);B=srt([...I,...u.slice(a,a+b-i)]);break}
+  const cart=(X,Y)=>X.flatMap(x=>Y.map(y=>x+','+y)),AB=cart(A,B),BA=new Set(cart(B,A)),inter=AB.filter(p=>BA.has(p)).length,
+   dA=A.filter(x=>!B.includes(x)).length,dB=B.filter(x=>!A.includes(x)).length,un=new Set([...A,...B]).size;
+  return{txt:`Нехай A = {${A.join(', ')}}, B = {${B.join(', ')}}. Знайдіть потужності множин:`,
+   inp:[['|A∪B|',un],['|A△B|',dA+dB],['|(A×B)∩(B×A)|',inter],['|(A×B)∖(B×A)|',AB.length-inter],['|𝒫((A∖B)×(B∖A))|',2**(dA*dB)]],
+   ex:`|A∪B| = |A|+|B|−|A∩B| = ${A.length}+${B.length}−${i} = ${un}. |A△B| = |A∖B|+|B∖A| = ${dA}+${dB} = ${dA+dB}. (A×B)∩(B×A) = (A∩B)×(A∩B), тому його потужність ${i}² = ${inter}. |(A×B)∖(B×A)| = |A|·|B|−${inter} = ${A.length*B.length}−${inter} = ${AB.length-inter}. Булеан множини з m елементів має 2<sup>m</sup> елементів, тут m = |A∖B|·|B∖A| = ${dA}·${dB} = ${dA*dB}, тож 2<sup>${dA*dB}</sup> = ${2**(dA*dB)}.`}}
+ if(t==1){const N=6*ri(6,12);return{venn:2,txt:`На парковці ${N} машин. Кожна машина або біла, або електромобіль (можливо, обидва). Білих машин удвічі більше, ніж електромобілів. Скільки може бути білих машин? Існують найменше й найбільше можливі значення — знайдіть обидва.`,inp:[['Найменше',2*N/3],['Найбільше',N]],ex:`Нехай електромобілів E, тоді білих 2E, а білих електромобілів x, де 0 ≤ x ≤ E. З N = 2E+E−x маємо x = 3E−N, тому N/3 ≤ E ≤ N/2, а білих 2E від ${2*N/3} до ${N}.`}}
+ if(t==2){const r=[ri(5,25),ri(5,25),ri(2,15),ri(0,10)],val=k=>V2[k].reduce((s,c,i)=>s+c*r[i],0),ks=Object.keys(V2);let g=['|A|','|B|','|A∪B|'],x='|A∩B|',n=0;
+  do{const s=shuf(ks);const gg=s.slice(0,3),tt=s[3];if(rank(gg.map(k=>V2[k]))==3&&rank([...gg,tt].map(k=>V2[k]))==3){g=gg;x=tt;break}}while(++n<999);
+  const th=pick(TH2),d=k=>`${dsc(k,th)} (${k})`;
+  return{venn:2,txt:`Серед ${th[0]}: A — ті, хто ${th[1]}; B — ті, хто ${th[2]}. Відомо: ${g.map(k=>d(k)+' — '+val(k)).join('; ')}. Знайдіть кількість: ${d(x)}.`,inp:[[x,val(x)]]}}
+ const a=ri(2,9),b=ri(2,9),c=ri(2,9),ab=ri(1,6),ac=ri(1,6),bc=ri(1,6),x=ri(1,5),z=ri(0,4),N=a+b+c+ab+ac+bc+x+z;
+ return{venn:3,txt:`На контрольній присутні ${N} студентів. Задачу 1 (множина A) розв’язали ${a+ab+ac+x}, задачу 2 (B) — ${b+ab+bc+x}, задачу 3 (C) — ${c+ac+bc+x}. Задачі 1 і 2 розв’язали ${ab+x}, задачі 1 і 3 — ${ac+x}, задачі 2 і 3 — ${bc+x}. Жодної задачі не розв’язали ${z}. Скільки студентів розв’язали всі три задачі і скільки — рівно по дві?`,inp:[['Усі три',x],['Рівно по дві',ab+ac+bc]],ex:`За формулою включень-виключень: ${N-z} = ${a+ab+ac+x}+${b+ab+bc+x}+${c+ac+bc+x} − ${ab+x} − ${ac+x} − ${bc+x} + x, звідси x = ${x}. Сума парних перетинів ${ab+x}+${ac+x}+${bc+x} = ${ab+ac+bc+3*x} містить кожну трійку тричі, тому рівно по дві: ${ab+ac+bc+3*x} − 3·${x} = ${ab+ac+bc}.`}}
+const IMP=[["1 ≠ 1",0],["Крим — це Україна",1],["2 + 2 = 5",0],["число 1 просте",0],["пінгвіни вміють літати",0],["0! дорівнює 1!",1]];
+const RS=[["умова (перша частина) хибна, тому імплікація істинна",(P,Q)=>!P],["друга частина істинна, тому імплікація істинна",(P,Q)=>Q],["умова істинна, а друга частина хибна, тому імплікація хибна",(P,Q)=>P&&!Q],["обидві частини істинні, тому імплікація істинна",(P,Q)=>P&&Q]];
+const DISH=['борщ','вареники','котлета','пюре','гречка','плов','салат','компот','сирники','пиріжок'];
+const G4=[
+ ()=>{const[a,b]=shuf(IMP).slice(0,2);return{imp:{P:a[1],Q:b[1]},txt:`Визначте істинність імплікації: «якщо ${a[0]}, то ${b[0]}». Поясніть відповідь.`}},
+ ()=>{const n=ri(5,9),d=shuf(DISH).slice(0,n),tot=2**n;
+  return{txt:`У студентській їдальні сьогодні є <b>${n} різних страв</b>: ${joinList(d)}. Студент складає обід: бере будь-який набір страв, але кожну страву — не більше одного разу (двох однакових страв брати не можна) і обов’язково хоча б одну. Порядок страв не має значення. Скільки існує різних варіантів обіду?`,
+   inp:[['Кількість варіантів обіду',tot-1]],ex:`Кожна страва або входить в обід, або ні — 2 можливості на страву, разом 2<sup>${n}</sup> = ${tot} наборів. Віднімаємо порожній набір (обід має містити хоча б одну страву): ${tot} − 1 = ${tot-1}.`}},
+ ()=>{const a=ri(8,20),b=ri(5,15),c2=C(a,2);
+  return{txt:`На вулиці розташовано <b>${a} офісів</b>, на паралельній вулиці — <b>${b} ресторанів</b>. Містобудівник обирає один ресторан і прокладає від нього доріжки до двох різних офісів (порядок доріжок не важливий). Скількома способами це можна зробити?`,
+   inp:[['Кількість способів',c2*b]],ex:`Два офіси з ${a}: C(${a},2) = ${a}·${a-1}/2 = ${c2}. Ресторан: ${b} способів. За правилом добутку ${c2}·${b} = ${c2*b}.`}},
+ ()=>{const n=ri(6,12),c1=(n-1)*(n-2),c2=(n-1)*(n-2)*(n-3),tot=n*(n-1)*(n-2);
+  return{txt:`Команда з <b>${n} піратів</b> обирає капітана, боцмана і кока — три різні посади, один пірат не може обіймати дві посади одразу. Серед піратів є юнга, який замалий, щоб бути капітаном чи боцманом: він годиться лише на посаду кока (або може не отримати жодної посади). Скількома способами можна розподілити три посади?`,
+   inp:[['Кількість способів',c1+c2]],ex:`Випадок 1 — юнга кок: капітана й боцмана обирають із решти ${n-1} піратів у певному порядку: ${n-1}·${n-2} = ${c1}. Випадок 2 — юнга без посади: усі три посади серед решти ${n-1}: ${n-1}·${n-2}·${n-3} = ${c2}. Разом ${c1+c2}. Перевірка відніманням: ${tot} − 2·${c1} = ${tot-2*c1}.`}},
+ ()=>{const L=ri(3,5),N=ri(4,8),pre=N**(L-1);
+  return{txt:`Двері підземелля відчиняє заклинання з <b>${L} ${plural(L,'чарівне слово','чарівні слова','чарівних слів')}</b>, кожне з яких обирається з набору з <b>${N} можливих слів</b>; слова можуть повторюватися в будь-яких позиціях. Єдине обмеження: <b>останнім словом не може бути «кедавра»</b> (це одне з ${N} слів набору; ніхто не хоче випадково когось вбити, відмикаючи двері). Скільки різних заклинань існує?`,
+   inp:[['Кількість заклинань',pre*(N-1)]],ex:`Перші ${L-1} позицій: по ${N} варіантів (повторення дозволені), тобто ${N}<sup>${L-1}</sup> = ${pre}. Остання позиція: будь-яке слово, крім «кедавра», тобто ${N-1} варіантів. Разом ${pre}·${N-1} = ${pre*(N-1)}.`}},
+ ()=>{const b=ri(3,7),m=ri(4,10),ans=C(b+m-1,b);
+  return{txt:`<b>${m} ${plural(m,'різна мавпа','різні мавпи','різних мавп')}</b> ділять між собою <b>${b} ${plural(b,'однаковий банан','однакові банани','однакових бананів')}</b>. Усі банани ідентичні, ламати банан не можна — кожен банан дістається цілим одній мавпі; одна мавпа може отримати 0 бананів або кілька. Скількома способами можна розподілити банани між мавпами?`,
+   inp:[['Кількість способів',ans]],ex:`Важливо лише, скільки бананів отримала кожна мавпа. Це комбінації з повтореннями: C(${b}+${m}−1, ${m}−1) = C(${b+m-1}, ${b}) = ${ans}.`}},
+ ()=>{const n=ri(6,9);let a,b,c;do{a=ri(1,5);b=ri(1,5);c=n-a-b}while(c<1||c>5);const[x,y,z]=shuf([a,b,c]),den=fact(x)*fact(y)*fact(z),t=k=>`${k} ${plural(k,'раз','рази','разів')}`;
+  return{txt:`Протягом <b>${n} ${plural(n,'день','дні','днів')}</b> дівчина щодня одягає рівно одне вбрання. Вона вирішила одягти <b>сукню — ${t(x)}, брюки — ${t(y)}, спідницю — ${t(z)}</b>. Скільки різних порядків чергування вбрань вона може скласти?`,
+   inp:[['Кількість порядків',fact(n)/den]],ex:`Перестановки з повтореннями (мультимножини): ${n}!/(${x}!·${y}!·${z}!) = ${fact(n)}/${den} = ${fact(n)/den}.`}},
+ ()=>{const A=ri(8,15),K=ri(10,40),P=ri(4,9),n=T.t2.rel?REL.length:CORR.length,m=T.t2.items.length,cn=C(n,m);
+  return{txt:`У цій контрольній перше завдання вибране з ${A} варіантів; таблицю другого завдання складено з ${m} рядків, вибраних із ${n} можливих (порядок рядків не враховуємо); третє завдання згенероване з ${K} можливих варіантів; четверте вибране з ${P} варіантів. Скільки існує різних варіантів контрольної?`,
+   inp:[['Кількість варіантів',A*cn*K*P]],ex:`Рядки таблиці: C(${n},${m}) = ${cn}. За правилом добутку ${A}·${cn}·${K}·${P} = ${A*cn*K*P}.`}}
+];
+function gen4(){return G4[ri(0,G4.length-1)]()}
+function draft(n){const ci=n==2?[[130,130,85],[230,130,85]]:[[140,105,80],[220,105,80],[180,170,80]],lb=n==2?[[60,50],[292,50]]:[[56,34],[292,34],[290,236]],
+ rg=n==2?[['A∖B',95,130],['A∩B',180,130],['B∖A',265,130],['поза',30,236]]:[['A∖(B∪C)',95,100],['B∖(A∪C)',265,100],['C∖(A∪B)',180,224],['A∩B∖C',180,58],['A∩C∖B',135,152],['B∩C∖A',225,152],['A∩B∩C',180,122],['поза',30,240]];
+ return`<details open><summary>Чернетка: діаграма Венна (не оцінюється)</summary><div class="tools" style="margin-top:6px">${COL.slice(0,4).map(c=>`<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}<button data-c="e">Гумка</button> <button data-c="x">Очистити</button></div>
+ <div id="dr"><svg viewBox="0 0 360 260"><rect x="2" y="2" width="356" height="256" fill="none" stroke="#7a8da0"/>${ci.map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#1b2733" stroke-width="1.5"/>`).join('')}${lb.map(([x,y],i)=>`<text x="${x}" y="${y}" font-size="16" font-weight="700">${'ABC'[i]}</text>`).join('')}</svg><canvas id="cv" width="360" height="260"></canvas>${rg.map(([ph,x,y])=>`<input class="rg" placeholder="${ph}" style="left:${(x-24)/3.6}%;top:${(y-11)/2.6}%">`).join('')}</div></details>`}
+function initDraft(){const cv=$('#cv');if(!cv)return;const x=cv.getContext('2d');let col=COL[0],dn=false;x.lineCap=x.lineJoin='round';
+ const pos=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)*360/b.width,(e.clientY-b.top)*260/b.height]};
+ const ln=e=>{const[p,q]=pos(e);x.globalCompositeOperation=col=='e'?'destination-out':'source-over';x.strokeStyle=col=='e'?'#000':col;x.lineWidth=col=='e'?34:22;x.lineTo(p,q);x.stroke();x.beginPath();x.moveTo(p,q)};
+ cv.onpointerdown=e=>{dn=true;cv.setPointerCapture(e.pointerId);const[p,q]=pos(e);x.beginPath();x.moveTo(p,q);ln(e)};
+ cv.onpointermove=e=>dn&&ln(e);cv.onpointerup=cv.onpointercancel=()=>dn=false;
+ $('.tools').onclick=e=>{const c=e.target.dataset.c;if(!c)return;if(c=='x')x.clearRect(0,0,360,260);else col=c}}
+function rq(sec,n,q){$(sec).innerHTML=`<h2>Завдання ${n} <i>${q.imp?3:5} б.</i></h2><p>${q.txt}</p>`+(q.imp?`<label class="ln">Імплікація <select class="ni"><option value="">—</option><option value="1">істинна</option><option value="0">хибна</option></select></label><label class="ln">Пояснення <select class="ni"><option value="">—</option>${RS.map((r,i)=>`<option value="${i}">${r[0]}</option>`).join('')}</select></label>`:'')
+ +(q.inp||[]).map(p=>`<label class="ln">${p[0]} = <input type="number" class="ni"></label>`).join('')+'<div class="fb"></div>'+(q.venn?draft(q.venn):'');if(q.venn)initDraft()}
+function gq(sec,q){const els=$$(sec+' .ni');
+ if(q.imp){const[v,r]=els,{P,Q}=q.imp,res=+(!P||Q),vv=v.value!==''&&+v.value==res,rv=r.value!==''&&!!RS[+r.value][1](P,Q);
+  v.classList.add(vv?'ok':'bad');r.classList.add(rv?'ok':'bad');$(sec+' .fb').innerHTML=`Правильно: імплікація ${res?'істинна':'хибна'}.`;return 2*vv+rv}
+ let ok=0;q.inp.forEach((p,i)=>{const e=els[i],g=e.value!==''&&+e.value===p[1];ok+=g;e.classList.add(g?'ok':'bad');if(!g)e.insertAdjacentHTML('afterend',` <b class="ans">(${p[1]})</b>`)});$(sec+' .fb').innerHTML=q.ex?'<b>Розв’язання.</b> '+q.ex:'';return 5*ok/q.inp.length}
+
+/* ---------- капча «доброчесності» ---------- */
+const imp=(a,b)=>!a||b,eqv=(a,b)=>a===b,xr=(a,b)=>a!==b,mr=Math.random,sh=a=>[...a].sort(()=>mr()-.5);
+const CF=[["p ∧ ¬p",p=>p&&!p,0],["p ∨ ¬p",p=>p||!p,0],["p ∨ 1",p=>p||true,0],["p ∧ 0",p=>p&&false,0],["p ∨ 0",p=>p||false,0],["p ∧ 1",p=>p&&true,0],["p ∧ q",(p,q)=>p&&q,0],["p ∨ q",(p,q)=>p||q,0],["1 ∧ ¬0",()=>true&&!false,0],["0 ∨ ¬1",()=>false||!true,0],
+["p → (q → p)",(p,q)=>imp(p,imp(q,p)),1],["(p → q) ↔ (¬q → ¬p)",(p,q)=>eqv(imp(p,q),imp(!q,!p)),1],["p ⊕ p",p=>xr(p,p),1],["(p ↔ q) ⊕ (q ↔ p)",(p,q)=>xr(eqv(p,q),eqv(q,p)),1],["(p → q) ∧ p ∧ ¬q",(p,q)=>imp(p,q)&&p&&!q,1],["(p ∧ q) → (p ∨ r)",(p,q,r)=>imp(p&&q,p||r),1],["p ↔ ¬p",p=>eqv(p,!p),1],["((p → q) → p) → p",(p,q)=>imp(imp(imp(p,q),p),p),1],["(p ⊕ q) ↔ (p ↔ q)",(p,q)=>eqv(xr(p,q),eqv(p,q)),1],["(p → q) ∨ (q → p)",(p,q)=>imp(p,q)||imp(q,p),1],
+["p → q",(p,q)=>imp(p,q),1],["p ↔ q",(p,q)=>eqv(p,q),1],["p ⊕ q",(p,q)=>xr(p,q),1],["(p → q) → q",(p,q)=>imp(imp(p,q),q),1],["p ∧ (q ∨ r)",(p,q,r)=>p&&(q||r),1],["(p → q) → (q → p)",(p,q)=>imp(imp(p,q),imp(q,p)),1]];
+const cls=f=>{let t=0,fl=0;for(let m=0;m<8;m++){f(!!(m&1),!!(m&2),!!(m&4))?t++:fl++}return fl==0?'T':t==0?'F':'N'};
+const med=a=>{if(!a.length)return null;a=[...a].sort((x,y)=>x-y);return a[a.length>>1]};
+function timing(cl,first){if(!cl.length)return .3;let ok=1,n=1;const iv=cl.map((c,i)=>c[0]-(i?cl[i-1][0]:0));ok=+(cl[0][0]>=first);
+ if(cl.length>=3){n++;const m=iv.reduce((s,x)=>s+x,0)/iv.length,sd=Math.sqrt(iv.reduce((s,x)=>s+(x-m)**2,0)/iv.length);ok+=sd>=80}
+ const e=med(iv.filter((x,i)=>!cl[i][1])),h=med(iv.filter((x,i)=>cl[i][1]));if(e!=null&&h!=null){n++;ok+=h>=e}return ok/n}
+function chalA(box){return new Promise(res=>{const want=mr()<.5?'T':'F',pool=CF.map(x=>({t:x[0],h:x[2],c:cls(x[1])})),tg=sh(pool.filter(x=>x.c==want)),ot=sh(pool.filter(x=>x.c!=want));
+ const tiles=sh([...tg.filter(x=>!x.h).slice(0,2),...tg.filter(x=>x.h).slice(0,2),...ot.filter(x=>!x.h).slice(0,2),...ot.filter(x=>x.h).slice(0,3)]),clicks=[],t0c=performance.now(),sel=new Set();
+ box.innerHTML=`<div class="hd2"><small>Виберіть усі формули, що</small><b>тотожно ${want=='T'?'істинні':'хибні'}</b><small>Якщо більше немає — натисніть «Перевірити»</small></div><div class="tl">${tiles.map((x,i)=>`<div class="tile" data-i="${i}">${x.t}</div>`).join('')}</div><div class="ft"><small>Перевірка доброчесності</small><button class="vb">ПЕРЕВІРИТИ</button></div>`;
+ box.querySelector('.tl').onclick=e=>{const d=e.target.closest('.tile');if(!d)return;const i=+d.dataset.i;if(sel.has(i)){sel.delete(i);d.classList.remove('on')}else{sel.add(i);d.classList.add('on')}clicks.push([performance.now()-t0c,tiles[i].h])};
+ box.querySelector('.vb').onclick=()=>{const f=h=>{const t=tiles.map((x,i)=>[x,i]).filter(([x])=>!!x.h==h);return t.filter(([x,i])=>sel.has(i)==(x.c==want)).length/t.length};res({acc:f(false),pen:Math.max(0,(f(true)-.6)/.4),tm:timing(clicks,2000)})}})}
+function loadThree(){if(window.THREE)return Promise.resolve(1);return new Promise(r=>{const e=document.createElement('script');e.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';e.onload=()=>r(1);e.onerror=()=>r(0);document.head.appendChild(e)})}
+const OPS={'A∖B':(a,b)=>a&&!b,'B∖A':(a,b)=>b&&!a,'A∩B':(a,b)=>a&&b,'A∪B':(a,b)=>a||b,'A△B':(a,b)=>a!==b,'A′':a=>!a,'B′':(a,b)=>!b,'(A∪B)′':(a,b)=>!(a||b),'(A∩B)′':(a,b)=>!(a&&b)};
+const OPN={'A∖B':'різницю A∖B','B∖A':'різницю B∖A','A∩B':'перетин A∩B','A∪B':'об’єднання A∪B','A△B':'симетричну різницю A△B','A′':'доповнення A′','B′':'доповнення B′','(A∪B)′':'доповнення (A∪B)′','(A∩B)′':'доповнення (A∩B)′'};
+function tex(op){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,128,128);const d=x.getImageData(0,0,128,128);
+ for(let j=0;j<128;j++)for(let i=0;i<128;i++){const a=(i-48)**2+(j-64)**2<38**2,b=(i-80)**2+(j-64)**2<38**2;if(OPS[op](a,b)){const k=(j*128+i)*4;d.data[k]=225;d.data[k+1]=29;d.data[k+2]=72}}
+ x.putImageData(d,0,0);x.lineWidth=2;x.strokeStyle='#223';x.strokeRect(2,2,124,124);[48,80].forEach(cx=>{x.beginPath();x.arc(cx,64,38,0,7);x.stroke()});x.font='bold 13px sans-serif';x.fillStyle='#223';x.fillText('A',12,24);x.fillText('B',108,24);return new THREE.CanvasTexture(c)}
+function chalB(box){return new Promise(res=>{const ks=Object.keys(OPS),want=ks[Math.floor(mr()*ks.length)],nt=3+Math.floor(mr()*2),ops=sh([...Array(nt).fill(want),...sh(ks.filter(k=>k!=want)).slice(0,9-nt)]);
+ box.innerHTML=`<div class="hd2"><small>Виберіть усі плитки, де червоним виділено</small><b>${OPN[want]}</b><small>Діаграми обертаються — дочекайтеся, поки плитка повернеться до вас</small></div><div id="gl3"></div><div class="ft"><small>Перевірка доброчесності</small><button class="vb">ПЕРЕВІРИТИ</button></div>`;
+ const host=box.querySelector('#gl3'),W=host.clientWidth||380,r=new THREE.WebGLRenderer({antialias:true});r.setSize(W,W);r.setClearColor(0xeef1f5);host.appendChild(r.domElement);
+ const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(40,1,.1,50);cam.position.z=9.2;
+ const ms=ops.map((o,i)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3),new THREE.MeshBasicMaterial({map:tex(o),side:THREE.DoubleSide}));m.position.set((i%3-1)*2.6,(1-Math.floor(i/3))*2.6,0);m.userData={a:mr()*6.28,i};sc.add(m);return m});
+ const sel=new Set(),clicks=[],t0c=performance.now(),rc=new THREE.Raycaster();let last=performance.now(),run=true;
+ (function loop(t){if(!run)return;const dt=Math.min((t-last)/1000,.1);last=t;ms.forEach(m=>{const u=m.userData;u.a+=dt*1.3*(.12+.88*Math.abs(Math.cos(u.a)));m.rotation.y=u.a});r.render(sc,cam);requestAnimationFrame(loop)})(performance.now());
+ r.domElement.onclick=e=>{const b=r.domElement.getBoundingClientRect();rc.setFromCamera({x:(e.clientX-b.left)/b.width*2-1,y:-((e.clientY-b.top)/b.height*2-1)},cam);const h=rc.intersectObjects(ms)[0];if(!h)return;const o=h.object,i=o.userData.i;
+  if(sel.has(i)){sel.delete(i);o.material.color.set(0xffffff);o.scale.setScalar(1)}else{sel.add(i);o.material.color.set(0x9cc3ff);o.scale.setScalar(.88)}clicks.push([performance.now()-t0c,0])};
+ box.querySelector('.vb').onclick=()=>{run=false;let ok=0;ops.forEach((o,i)=>ok+=(sel.has(i)==(o==want)));r.dispose();res({acc:ok/9,tm:timing(clicks,4000)})}})}
+async function runCaptcha(){const t3=loadThree(),ov=document.createElement('div');ov.id='cap';ov.innerHTML='<div class="rc"><div class="box"><div class="chk" id="ck"></div><div>Я сумлінний студент (-ка)<br><small>і ШІ мені не допомагав (ну майже 😉)</small></div></div></div>';document.body.appendChild(ov);const rc=ov.firstChild;
+ await new Promise(r=>$('#ck').onclick=function(){this.innerHTML='<div class="sp"></div>';setTimeout(r,900)});
+ const useB=(await t3&&window.THREE)&&mr()<.5,Q=useB?await chalB(rc):await chalA(rc);ov.remove();
+ return{pct:Math.round(100*(Q.acc*.7+Q.tm*.3)*(1-.6*(Q.pen||0))),v:useB?'Б':'А'}}
+
+/* ---------- сесія, таймер, звіт ---------- */
+function save(){if(!t0||done)return;try{localStorage.setItem(KEY,JSON.stringify({n:NAME,t0,st:{tbl:st.tbl,mode:st.mode,groups:st.groups,tok:st.tok},v2:T.t2.val,ni:$$('#app .ni').map(e=>e.value)}))}catch(e){}}
+document.addEventListener('input',save);document.addEventListener('click',()=>setTimeout(save,0));
+window.onbeforeunload=e=>{if(t0&&!done){e.preventDefault();return e.returnValue=''}};
+function begin(n,s){NAME=n;seed=seedFrom(n+(new URLSearchParams(location.search).get('v')||''));R=mul(seed);for(let i=0;i<8;i++)R();T.t1=gen1();st={tbl:Array(16).fill(null),mode:'dnf',sel:0,groups:[],tok:[]};T.t2=gen2();T.t3=gen3();T.t4=gen4();loadThree();
+ if(s){Object.assign(st,s.st,{sel:0});T.t2.val=s.v2}t0=s?s.t0:Date.now();
+ r1();r2();rq('#t3',3,T.t3);rq('#t4',4,T.t4);if(s)$$('#app .ni').forEach((e,i)=>e.value=s.ni[i]??'');
+ $('#start').hidden=true;$('#app').hidden=false;$('#bar').hidden=false;tick=setInterval(()=>$('#tm').textContent=fmt(Date.now()-t0),500);save()}
+async function fin(){if(done||!confirm('Завершити контрольну? Змінити відповіді буде неможливо.'))return;
+ done=true;clearInterval(tick);const ms=Date.now()-t0;document.body.classList.add('done');const cap=await runCaptcha();
+ const a=g1().reduce((x,y)=>x+y,0),b=g2(),c=gq('#t3',T.t3),d=gq('#t4',T.t4),p=[a,b,c,d].map(rd),tot=rd(a+b+c+d);
+ $$('#app .ni').forEach(e=>e.disabled=true);
+ const rep=`<h2>Протокол контрольної роботи</h2><p><b>${esc(NAME)}</b><br>Дата й час здачі: ${new Date().toLocaleString('uk-UA')}<br>Витрачений час: ${fmt(ms)}<br>Довіра за капчею: ${cap.pct}% (капча ${cap.v})<br>Код варіанта: ${seed.toString(16)}</p><div class="big">${tot} / 20</div><div class="big2">${p.join(' / ')} <small>(максимум ${[6,T.t4.imp?6:4,5,T.t4.imp?3:5].join(' / ')})</small></div><button class="b np" onclick="print()">Зберегти як PDF</button>`;
+ $('#rp').innerHTML=rep;$('#rp').hidden=false;document.title=`${NAME}_${tot}`;scrollTo(0,0);
+ try{localStorage.setItem(KEY,JSON.stringify({done:1,rep}))}catch(e){}}
+$('#go').onclick=()=>{const n=$('#nm').value.trim();if(!n)return alert('Введіть прізвище та ім’я');begin(n)};
+$('#fin').onclick=fin;
+try{if(new URLSearchParams(location.search).has('reset'))localStorage.removeItem(KEY)}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');
+ if(s&&s.done){$('#start').hidden=true;$('#rp').hidden=false;$('#rp').innerHTML=s.rep}
+ else if(s){if(confirm(`Знайдено незавершену спробу: ${s.n}. Продовжити?`))begin(s.n,s);else localStorage.removeItem(KEY)}}catch(e){}
+</script></body></html>
