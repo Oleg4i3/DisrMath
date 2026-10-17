@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дискретна Математика</title>
+    <title>Концептуальні основи інтелектуальної обробки даних</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Literata:wght@500;600&display=swap" rel="stylesheet">
     <style>
         /* --- Загальні налаштування --- */
         body, html {
@@ -56,17 +59,9 @@
             color: #ffffff;
             font-weight: bold;
             letter-spacing: 1px;
-            background: #22303d;
         }
-        
-        .subcategory {
-            padding: 5px 20px 5px 30px;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: #3498db;
-            font-weight: bold;
-            margin-top: 5px;
-        }
+
+        .subcat { padding: 12px 20px 2px; font-size: 0.8rem; color: #8fb8de; font-style: italic; }
 
         .menu-btn {
             padding: 12px 20px;
@@ -80,7 +75,6 @@
             cursor: pointer;
             border-left: 4px solid transparent;
             transition: 0.2s;
-            border-bottom: 1px solid #34495e;
         }
 
         .menu-btn:hover {
@@ -94,7 +88,6 @@
             border-left: 4px solid #3498db;
         }
 
-        /* --- ОСНОВНИЙ КОНТЕНТ --- */
        /* --- ОСНОВНИЙ КОНТЕНТ --- */
         #content {
             width: 100%;
@@ -124,7 +117,7 @@
             align-items: center;
         }
 
-      #sidebarCollapse {
+   #sidebarCollapse {
             background: #3498db;
             border: none;
             color: white;
@@ -173,18 +166,183 @@
             border: none;
             display: block; /* Прибирає можливі відступи знизу */
         }
-        .placeholder {
+        /* --- СТАРТОВА СТОРІНКА --- */
+        .welcome {
+            --ink: #14213d;
+            --ink-soft: #2b3a55;
+            --muted: #56627a;
+            --rule: #d5dce6;
+            --paper: #f5f7fa;
+            --accent: #2f6fdb;
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #95a5a6;
-            text-align: center;
-            padding: 20px;
+            overflow-y: auto;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
-        .placeholder h2 { margin-bottom: 10px; color: #2c3e50; }
+        .welcome-inner {
+            box-sizing: border-box;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 76px 40px 36px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas:
+                "head"
+                "demo"
+                "toc"
+                "about"
+                "foot";
+            row-gap: 36px;
+        }
+        .w-head { grid-area: head; }
+        .w-head h1 {
+            margin: 0;
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-weight: 600;
+            font-size: clamp(2.3rem, 4.1vw, 3.5rem);
+            line-height: 1.06;
+            letter-spacing: -0.012em;
+        }
+        .w-sub {
+            margin: 12px 0 0;
+            font-size: 1.15rem;
+            color: var(--muted);
+        }
+        .w-lead {
+            margin: 26px 0 0;
+            max-width: 64ch;
+            font-size: 1rem;
+            line-height: 1.65;
+            color: var(--ink-soft);
+        }
+
+        /* банер з анімацією (лише прикраса) */
+        .demo {
+            grid-area: demo;
+            background: #fff;
+            border: 1px solid var(--rule);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .demo iframe {
+            width: 100%;
+            height: clamp(300px, 42vh, 400px);
+            border: none;
+            display: block;
+            background: transparent;
+        }
+
+        /* розділи курсу */
+        .toc { grid-area: toc; }
+        .toc-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+            padding-bottom: 10px;
+        }
+        .toc-head h2 {
+            margin: 0;
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+        }
+        .toc-head span { font-size: 0.85rem; color: var(--muted); }
+        .toc-row {
+            display: grid;
+            grid-template-columns: 2rem minmax(0, 1fr) auto;
+            align-items: baseline;
+            column-gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 0;
+            border: none;
+            border-top: 1px solid var(--rule);
+            background: none;
+            font: inherit;
+            text-align: left;
+            color: var(--ink);
+            cursor: pointer;
+        }
+        .toc-row:last-child { border-bottom: 1px solid var(--rule); }
+        .toc-num {
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-size: 1.1rem;
+            color: var(--muted);
+        }
+        .toc-title { font-size: 1rem; font-weight: 500; line-height: 1.4; }
+        .toc-count { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+        .toc-row:hover .toc-title,
+        .toc-row:hover .toc-num { color: var(--accent); }
+
+        .welcome button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .w-flagnote { margin-top: 12px; font-size: 0.95rem; color: var(--muted); }
+        .w-flag {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #6f42c1;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .w-about {
+            grid-area: about;
+            margin: 0;
+            max-width: 68ch;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--ink-soft);
+        }
+        .w-foot {
+            grid-area: foot;
+            margin: 8px 0 0;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 700px) {
+            .welcome-inner { padding: 72px 20px 28px; row-gap: 28px; }
+        }
+
+		
+		
+		/* --- Стиль для бейджика NEW --- */
+.badge-new {
+    background-color: #e74c3c; /* Яскравий червоний */
+    color: white;
+    font-size: 0.6rem;
+   
+    padding: 1px 2px;
+    border-radius: 2px;
+    margin-left: 4px; /* Відступ від тексту кнопки */
+    display: inline-block;
+    vertical-align: middle;
+    
+    
+    /* Анімація */
+    animation: pulse-glow 1s infinite;
+}
+
+/* Анімація пульсації (тінь розходиться) */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+    }
+}
 
     </style>
 </head>
@@ -193,45 +351,36 @@
 <div class="wrapper">
     <nav id="sidebar">
         <div class="sidebar-header">
-            <h3>КОНЦЕПТУАЛЬНІ ОСНОВИ ІНТЕЛЕКТУАЛЬНОЇ ОБРОБКИ ДАНИХ. Інтерактивний навчальний посібник</h3>
+            <h3>Зміст</h3>
         </div>
-
-      
-
-        <div class="category">1. Математичні основи кодування інформації та кібербезпеки</div>
-        
-        <div class="subcategory">Кодування інформації</div>
+<div class="category">1. Математичні основи кодування інформації та кібербезпеки</div>
+<div class="subcat">Кодування інформації</div>
         <button class="menu-btn" onclick="openSim('Huffman_and_Shannon-Fano.html', 'Хаффман і Шеннон-Фано', this)">Коди Хаффмана і Шеннона-Фано</button>
         <button class="menu-btn" onclick="openSim('ArithmCode.html', 'Арифметичне кодування', this)">Арифметичне кодування</button>
         <button class="menu-btn" onclick="openSim('LZ77-78.html', 'Алгоритми LZ77 / LZ78', this)">Стиснення даних (LZ77 / LZ78)</button>
         <button class="menu-btn" onclick="openSim('rANS.html', 'rANS кодування', this)">rANS кодування</button>
-		 <button class="menu-btn" onclick="openSim('hemming.html', 'Блокові коди', this)">Код Hemming (7,4)</button>
+        <button class="menu-btn" onclick="openSim('hemming.html', 'Блокові коди', this)">Код Hemming (7,4)</button>
         <button class="menu-btn" onclick="openSim('convolution-codes.html', 'Згорткові коди', this)">Згорткові коди</button>
-
-        <div class="subcategory">Криптографія та кібербезпека</div>
-		 <button class="menu-btn" onclick="openSim('lagrange.html', 'Інтерполяційний полінм Лагранжа', this)">Інтерполяція: Криптографія і коди із самокорекцією</button>
+<div class="subcat">Криптографія та кібербезпека</div>
+        <button class="menu-btn" onclick="openSim('lagrange.html', 'Інтерполяційний полінм Лагранжа', this)">Інтерполяція: Криптографія і коди із самокорекцією</button>
         <button class="menu-btn" onclick="openSim('RSA.html', 'Шифрування RSA', this)">Алгоритм RSA</button>
         <button class="menu-btn" onclick="openSim('DH.html', 'Протокол Діффі-Хеллмана', this)">Обмін ключами (Діффі-Хеллман)</button>
-          <button class="menu-btn" onclick="openSim('aes.html', ',Блочне симетричне шифрування AES', this)">Симетричне шифрування AES</button>
-		<button class="menu-btn" onclick="openSim('chacha20.html', 'Шифр ChaCha20', this)">Потоковий шифр ChaCha20</button>
+        <button class="menu-btn" onclick="openSim('aes.html', 'Блочне симетричне шифрування AES', this)">Симетричне шифрування AES</button>
+        <button class="menu-btn" onclick="openSim('chacha20.html', 'Шифр ChaCha20', this)">Потоковий шифр ChaCha20</button>
         <button class="menu-btn" onclick="openSim('HashingARX.html', 'Хешування ARX', this)">Хешування (ARX конструкції)</button>
- 
-			<div class="category">2. Вступ до цифрової обробки інформації</div>
- 			 <button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення</button>
-		 <button class="menu-btn" onclick="openSim('fft.html', 'DFT', this)">Дискретне перетворення Фур'є</button>
-				 <button class="menu-btn" onclick="openSim('DCT-DFT.html', 'DCT vs DFT', this)">Порівняння ДКП і ДПФ</button>
-			 <button class="menu-btn" onclick="openSim('DiscretQuant.html', 'Дискретизація і квантування', this)">Дискретизація і квантування</button>
-		 	 <button class="menu-btn" onclick="openSim('Lossy.html', 'Стиснення з втратами: Звук', this)">Стиснення з втратами (lossy compression) на прикладі звуку</button>
-			 <button class="menu-btn" onclick="openSim('Lossy2D.html', 'Стиснення з втратами: Зображення', this)">Стиснення з втратами (lossy compression) на прикладі зображення</button>
-		 <button class="menu-btn" onclick="openSim('Vocoder.html', 'Vocoder', this)">Vocoder на основі лінійного передбачення</button>
-     	
-		<button class="menu-btn" onclick="openSim('convolution.html', 'згортка', this)">Дискретна згортка</button>
-			 <button class="menu-btn" onclick="openSim('2D-ConvolFilter.html', '2D згортковий фільтр', this)">Згортковий фільтр зображень</button>
-		      <button class="menu-btn" onclick="openSim('NLM4.html', 'LMN', this)">Нелокальне усереднення для денойзінгу зображень</button>
-      
-		 <button class="menu-btn" onclick="openSim('CNN.html', 'cNN', this)">Вступ до згорткових нейромереж</button>
- 				 <button class="menu-btn" onclick="openSim('HR.html', 'монітор пульсу', this)">Цифрова фільтрація і спектральний аналіз: монітор пульсу</button>
-		
+<div class="category">2. Вступ до цифрової обробки інформації</div>
+        <button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення</button>
+        <button class="menu-btn" onclick="openSim('fft.html', 'DFT', this)">Дискретне перетворення Фур'є</button>
+        <button class="menu-btn" onclick="openSim('DCT-DFT.html', 'DCT vs DFT', this)">Порівняння ДКП і ДПФ</button>
+        <button class="menu-btn" onclick="openSim('DiscretQuant.html', 'Дискретизація і квантування', this)">Дискретизація і квантування</button>
+        <button class="menu-btn" onclick="openSim('Lossy.html', 'Стиснення з втратами: Звук', this)">Стиснення з втратами (lossy compression) на прикладі звуку</button>
+        <button class="menu-btn" onclick="openSim('Lossy2D.html', 'Стиснення з втратами: Зображення', this)">Стиснення з втратами (lossy compression) на прикладі зображення</button>
+        <button class="menu-btn" onclick="openSim('Vocoder.html', 'Vocoder', this)">Vocoder на основі лінійного передбачення</button>
+        <button class="menu-btn" onclick="openSim('convolution.html', 'згортка', this)">Дискретна згортка</button>
+        <button class="menu-btn" onclick="openSim('2D-ConvolFilter.html', '2D згортковий фільтр', this)">Згортковий фільтр зображень</button>
+        <button class="menu-btn" onclick="openSim('NLM4.html', 'LMN', this)">Нелокальне усереднення для денойзінгу зображень</button>
+        <button class="menu-btn" onclick="openSim('CNN.html', 'cNN', this)">Вступ до згорткових нейромереж</button>
+        <button class="menu-btn" onclick="openSim('HR.html', 'монітор пульсу', this)">Цифрова фільтрація і спектральний аналіз: монітор пульсу</button>
         <div style="height: 50px;"></div>
     </nav>
 
@@ -244,12 +393,28 @@
         </div>
 
         <div class="iframe-container">
-            <div class="placeholder" id="startMessage">
-                <h2>Вітаємо у курсі «КОНЦЕПТУАЛЬНІ ОСНОВИ ІНТЕЛЕКТУАЛЬНОЇ ОБРОБКИ ДАНИХ»!</h2>
-                <p>Натисніть кнопку ☰ зліва зверху, щоб відкрити меню тем.</p>
-                <p>Уважно читайте теоретичну довідку, яка доступна внизу кожної симуляції.</p>
-                <p style="font-size: 0.9em; color: #bdc3c7;">© КАІ Кафедра комп'ютерних інформаційних технологій</p>
-			</div>
+            <div class="welcome" id="startMessage">
+                <div class="welcome-inner">
+                    <header class="w-head">
+                        <h1>Концептуальні основи інтелектуальної обробки даних</h1>
+                        <p class="w-sub">Інтерактивний навчальний посібник</p>
+                        <p class="w-lead">Оберіть тему в меню: кнопка ☰ у верхньому лівому куті відкриває й ховає його. На кожній сторінці є спойлер «Теоретична довідка» — уважно прочитайте її, щоб зрозуміти, що відбувається в симуляції.</p>
+                    </header>
+
+                    <div class="demo">
+                        <iframe src="welcomeD.html" title="Банер: звуковий спектр" scrolling="no"></iframe>
+                    </div>
+
+                    <nav class="toc" aria-label="Розділи курсу">
+                        <div class="toc-head"><h2>Розділи курсу</h2><span id="tocStats"></span></div>
+                        <div id="tocList"></div>
+                    </nav>
+
+                    <p class="w-about">Будь-які дані — текст, звук, зображення — перед зберіганням, передачею й аналізом проходять через математичні перетворення. Курс складається з двох частин. Перша — кодування інформації та кібербезпека: стиснення без втрат (коди Хаффмана і Шеннона–Фано, арифметичне кодування, LZ77/LZ78, rANS), захист від помилок (код Хемінга, згорткові коди), інтерполяція Лагранжа, а також криптографія: RSA, обмін ключами Діффі–Геллмана, шифри AES і ChaCha20, хешування. Друга — цифрова обробка інформації: дискретне косинусне перетворення та перетворення Фур'є, дискретизація й квантування, стиснення звуку та зображень із втратами, вокодер, дискретна згортка й фільтри, нелокальне усереднення, згорткові нейромережі та цифрова фільтрація на прикладі монітора пульсу.</p>
+
+                    <p class="w-foot">© КАІ Кафедра комп'ютерних інформаційних технологій</p>
+                </div>
+            </div>
             <iframe id="simFrame" name="simFrame" src=""></iframe>
         </div>
     </div>
@@ -263,6 +428,47 @@
         sidebar.classList.toggle('active');
     });
 
+    /* --- Стартова сторінка: зміст будується з бічного меню (його саме не змінюємо) --- */
+    (function buildWelcome() {
+        function plural(n, f) {
+            const m10 = n % 10, m100 = n % 100;
+            if (m10 === 1 && m100 !== 11) return f[0];
+            if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return f[1];
+            return f[2];
+        }
+        const list = document.getElementById('tocList');
+        if (!list) return;
+        const cats = Array.from(document.querySelectorAll('#sidebar .category'));
+        let total = 0;
+        cats.forEach(function (cat) {
+            let n = 0, el = cat.nextElementSibling;
+            while (el && !el.classList.contains('category')) {
+                if (el.classList.contains('menu-btn')) n++;
+                el = el.nextElementSibling;
+            }
+            total += n;
+            const clone = cat.cloneNode(true);
+            clone.querySelectorAll('.badge-new').forEach(function (b) { b.remove(); });
+            const text = clone.textContent.replace(/\s+/g, ' ').trim();
+            const m = text.match(/^(\d+)\.\s*(.*)$/);
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'toc-row';
+            row.innerHTML = '<span class="toc-num"></span><span class="toc-title"></span><span class="toc-count"></span>';
+            row.children[0].textContent = m ? m[1] : '';
+            row.children[1].textContent = m ? m[2] : text;
+            row.children[2].textContent = n + ' ' + plural(n, ['тема', 'теми', 'тем']);
+            row.addEventListener('click', function () {
+                sidebar.classList.remove('active');
+                const top = cat.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+                sidebar.scrollTo({ top: top, behavior: 'smooth' });
+            });
+            list.appendChild(row);
+        });
+        document.getElementById('tocStats').textContent =
+            total + ' ' + plural(total, ['тема', 'теми', 'тем']);
+    })();
+
     function openSim(file, title, btn) {
         const iframe = document.getElementById('simFrame');
         const pageTitle = document.getElementById('pageTitle');
@@ -274,40 +480,28 @@
         
         if(startMsg) startMsg.style.display = 'none';
 
-        // Скидаємо виділення з усіх кнопок
         document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
-        // Виділяємо натиснуту
         btn.classList.add('selected');
-
-        // Автоматичне згортання меню на мобільних пристроях (і планшетах)
-        if (window.innerWidth < 2400) {
+       // sidebar.classList.add('active');
+        // Автоматичне згортання меню на мобільних пристроях
+        if (window.innerWidth < 1800) {
             sidebar.classList.add('active');
         }
     }
+	
+	window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const simFile = urlParams.get('sim'); // зчитує ключ ?sim=...
+    
+    if (simFile) {
+        // Шукаємо кнопку, яка викликає openSim з цим файлом
+        const targetBtn = document.querySelector(`button[onclick*='${simFile}']`);
+        if (targetBtn) {
+            targetBtn.click();
+        }
+    }
+});
 </script>
 
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
