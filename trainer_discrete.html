@@ -39,6 +39,10 @@ table{border-collapse:collapse}td,th{border:1px solid var(--ln);padding:3px 8px;
 .hint{color:#567;font-size:.9rem}
 .scr{margin-top:8px;padding:4px 8px;border-left:3px solid #4a90e2;background:#f3f7fc}
 details summary{cursor:pointer}
+.mx{margin:8px 0}.mx th{border:0;font-weight:400;font-size:.85rem}.mx td{width:38px;height:34px;font-weight:700}
+.mx .f1,.sq.f1{background:#bfe8cf}.mx .f0,.sq.f0{background:#d5dae0;color:#6b7785}.mx .fr,.sq.fr{background:#fff3b0}.mx .pe,.sq.pe{background:#bfe0f7}.mx .pt,.sq.pt{background:#dccaf5}
+.sq{display:inline-block;min-width:40px;text-align:center;border:1px solid var(--ln);border-radius:4px;margin:1px 4px 1px 0;font-weight:700;font-size:.85rem}
+.rx{margin-top:10px;border:1px solid var(--ln);border-radius:6px;padding:6px 12px;background:#fafcfd}.rx summary{cursor:pointer}
 </style></head><body>
 <main>
 <div id="start"><h2>Тренажер: дискретна математика (модуль 1)</h2>
@@ -188,18 +192,45 @@ K.rel=()=>{const rel=R()<.5,cols=rel?RC:CC,items=shuf(rel?REL:CORR).slice(0,5),v
    if(extra){const e=$('#t1 input.ni'),A=3n**BigInt(cells),v=pe(e.value),g=v!==null&&v===A;mk(e,g);if(!g)e.insertAdjacentHTML('afterend',` <b class="ans">(3^${cells} = ${A})</b>`);ex=2*g;msg+=` У кожної з ${cells} клітинок 3 стани, тому 3<sup>${cells}</sup> = ${A}.`}
    FB(`<div class="hint" style="color:#1b2733">${msg}</div>`);return extra?(4*ok/cells+ex)/6:ok/cells}}};
 
-K.relcnt=()=>{const n=ri(3,4),h=n*(n-1)/2,
- L=shuf([['усіх бінарних відношень на A',2**(n*n),`кожна з ${n*n} пар (a,b) або належить відношенню, або ні: 2<sup>n²</sup>`],
-  ['рефлексивних відношень',2**(n*n-n),`діагональ зафіксована (усі ${n} пар (a,a) належать), решта ${n*n-n} пар вільні: 2<sup>n²−n</sup>`],
-  ['антирефлексивних відношень',2**(n*n-n),`на діагоналі пар немає, решта ${n*n-n} пар вільні: 2<sup>n²−n</sup>`],
-  ['симетричних відношень',2**(n*(n+1)/2),`вільні ${n} діагональних пар і ${h} невпорядкованих пар {a,b}: 2<sup>n(n+1)/2</sup>`],
-  ['антисиметричних відношень',2**n*3**h,`діагональ вільна (2<sup>n</sup>), а для кожної з ${h} невпорядкованих пар {a,b}: немає, лише aRb або лише bRa — 3 варіанти: 2<sup>n</sup>·3<sup>n(n−1)/2</sup>`],
-  ['асиметричних відношень',3**h,`діагональ порожня, для кожної з ${h} пар {a,b} — 3 варіанти: 3<sup>n(n−1)/2</sup>`]]).slice(0,4);
+/* --- підрахунок відношень: матриця з «мерехтливими» клітинками --- */
+const TRI=[[0,0],[1,0],[0,1]];let MXT=0;
+const mxv=(m,s,r)=>m=='t'?TRI[(MXT+s)%3][r]:(MXT+s)%2;
+setInterval(()=>{MXT++;$$('.mx [data-m]').forEach(e=>{e.textContent=mxv(e.dataset.m,+e.dataset.s,+(e.dataset.r||0))})},800);
+const relVal=(k,n)=>{const h=n*(n-1)/2;return{all:2**(n*n),refl:2**(n*n-n),irrefl:2**(n*n-n),sym:2**(n*(n+1)/2),antisym:2**n*3**h,asym:3**h}[k]};
+const RNAME={all:'усіх бінарних відношень на A',refl:'рефлексивних відношень',irrefl:'антирефлексивних відношень',sym:'симетричних відношень',antisym:'антисиметричних відношень',asym:'асиметричних відношень'};
+function relMx(k,n){let h='<table class="mx"><tr><th>';for(let c=1;c<=n;c++)h+=`<th>a<sub>${c}</sub>`;
+ for(let r=0;r<n;r++){h+=`<tr><th>a<sub>${r+1}</sub>`;for(let c=0;c<n;c++){
+  const pid=Math.min(r,c)*n+Math.max(r,c),idx=r*n+c;let cls,at='',v;
+  if(r==c&&k=='refl'){cls='f1';v=1}
+  else if(r==c&&(k=='irrefl'||k=='asym')){cls='f0';v=0}
+  else if(r!=c&&k=='sym'){cls='pe';at=` data-m="f" data-s="${pid}"`;v=mxv('f',pid)}
+  else if(r!=c&&(k=='antisym'||k=='asym')){const q=r>c?1:0;cls='pt';at=` data-m="t" data-s="${pid}" data-r="${q}"`;v=mxv('t',pid,q)}
+  else{cls='fr';at=` data-m="f" data-s="${idx}"`;v=mxv('f',idx)}
+  h+=`<td class="${cls}"${at}>${v}`}}
+ return h+'</table>'}
+const RLEG=`<p><b>Як рахувати.</b> Відношення на множині A з n елементів записують матрицею n×n: у клітинці (рядок a, стовпець b) стоїть 1, якщо aRb, і 0, якщо ні. Різних відношень рівно стільки, скільки різних матриць. Властивість відношення або <i>фіксує</i> деякі клітинки, або <i>зв’язує</i> їх між собою, а решта клітинок вільні. Потім працює правило добутку: кількості варіантів незалежних виборів перемножуються.</p>
+<p>Умовні позначення на малюнках:<br>
+<span class="sq f1">1</span> зелена — клітинка <b>обов’язково 1</b>: вибору немає, множник 1;<br>
+<span class="sq f0">0</span> сіра — клітинка <b>обов’язково 0</b>: вибору немає, множник 1;<br>
+<span class="sq fr">0/1</span> жовта, мерехтить — <b>вільна клітинка</b>: 2 варіанти (0 або 1), множник 2;<br>
+<span class="sq pe">0/1</span> блакитна — <b>пара клітинок, дзеркальних відносно діагоналі, що мусять бути однаковими</b> (мерехтять синхронно): на всю пару лише 2 варіанти (обидві 0 або обидві 1), множник 2;<br>
+<span class="sq pt">0/1</span> фіолетова — <b>пара дзеркальних клітинок, які не можуть бути обидві 1</b>: мерехтіння по черзі показує три дозволені комбінації (0,0), (1,0), (0,1), комбінації (1,1) не буде; на пару 3 варіанти, множник 3.</p>`;
+function relEx(k,n){const n2=n*n,h=n*(n-1)/2,v=relVal(k,n),P=(a,b)=>`${a}<sup>${b}</sup>`,pair3=`Для такої пари з чотирьох комбінацій (0,0), (1,0), (0,1), (1,1) остання заборонена, тож лишаються 3 варіанти: «між a і b зв’язку немає», «лише aRb», «лише bRa».`;let s,gen;
+ if(k=='all'){s=`1) Умов немає, тому всі n² = ${n2} клітинок жовті (вільні).<br>2) Кожна клітинка — незалежний вибір із 2 варіантів.<br>3) Правило добутку: 2·2·…·2 (${n2} множників) = ${P(2,n2)} = ${v}.`;gen=P(2,'n²')}
+ else if(k=='refl'){s=`1) Рефлексивність означає aRa для кожного a. Тому <b>усі клітинки діагоналі (їх ${n}) — обов’язково 1</b> (зелені): вибору немає.<br>2) Решта клітинок: n² − n = ${n2} − ${n} = ${n2-n}. Вони жовті (вільні), у кожній 2 варіанти.<br>3) Разом ${P(2,n2-n)} = ${v}.`;gen=P(2,'n²−n')}
+ else if(k=='irrefl'){s=`1) Антирефлексивність означає, що жодне aRa не виконується. Тому <b>усі клітинки діагоналі (їх ${n}) — обов’язково 0</b> (сірі): вибору немає.<br>2) Решта клітинок: n² − n = ${n2} − ${n} = ${n2-n}. Вони жовті (вільні), у кожній 2 варіанти.<br>3) Разом ${P(2,n2-n)} = ${v}.`;gen=P(2,'n²−n')}
+ else if(k=='sym'){s=`1) Симетричність: якщо aRb, то й bRa. Тому клітинки (a,b) і (b,a) завжди однакові — це блакитна пара. Одна пара — один вибір із 2 варіантів.<br>2) Діагональ нічим не обмежена: ${n} вільних клітинок по 2 варіанти → ${P(2,n)}.<br>3) Клітинок поза діагоналлю n² − n = ${n2-n}; вони утворюють ${n2-n}/2 = ${h} пар → ${h} незалежних виборів по 2 варіанти → ${P(2,h)}.<br>4) Правило добутку: ${P(2,n)}·${P(2,h)} = ${P(2,n+h)} = ${v}.`;gen=`${P(2,'n')}·${P(2,'n(n−1)/2')} = ${P(2,'n(n+1)/2')}`}
+ else if(k=='antisym'){s=`1) Антисиметричність: aRb і bRa можуть виконуватися одночасно лише коли a = b. Тобто для різних a, b клітинки (a,b) і (b,a) <b>не можуть бути обидві 1</b>.<br>2) Діагональ (a = b) нічим не обмежена: ${n} вільних клітинок по 2 варіанти → ${P(2,n)} = ${2**n}.<br>3) Поза діагоналлю є ${h} пар дзеркальних клітинок (фіолетові). ${pair3} Для всіх пар → ${P(3,h)} = ${3**h}.<br>4) Правило добутку: ${P(2,n)}·${P(3,h)} = ${2**n}·${3**h} = ${v}.`;gen=`${P(2,'n')}·${P(3,'n(n−1)/2')}`}
+ else{s=`1) Асиметричність: aRb ⇒ не bRa. Для a = b це означає: aRa ⇒ не aRa, тобто aRa неможливе. Тому <b>діагональ — обов’язково 0</b> (сірі клітинки): вибору немає.<br>2) Поза діагоналлю, як і в антисиметричного відношення, є ${h} пар (фіолетові), і на кожну 3 варіанти. ${pair3}<br>3) Разом ${P(3,h)} = ${v}. Від антисиметричного відношення асиметричне відрізняється лише діагоналлю: там вона вільна (множник ${P(2,n)}), тут зафіксована нулями.`;gen=P(3,'n(n−1)/2')}
+ return `${relMx(k,n)}<p>${s}</p><p><b>Загалом:</b> ${gen}</p>`}
+const theoryEx=k=>`<details open class="rx"><summary><b>Розбір на прикладі n = 3</b></summary>${RLEG}${relEx(k,3)}</details>`;
+const exKind=q=>{const m=/Скільки існує (бінарних|рефлексивних|антирефлексивних|симетричних|антисиметричних|асиметричних) відношень/.exec(q);return m?{'бінарних':'all','рефлексивних':'refl','антирефлексивних':'irrefl','симетричних':'sym','антисиметричних':'antisym','асиметричних':'asym'}[m[1]]:null};
+K.relcnt=()=>{const n=ri(3,4),L=shuf(Object.keys(RNAME)).slice(0,4).map(k=>({k,name:RNAME[k],val:relVal(k,n)}));
  return{ti:'Підрахунок відношень на скінченній множині',
-  hint:'Для кожної впорядкованої пари (a,b) відношення «так/ні». Потім врахуйте обмеження властивості на діагональ і на пари {a,b}, a≠b. Відповідь можна ввести виразом, напр. 2^5*3^4.',
-  html:`<p>Множина A має <b>${n}</b> елементи. Скільки існує на ній <b>різних</b>: (число або вираз зі степенями)</p>`+L.map(q=>`<p>${q[0]}: <input type="text" class="ni" size="18" placeholder="число або вираз"></p>`).join(''),
-  g(){const els=$$('#t1 input.ni');let ok=0;L.forEach((q,i)=>{const v=pe(els[i].value),g=v!==null&&v===BigInt(q[1]);ok+=g;mk(els[i],g);if(!g)els[i].insertAdjacentHTML('afterend',` <b class="ans">(${q[1]})</b>`)});
-   FB(`<div class="hint" style="color:#1b2733">${L.map(q=>`<b>${q[0]}</b>: ${q[2]} = ${q[1]}.`).join('<br>')}</div>`);return ok/L.length}}};
+  hint:RLEG+'<p>Для кожної властивості з’ясуйте, які клітинки матриці вона фіксує, а які зв’язує, і перемножте кількості варіантів. Після перевірки з’явиться детальний розбір із матрицями. Відповідь можна ввести виразом, напр. 2^5*3^4.</p>',
+  html:`<p>Множина A має <b>${n}</b> елементи. Скільки існує на ній <b>різних</b>: (число або вираз зі степенями)</p>`+L.map(q=>`<p>${q.name}: <input type="text" class="ni" size="18" placeholder="число або вираз"></p>`).join(''),
+  g(){const els=$$('#t1 input.ni');let ok=0;L.forEach((q,i)=>{const v=pe(els[i].value),g=v!==null&&v===BigInt(q.val);ok+=g;mk(els[i],g);if(!g)els[i].insertAdjacentHTML('afterend',` <b class="ans">(${q.val})</b>`)});
+   FB(`<details open class="rx"><summary><b>Як це рахується</b></summary>${RLEG}</details>`+L.map(q=>`<details open class="rx"><summary><b>Розбір: кількість ${q.name} (n = ${n}) = ${q.val}</b></summary>${relEx(q.k,n)}</details>`).join(''));return ok/L.length}}};
 
 /* ================= 3. Множини ================= */
 const V2={'|A|':[1,0,1,0],'|B|':[0,1,1,0],'|A∩B|':[0,0,1,0],'|A∪B|':[1,1,1,0],'|Ω|':[1,1,1,1],'|(A∪B)′|':[0,0,0,1],'|A′|':[0,1,0,1],'|B′|':[1,0,0,1],'|A∖B|':[1,0,0,0],'|A△B|':[1,1,0,0],'|(A∩B)′|':[1,1,0,1]};
@@ -315,6 +346,9 @@ const MC=[
 ['rel','Біективна відповідність — це відповідність, яка…','всюди означена, функціональна, сюр’єктивна та ін’єктивна','лише функціональна','лише сюр’єктивна','всюди означена та ін’єктивна, але не обов’язково сюр’єктивна'],
 ['rel','Скільки існує бінарних відношень на множині з <i>n</i> елементів?','2<sup>n²</sup>','n<sup>2</sup>','2<sup>n</sup>','n!'],
 ['rel','Скільки існує рефлексивних відношень на множині з <i>n</i> елементів?','2<sup>n²−n</sup>','2<sup>n²</sup>','2<sup>n</sup>','n²−n'],
+['rel','Скільки існує антирефлексивних відношень на множині з <i>n</i> елементів?','2<sup>n²−n</sup>','2<sup>n²</sup>','2<sup>n</sup>','2<sup>n²+n</sup>'],
+['rel','Скільки існує симетричних відношень на множині з <i>n</i> елементів?','2<sup>n(n+1)/2</sup>','2<sup>n²</sup>','2<sup>n²/2</sup>','3<sup>n(n−1)/2</sup>'],
+['rel','Скільки існує антисиметричних відношень на множині з <i>n</i> елементів?','2<sup>n</sup>·3<sup>n(n−1)/2</sup>','3<sup>n(n−1)/2</sup>','2<sup>n</sup>·2<sup>n(n−1)/2</sup>','3<sup>n²</sup>'],
 ['rel','Скільки існує асиметричних відношень на множині з <i>n</i> елементів?','3<sup>n(n−1)/2</sup>','2<sup>n(n−1)/2</sup>','3<sup>n</sup>','2<sup>n²</sup>'],
 ['set','|A∪B| дорівнює…','|A|+|B|−|A∩B|','|A|+|B|+|A∩B|','|A|·|B|','|A|+|B|'],
 ['set','|A△B| (симетрична різниця) дорівнює…','|A|+|B|−2|A∩B|','|A|+|B|−|A∩B|','|A|−|B|','|A∪B|+|A∩B|'],
@@ -361,13 +395,13 @@ function next(){S.checked=false;done=false;document.body.classList.remove('done'
   R=mul((Math.random()*4294967296)>>>0);for(let j=0;j<8;j++)R();
   T=K[id]();el.innerHTML=`<h2>${T.ti}</h2>`+T.html+(T.hint?HN(T.hint):'')+'<div class="fb"></div>';if(T.init)T.init();S.cur=id}
  else{if(!S.queue.length)S.queue=shuf(MC.filter(q=>S.sel.has(q[0])));if(!S.queue.length){el.innerHTML='<p>Для обраних тем немає теоретичних питань.</p>';act.innerHTML='';return}
-  const q=S.queue.pop();S.cur={o:shuf(q.slice(2).map((t,k)=>[t,!k]))};
+  const q=S.queue.pop();S.cur={q,o:shuf(q.slice(2).map((t,k)=>[t,!k]))};
   el.innerHTML=`<h2>Теорія</h2><p><b>${q[1]}</b></p>`+S.cur.o.map(o=>`<label style="display:block;margin:4px 0"><input type="radio" name="mq"> ${o[0]}</label>`).join('')+'<div class="fb"></div>'}
  setAct();scrollTo(0,0)}
 function check(){S.checked=true;let f;
  if(S.mode=='p'){f=T.g();done=true;document.body.classList.add('done');$$('#t1 input,#t1 select').forEach(e=>e.disabled=true)}
  else{const rs=$$('#t1 [name=mq]');f=0;rs.forEach((r,j)=>{const g=S.cur.o[j][1];if(g)r.parentNode.classList.add('ok');else if(r.checked)r.parentNode.classList.add('bad');if(g&&r.checked)f=1;r.disabled=true});
-  $('#t1 .fb').innerHTML=f?'<div class="ok" style="padding:4px 8px">Правильно.</div>':'<div class="bad" style="padding:4px 8px">Неправильно. Правильна відповідь виділена зеленим.</div>'}
+  $('#t1 .fb').innerHTML=f?'<div class="ok" style="padding:4px 8px">Правильно.</div>':'<div class="bad" style="padding:4px 8px">Неправильно. Правильна відповідь виділена зеленим.</div>';const xk=exKind(S.cur.q[1]);if(xk)$('#t1 .fb').insertAdjacentHTML('beforeend',theoryEx(xk))}
  el.insertAdjacentHTML('beforeend',`<div class="scr"><b>Правильність: ${Math.round(f*100)}%</b></div>`);S.n++;S.sum+=f;score();setAct()}
 function ui(){$('#tp').innerHTML=`<label><input type="checkbox" id="all" ${S.sel.size==TOP.length?'checked':''}> <b>Усі теми впереміш</b></label>`+TOP.map(t=>`<label style="display:block"><input type="checkbox" class="tc" value="${t.id}" ${S.sel.has(t.id)?'checked':''}> ${t.t}</label>`).join('');
  $('#all').onchange=e=>{S.sel=new Set(e.target.checked?TOP.map(t=>t.id):[]);S.queue=[];ui()};
