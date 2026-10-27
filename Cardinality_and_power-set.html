@@ -245,6 +245,26 @@
 
         .feedback-msg { margin-top: 15px; font-weight: 600; min-height: 1.5rem; }
 
+        .score-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 14px;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+        }
+        .score-bar strong { color: var(--accent-primary); }
+        .score-bar.bump { animation: bump 0.4s ease; }
+        @keyframes bump { 50% { transform: scale(1.04); background: #e8fff8; } }
+        .score-reset {
+            border: none; background: none; cursor: pointer;
+            color: var(--text-light); font-size: 0.85rem;
+        }
+        .score-reset:hover { color: var(--accent-primary); }
+
         /* Power Set */
         .emoji-selector { font-size: 1.5rem; cursor: pointer; padding: 8px; border-radius: 8px; user-select: none; }
         .emoji-selector.selected { background: #dfe6e9; transform: scale(1.2); }
@@ -377,6 +397,10 @@
 
             <div class="problem-grid">
                 <div>
+                    <div class="score-bar">
+                        <span>🏆 Правильних: <strong id="score-correct">0</strong> / <strong id="score-total">0</strong></span>
+                        <button class="score-reset" onclick="resetScore()" title="Скинути лічильник">↺ Скинути</button>
+                    </div>
                     <h3 style="margin-top:0">Задача <span style="color:var(--text-light); font-weight:normal;">#<span id="task-id">1</span></span></h3>
 
                     <div id="story-block">
@@ -780,13 +804,44 @@
                 return;
             }
 
+            // Кожна задача рахується лише один раз
+            if (currentTaskData.answered) {
+                fb.innerText = "Ця задача вже зарахована. Натисни «Нова задача».";
+                fb.style.color = "var(--text-light)";
+                return;
+            }
+            currentTaskData.answered = true;
+            score.total++;
+
             if (userVal === correct) {
+                score.correct++;
                 fb.innerText = "✅ Правильно! Чудова логіка.";
                 fb.style.color = "var(--accent-secondary)";
             } else {
                 fb.innerText = `❌ Помилка. Правильна відповідь: ${correct}.`;
                 fb.style.color = "#e74c3c";
             }
+            updateScore(userVal === correct);
+        }
+
+        // --- SCORE ---
+        const score = { correct: 0, total: 0 };
+
+        function updateScore(bump) {
+            document.getElementById('score-correct').innerText = score.correct;
+            document.getElementById('score-total').innerText = score.total;
+            if (bump) {
+                const bar = document.querySelector('.score-bar');
+                bar.classList.remove('bump');
+                void bar.offsetWidth;
+                bar.classList.add('bump');
+            }
+        }
+
+        function resetScore() {
+            score.correct = 0;
+            score.total = 0;
+            updateScore(false);
         }
 
         // --- UI TABS ---
