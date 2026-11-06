@@ -221,6 +221,48 @@
             align-items: center;
             justify-content: center;
         }
+        /* Radio-подібні кнопки (XOR) */
+        .radio-opt {
+            display: flex; align-items: center; gap: 10px;
+            margin: 10px auto; padding: 10px 14px; max-width: 260px;
+            border: 2px solid #e0e0e0; border-radius: 10px; background: #fff;
+            cursor: pointer; font-weight: bold; font-size: 0.95em; text-align: left;
+            transition: border-color .2s, background .2s;
+        }
+        .radio-opt:hover { border-color: #e67e22; }
+        .radio-opt input { position: absolute; opacity: 0; pointer-events: none; }
+        .radio-dot {
+            flex: none; width: 20px; height: 20px; border-radius: 50%;
+            border: 2px solid #bbb; background: #fff; position: relative; transition: .2s;
+        }
+        .radio-opt input:checked ~ .radio-dot { border-color: #e67e22; }
+        .radio-opt input:checked ~ .radio-dot::after {
+            content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #e67e22;
+        }
+        .radio-opt:has(input:checked) { border-color: #e67e22; background: #fdf1e4; }
+        .radio-opt:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+        /* Верхні вкладки */
+        .main-tabs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+        .main-tabs button {
+            font: inherit; font-weight: bold; padding: 10px 20px; border: 2px solid #d5dae0;
+            background: #fff; color: var(--accent); border-radius: 8px; cursor: pointer; transition: .2s;
+        }
+        .main-tabs button:hover { border-color: var(--primary); }
+        .main-tabs button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .view[hidden] { display: none; }
+
+        /* Фізична модель (ізольовано в #view-gates) */
+        #view-gates .gtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        #view-gates .gtabs button { font: inherit; padding: 6px 14px; border: 1px solid #d5dae0; background: #fff; border-radius: 6px; cursor: pointer; }
+        #view-gates .gtabs button.on { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+        #view-gates .gcard { background: #fff; border: 1px solid #d5dae0; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        #view-gates canvas { display: block; width: 100%; height: auto; cursor: pointer; }
+        #view-gates .grow { display: flex; justify-content: center; }
+        #view-gates table { width: auto; margin-top: 0; font-size: 14px; }
+        #view-gates td, #view-gates th { padding: 3px 12px; }
+        #view-gates tr.cur td { background: #fff3c4; font-weight: bold; }
+
         .training-cell { cursor: pointer; user-select: none; background: rgba(255,255,255,0.1); }
         .training-cell:hover { background: rgba(255,255,255,0.2); }
 
@@ -233,6 +275,13 @@
         
         <p class="subtitle">Основні логічні операції</p>
     </header>
+
+    <nav class="main-tabs">
+        <button class="on" id="mt-ops" onclick="showMain('ops')">Логічні операції</button>
+        <button id="mt-gates" onclick="showMain('gates')">Фізична модель: логічні ворота</button>
+    </nav>
+
+    <div class="view" id="view-ops">
 
     <div class="logic-card border-not" id="card-not">
         <div class="card-header">
@@ -387,39 +436,39 @@
 
     <div class="logic-card border-xor" id="card-xor">
         <div class="card-header">
-            <span class="card-title">Виключне АБО (XOR) — Тунель на одну смугу</span>
+            <span class="card-title">Виключне АБО (XOR) — Спосіб оплати</span>
             <span class="formula">\( F = A \oplus B \)</span>
         </div>
         <div class="sim-area">
             <div class="inputs">
-                <div class="switch-container" onclick="toggleInput('xor', 'a')">
-                    <span class="switch-label">Світлофор В'їзду Північ (A)</span>
-                    <label class="toggle"><input type="checkbox" id="xor-a"><span class="slider"></span></label>
-                </div>
-                <div class="light-value" id="xor-a-color">Зараз: <strong>0 — червоне</strong></div>
-
-                <div class="switch-container" onclick="toggleInput('xor', 'b')" style="margin-top:15px;">
-                    <span class="switch-label">Світлофор В'їзду Південь (B)</span>
-                    <label class="toggle"><input type="checkbox" id="xor-b"><span class="slider"></span></label>
-                </div>
-                <div class="light-value" id="xor-b-color">Зараз: <strong>0 — червоне</strong></div>
+                <label class="radio-opt">
+                    <input type="radio" name="xor-pay-a" id="xor-a" onclick="radioClick(this,'xor')">
+                    <span class="radio-dot"></span>
+                    <span>💳 Оплата картою (A)</span>
+                </label>
+                <label class="radio-opt">
+                    <input type="radio" name="xor-pay-b" id="xor-b" onclick="radioClick(this,'xor')">
+                    <span class="radio-dot"></span>
+                    <span>💵 Оплата готівкою (B)</span>
+                </label>
+                <div class="light-value">Повторний клік знімає вибір</div>
             </div>
             <div class="visual-connector">➔</div>
             <div class="output">
-                <div class="status-icon color-red" id="xor-icon">⚠️</div>
-                <span class="status-text" id="xor-status">ПОРУШЕННЯ</span>
-                <div class="explain-text" id="xor-explain">Світлофори однакові: обидва червоні (0 = 0). За протоколом рівно один в'їзд завжди має бути зеленим.</div>
+                <div class="status-icon color-gray" id="xor-icon">⏳</div>
+                <span class="status-text" id="xor-status">ОБЕРІТЬ СПОСІБ ОПЛАТИ</span>
+                <div class="explain-text" id="xor-explain">Жоден спосіб не обрано (0, 0). Для оплати потрібен рівно один.</div>
             </div>
 
-            <div style="flex-basis: 100%; max-width: 340px;">
-                <p style="font-size:0.85em; text-align:center; color:#666; margin: 0 0 8px;"><strong>Правило:</strong> 0 = червоне світло, 1 = зелене світло. Штатний режим настає, тільки коли світлофори РІЗНІ.</p>
+            <div style="flex-basis: 100%; max-width: 380px;">
+                <p style="font-size:0.85em; text-align:center; color:#666; margin: 0 0 8px;"><strong>Правило:</strong> 0 = не обрано, 1 = обрано. Оплата проходить, лише коли обрано <strong>рівно один</strong> спосіб.</p>
                 <table>
-                    <thead><tr><th>Світлофор A</th><th>Світлофор B</th><th>\( A \oplus B \)</th></tr></thead>
+                    <thead><tr><th>Карта (A)</th><th>Готівка (B)</th><th>\( A \oplus B \)</th></tr></thead>
                     <tbody>
-                        <tr id="xor-row-00" class="active-row"><td>0 (червоне)</td><td>0 (червоне)</td><td>0 — порушення</td></tr>
-                        <tr id="xor-row-01"><td>0 (червоне)</td><td>1 (зелене)</td><td>1 — штатно</td></tr>
-                        <tr id="xor-row-10"><td>1 (зелене)</td><td>0 (червоне)</td><td>1 — штатно</td></tr>
-                        <tr id="xor-row-11"><td>1 (зелене)</td><td>1 (зелене)</td><td>0 — порушення</td></tr>
+                        <tr id="xor-row-00" class="active-row"><td>0</td><td>0</td><td>0 — не обрано</td></tr>
+                        <tr id="xor-row-01"><td>0</td><td>1</td><td>1 — оплата готівкою</td></tr>
+                        <tr id="xor-row-10"><td>1</td><td>0</td><td>1 — оплата картою</td></tr>
+                        <tr id="xor-row-11"><td>1</td><td>1</td><td>0 — конфлікт</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -434,6 +483,7 @@
                 <div class="example-box">
                     <strong>Приклади з життя:</strong>
                     <ul>
+                        <li><strong>Спосіб оплати на касі:</strong> Щоб оплата пройшла, покупець має обрати <strong>рівно один</strong> спосіб — картку або готівку. Не обрав жодного — оплата неможлива; спробував обидва одночасно — конфлікт.</li>
                         <li><strong>Дворучна пила:</strong> Щоб пиляти колоду, тягнути повинен <strong>рівно один</strong> з двох людей за раз — поки один тягне на себе, другий відпускає. Якщо тягнуть одночасно обидва — сили компенсують одна одну, пила застрягає (не пиляє). Якщо не тягне ніхто — пила просто стоїть (теж не пиляє). Різні дії (тягне/відпускає) → пиляння; однакові дії (тягнуть обидва або відпускають обидва) → нічого не відбувається.</li>
                         <li><strong>Прохідний вимикач:</strong> Схема освітлення на сходах, коли лампочкою керують два вимикачі — внизу і нагорі. Світло горить, якщо їхні положення відрізняються.</li>
                         <li><strong>Комплексний обід у їдальні:</strong> "Компот <strong>або</strong> салат у комплекті". Ви не можете взяти обидва страви безкоштовно, і не можете не взяти нічого.</li>
@@ -453,28 +503,29 @@
              <div class="sim-area">
             <div class="inputs">
                 <div class="switch-container" onclick="toggleInput('imp', 'a')">
-                    <span class="switch-label">Пожежа (A)</span>
+                    <span class="switch-label">🪑 Пасажир у кріслі (A)</span>
                     <label class="toggle"><input type="checkbox" id="imp-a"><span class="slider"></span></label>
                 </div>
                 <div class="switch-container" onclick="toggleInput('imp', 'b')">
-                    <span class="switch-label">Використовуємо воду (B)</span>
+                    <span class="switch-label">🔗 Ремінь пристібнутий (B)</span>
                     <label class="toggle"><input type="checkbox" id="imp-b"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="visual-connector">➔</div>
             <div class="output">
                 <div class="status-icon active-true" id="imp-icon">📋</div>
-                <span class="status-text" id="imp-status">ПРОТОКОЛ ОК</span>
+                <span class="status-text" id="imp-status">КРІСЛО ПОРОЖНЄ</span>
+                <div class="explain-text" id="imp-explain">Пасажира немає (A=0) — ремінь не вимагається.</div>
             </div>
 
-            <div style="flex-basis: 100%; max-width: 300px;">
+            <div style="flex-basis: 100%; max-width: 420px;">
                 <table>
                     <thead><tr><th>A</th><th>B</th><th>\( A \to B \)</th></tr></thead>
                     <tbody>
-                        <tr id="imp-row-00" class="active-row"><td>0</td><td>0</td><td>1 (OK)</td></tr>
-                        <tr id="imp-row-01"><td>0</td><td>1</td><td>1 (OK)</td></tr>
-                        <tr id="imp-row-10"><td>1</td><td>0</td><td>0 (FAIL)</td></tr>
-                        <tr id="imp-row-11"><td>1</td><td>1</td><td>1 (OK)</td></tr>
+                        <tr id="imp-row-00" class="active-row"><td>0 (порожньо)</td><td>0 (не пристібнуто)</td><td>1 (OK)</td></tr>
+                        <tr id="imp-row-01"><td>0 (порожньо)</td><td>1 (пристібнуто)</td><td>1 (OK)</td></tr>
+                        <tr id="imp-row-10"><td>1 (сидить)</td><td>0 (не пристібнуто)</td><td>0 (FAIL)</td></tr>
+                        <tr id="imp-row-11"><td>1 (сидить)</td><td>1 (пристібнуто)</td><td>1 (OK)</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -485,6 +536,16 @@
             <div class="theory-content">
                 <p>Логічна зв'язка "Якщо..., то...". Хибне лише в одному випадку: коли з <strong>істини</strong> випливає <strong>хиба</strong> (\( 1 \to 0 = 0 \)).</p>
                 
+                <div class="example-box">
+                    <strong>Приклад з автомобіля:</strong> \( A \to B \): «Якщо пасажир сидить у кріслі (A), то ремінь безпеки пристібнутий (B)».
+                    <ul>
+                        <li>\( 0 \to 0 \): Крісло порожнє, ремінь не пристібнуто. Нічого не порушено (Правда).</li>
+                        <li>\( 0 \to 1 \): Крісло порожнє, але ремінь пристібнуто. Правило не порушено (Правда).</li>
+                        <li>\( 1 \to 1 \): Пасажир сидить і пристебнутий (Правда).</li>
+                        <li>\( 1 \to 0 \): <strong>Пасажир сидить, а ремінь не пристібнуто.</strong> Єдиний випадок порушення (Брехня) — спрацьовує сигналізація.</li>
+                    </ul>
+                </div>
+
                 <div class="example-box">
                     <strong>Приклад обіцянки:</strong>
                     <p>Батько каже сину: <em>"Якщо закінчиш семестр на відмінно (A), я куплю тобі ноутбук (B)"</em>.</p>
@@ -630,10 +691,26 @@
             <div id="feedback" style="margin-top: 10px; font-weight: bold; font-size: 1.2em;"></div>
         </div>
     </div>
+    </div><!-- /view-ops -->
+
+    <div class="view" id="view-gates" hidden>
+        <div class="gtabs" id="gtabs"></div>
+        <div class="gcard"><canvas id="cv" width="1000" height="640"></canvas></div>
+        <div class="gcard grow"><table id="tt"></table></div>
+    </div>
 
 </div>
 
 <script>
+    // --- ВКЛАДКИ ---
+    function showMain(name) {
+        document.getElementById('view-ops').hidden = name !== 'ops';
+        document.getElementById('view-gates').hidden = name !== 'gates';
+        document.getElementById('mt-ops').classList.toggle('on', name === 'ops');
+        document.getElementById('mt-gates').classList.toggle('on', name === 'gates');
+        if (window.gatesSetActive) window.gatesSetActive(name === 'gates');
+    }
+
     // --- SIMULATION LOGIC ---
 
     function updateVisuals(type, a, b, result) {
@@ -679,36 +756,46 @@
             }
         }
         else if (type === 'xor') {
-            // Явно показуємо колір кожного світлофора: 0 = червоне, 1 = зелене
-            const aColorEl = document.getElementById('xor-a-color');
-            const bColorEl = document.getElementById('xor-b-color');
             const explainEl = document.getElementById('xor-explain');
-            if (aColorEl) aColorEl.innerHTML = `Зараз: <strong>${a ? '1 — зелене' : '0 — червоне'}</strong>`;
-            if (bColorEl) bColorEl.innerHTML = `Зараз: <strong>${b ? '1 — зелене' : '0 — червоне'}</strong>`;
-
             if (result) {
-                icon.classList.add('color-green'); icon.textContent = '✅';
-                statusText.textContent = "ШТАТНИЙ РЕЖИМ";
+                icon.classList.add('color-green');
+                icon.textContent = a ? '💳' : '💵';
+                statusText.textContent = a ? "ОПЛАТА КАРТОЮ" : "ОПЛАТА ГОТІВКОЮ";
                 statusText.style.color = "var(--success)";
-                if (explainEl) explainEl.textContent = a
-                    ? "Світлофори різні: A — зелене, B — червоне. Проїзд відкритий тільки з півночі."
-                    : "Світлофори різні: A — червоне, B — зелене. Проїзд відкритий тільки з півдня.";
-            } else {
+                explainEl.textContent = a
+                    ? "Обрано рівно один спосіб: картка (1, 0). Оплата проходить."
+                    : "Обрано рівно один спосіб: готівка (0, 1). Оплата проходить.";
+            } else if (a) {
                 icon.classList.add('color-red'); icon.textContent = '⚠️';
-                statusText.textContent = "ПОРУШЕННЯ";
+                statusText.textContent = "КОНФЛІКТ СПОСОБІВ";
                 statusText.style.color = "var(--danger)";
-                if (explainEl) explainEl.textContent = a
-                    ? "Світлофори однакові: обидва зелені (1 = 1). Небезпека — можливий зустрічний рух."
-                    : "Світлофори однакові: обидва червоні (0 = 0). За протоколом рівно один в'їзд завжди має бути зеленим.";
+                explainEl.textContent = "Обрано обидва способи одразу (1, 1). Потрібен рівно один.";
+            } else {
+                icon.classList.add('color-gray'); icon.textContent = '⏳';
+                statusText.textContent = "ОБЕРІТЬ СПОСІБ ОПЛАТИ";
+                statusText.style.color = "";
+                explainEl.textContent = "Жоден спосіб не обрано (0, 0). Для оплати потрібен рівно один.";
             }
         }
         else if (type === 'imp') {
-            if (result) {
-                icon.classList.add('color-green'); icon.textContent = '📋';
-                statusText.textContent = "ПРОТОКОЛ: OK";
+            const explainEl = document.getElementById('imp-explain');
+            if (!a) {
+                icon.classList.add('color-green'); icon.textContent = '🪑';
+                statusText.textContent = b ? "КРІСЛО ПОРОЖНЄ, РЕМІНЬ ПРИСТІБНУТО" : "КРІСЛО ПОРОЖНЄ";
+                statusText.style.color = "var(--success)";
+                explainEl.textContent = b
+                    ? "Пасажира немає (A=0), ремінь пристібнуто (B=1). Правило не порушено."
+                    : "Пасажира немає (A=0) — ремінь не вимагається.";
+            } else if (b) {
+                icon.classList.add('color-green'); icon.textContent = '✅';
+                statusText.textContent = "ПАСАЖИР ПРИСТЕБНУТИЙ";
+                statusText.style.color = "var(--success)";
+                explainEl.textContent = "Пасажир сидить (A=1), ремінь пристібнуто (B=1). Усе гаразд.";
             } else {
-                icon.classList.add('color-red'); icon.textContent = '⚠️';
-                statusText.textContent = "ПОРУШЕННЯ ЛОГІКИ";
+                icon.classList.add('color-red'); icon.textContent = '🚨';
+                statusText.textContent = "ПРИСТЕБНІТЬ РЕМІНЬ!";
+                statusText.style.color = "var(--danger)";
+                explainEl.textContent = "Пасажир сидить (A=1), а ремінь не пристібнуто (B=0). Порушення: 1 → 0 = 0.";
             }
         }
         else if (type === 'eq') {
@@ -735,6 +822,13 @@
         // Set new active
         const activeRow = document.getElementById(rowId);
         if(activeRow) activeRow.classList.add('active-row');
+    }
+
+    // Radio-подібна кнопка: повторний клік знімає вибір
+    function radioClick(el, type) {
+        if (el.dataset.was === '1') { el.checked = false; el.dataset.was = '0'; }
+        else { el.dataset.was = '1'; }
+        toggleInput(type, el.id.slice(-1));
     }
 
     function toggleInput(type, inputName) {
@@ -927,6 +1021,289 @@
         }
     }
 
+</script>
+
+<script>
+(function(){
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+const dpr=Math.min(window.devicePixelRatio||1,2);
+cv.width=1000*dpr;cv.height=640*dpr;
+const L=160,K=0.8,F0=20,T=6000,C=0.6,SPD=2,Rmax=60,tau=0.2,dq=1/(Rmax*tau),G=900,WR=75,RG=30;
+function mkTap(wx,wy,f,pdir,len,name){return{wx,wy,f,pdir,len,name,nx:wx-60*f,ny:wy-100,valve:0,q:0,acc:0,drops:[],sp:[]}}
+function stepTap(t,dt){
+ t.acc+=Rmax*t.valve*dt;
+ while(t.acc>=1){t.acc--;t.drops.push({x:t.nx+(Math.random()-.5)*2,y:t.ny+4,vy:0})}
+ const land=t.wy-45;
+ for(let i=t.drops.length-1;i>=0;i--){const d=t.drops[i];d.vy+=G*dt;d.y+=d.vy*dt;
+  if(d.y>=land){t.q+=dq;for(let j=0;j<3;j++)t.sp.push({x:d.x,y:land,vx:(Math.random()-.5)*90,vy:-Math.random()*120,l:.5});t.drops.splice(i,1)}}
+ for(let i=t.sp.length-1;i>=0;i--){const s=t.sp[i];s.vy+=G*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.l-=dt;if(s.l<=0)t.sp.splice(i,1)}
+ t.q=Math.min(1,t.q*Math.exp(-dt/tau));
+}
+function mkU(kind,v,taps,lo,hi,o){return Object.assign({kind,v,taps,lo,hi,x:lo>=0?0:0,vel:0,th:0,thB:0},o)}
+function stepU(u,dt){
+ u.taps.forEach(t=>stepTap(t,dt));
+ let F=0,e=0;
+ if(u.kind==="imp"){const FA=T*u.taps[0].q/RG,FB=T*u.taps[1].q/18;e=Math.max(0,Math.min(1,(u.x-15)/36));F=FA-e*FB-K*u.x}
+ else if(u.kind==="not")F=-T*u.taps[0].q/RG+K*(L-u.x);
+ else{for(const t of u.taps)F+=t.f*T*t.q/RG;F-=K*u.x;if(u.kind==="belt1")F-=F0}
+ u.vel+=(F-C*u.vel)*dt;
+ let xn=u.x+u.vel*dt;
+ if(xn<u.lo){xn=u.lo;if(u.vel<0)u.vel=0}
+ if(xn>u.hi){xn=u.hi;if(u.vel>0)u.vel=0}
+ const dx=xn-u.x;u.th+=dx/RG;
+ if(u.kind==="imp"){if(e>.35)u.thB+=dx/18;else u.thB-=u.taps[1].q*9*dt}
+ u.x=xn;
+}
+function rr(x,y,w,h,f,s){ctx.beginPath();ctx.rect(x,y,w,h);if(f){ctx.fillStyle=f;ctx.fill()}if(s){ctx.strokeStyle=s;ctx.stroke()}}
+function poly(p,f){ctx.beginPath();p.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.closePath();ctx.fillStyle=f;ctx.fill()}
+function gear(cx,cy,r,ang){
+ const n=Math.max(8,Math.round(2*Math.PI*r/12)),w=Math.PI/n;
+ ctx.beginPath();
+ for(let i=0;i<n;i++){const a=ang+i*2*w;
+  [[r-5,a-w*.9],[r,a-w*.45],[r,a+w*.45],[r-5,a+w*.9]].forEach((p,j)=>{const X=cx+p[0]*Math.cos(p[1]),Y=cy+p[0]*Math.sin(p[1]);(i===0&&j===0)?ctx.moveTo(X,Y):ctx.lineTo(X,Y)})}
+ ctx.closePath();ctx.fillStyle="#cbd5e1";ctx.fill();ctx.strokeStyle="#4b5563";ctx.lineWidth=1.5;ctx.stroke();
+ ctx.beginPath();ctx.arc(cx,cy,4,0,7);ctx.fillStyle="#374151";ctx.fill();
+}
+function wheel(cx,cy,ang){
+ ctx.strokeStyle="#7a5a3a";ctx.lineWidth=5;ctx.beginPath();ctx.arc(cx,cy,WR-10,0,7);ctx.stroke();
+ for(let i=0;i<8;i++){const a=ang+i*Math.PI/4;
+  ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+(WR-10)*Math.cos(a),cy+(WR-10)*Math.sin(a));ctx.stroke();
+  const p=(rad,da)=>[cx+rad*Math.cos(a+da),cy+rad*Math.sin(a+da)];
+  ctx.fillStyle="#a67c52";ctx.beginPath();ctx.moveTo(...p(WR-14,-.3));ctx.lineTo(...p(WR+4,-.3));ctx.lineTo(...p(WR+4,.05));ctx.lineTo(...p(WR-14,.05));ctx.closePath();ctx.fill();ctx.strokeStyle="#6b4a2b";ctx.lineWidth=1.2;ctx.stroke()}
+}
+function spr(x1,x2,y){
+ const len=Math.max(16,x2-x1),n=10;
+ ctx.strokeStyle="#d9480f";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x1+8,y);
+ for(let i=1;i<2*n;i++)ctx.lineTo(x1+8+(len-16)*i/(2*n),y+(i%2?6:-6));
+ ctx.lineTo(x1+len-8,y);ctx.lineTo(x1+len,y);ctx.stroke();
+}
+function belt(u,xi,xg,wI,wG){
+ const gy=130,ang=-u.th;
+ if(wI)wheel(xi,gy,ang);if(wG)wheel(xg,gy,ang);
+ const D=xg-xi,Pl=2*D+2*Math.PI*RG,nt=Math.round(Pl/12),pt=Pl/nt,rb=RG+2;
+ ctx.strokeStyle="#374151";ctx.lineWidth=5;ctx.lineJoin="round";ctx.beginPath();
+ ctx.moveTo(xi,gy+rb);ctx.lineTo(xg,gy+rb);ctx.arc(xg,gy,rb,Math.PI/2,-Math.PI/2,true);ctx.lineTo(xi,gy-rb);ctx.arc(xi,gy,rb,-Math.PI/2,-3*Math.PI/2,true);ctx.stroke();
+ ctx.strokeStyle="#111827";ctx.lineWidth=3;
+ for(let i=0;i<nt;i++){const q=((i*pt+u.x)%Pl+Pl)%Pl;let px,py,nx,ny;
+  if(q<D){px=xi+q;py=gy+rb;nx=0;ny=1}
+  else if(q<D+Math.PI*RG){const f=Math.PI/2-(q-D)/rb;px=xg+rb*Math.cos(f);py=gy+rb*Math.sin(f);nx=Math.cos(f);ny=Math.sin(f)}
+  else if(q<2*D+Math.PI*RG){px=xg-(q-D-Math.PI*RG);py=gy-rb;nx=0;ny=-1}
+  else{const f=-Math.PI/2-(q-2*D-Math.PI*RG)/rb;px=xi+rb*Math.cos(f);py=gy+rb*Math.sin(f);nx=Math.cos(f);ny=Math.sin(f)}
+  ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px-nx*5,py-ny*5);ctx.stroke()}
+ gear(xi,gy,RG,ang);gear(xg,gy,RG,ang);
+ const cx=500+u.x;rr(cx-9,gy+rb+2,18,10,"#111827");ctx.strokeStyle="#111827";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(cx,gy+rb+10);ctx.lineTo(cx,240);ctx.stroke();
+}
+function rack(u){
+ wheel(190,142,u.thB);wheel(380,130,u.th);
+ const Lx=223-u.x;
+ rr(Lx,160,560,14,"#9ca3af","#6b7280");
+ for(let i=0;i<46;i++)rr(Lx+i*12+2,153,8,7,"#6b7280");
+ gear(380,130,RG,u.th);gear(190,142,18,u.thB);
+ const cx=500-u.x;rr(cx-9,170,18,10,"#111827");ctx.strokeStyle="#111827";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(cx,178);ctx.lineTo(cx,240);ctx.stroke();
+}
+function drawTap(t){
+ const ex=t.nx+t.pdir*t.len,py=t.ny-14;
+ ctx.strokeStyle="#6b7280";ctx.lineWidth=14;ctx.beginPath();ctx.moveTo(ex,py);ctx.lineTo(t.nx,py);ctx.lineTo(t.nx,t.ny-4);ctx.stroke();
+ rr(t.nx-9,t.ny-4,18,8,"#4b5563");
+ const hx=t.nx+t.pdir*t.len*.5,ha=-Math.PI/2+t.valve*Math.PI/2;
+ ctx.strokeStyle="#c2410c";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(hx,py);ctx.lineTo(hx+22*Math.cos(ha),py+20*Math.sin(ha));ctx.stroke();
+ ctx.fillStyle="#4b5563";ctx.beginPath();ctx.arc(hx,py,5,0,7);ctx.fill();
+ ctx.font="bold 26px Georgia,serif";ctx.textAlign="center";ctx.fillStyle=t.valve>.5?"#15803d":"#b42318";
+ ctx.fillText(t.name+" "+(t.valve>.5?"ON":"OFF"),t.nx+t.pdir*t.len*.8,py-12);
+ ctx.fillStyle="#2a8fe0";for(const d of t.drops){ctx.beginPath();ctx.ellipse(d.x,d.y,2,Math.min(8,2+d.vy/120),0,0,7);ctx.fill()}
+ ctx.fillStyle="#7cc0f2";for(const s of t.sp){ctx.beginPath();ctx.arc(s.x,s.y,1.8,0,7);ctx.fill()}
+}
+function bulb(x,y,r,on,c1,c2){
+ c1=c1||"#f5b700";c2=c2||"255,225,100";
+ if(on){const g=ctx.createRadialGradient(x,y,2,x,y,r*3.2);g.addColorStop(0,"rgba("+c2+",.95)");g.addColorStop(1,"rgba("+c2+",0)");ctx.fillStyle=g;ctx.fillRect(x-r*3.2,y-r*3.2,r*6.4,r*6.4)}
+ ctx.fillStyle=on?c1:"#aeb4bd";ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle="#6b7280";ctx.lineWidth=1.5;ctx.stroke();
+}
+function gate(gx,w,h){
+ const dp=o=>{ctx.beginPath();ctx.rect(gx+o,240+o,w,320);if(h)ctx.rect(gx+h[0]+o,262+o,h[1],278)};
+ dp(8);ctx.fillStyle="rgba(0,0,0,.14)";ctx.fill("evenodd");
+ dp(0);ctx.fillStyle="#aebfd1";ctx.fill("evenodd");ctx.strokeStyle="#4b5d70";ctx.lineWidth=2;ctx.stroke();
+ ctx.strokeStyle="#8da2b8";
+ if(h){ctx.strokeRect(gx+h[0],262,h[1],278);ctx.strokeRect(gx+14,258,h[0]-28,282);ctx.strokeRect(gx+h[0]+h[1]+14,258,w-h[0]-h[1]-28,282)}
+ else{ctx.strokeRect(gx+14,258,w-28,130);ctx.strokeRect(gx+14,402,w-28,140)}
+}
+function drawU(u,lit,hook){
+ ctx.save();ctx.translate(u.v.tx,u.v.ty);ctx.scale(u.v.s,u.v.s);ctx.lineCap="butt";
+ ctx.save();
+ if(u.mir){ctx.translate(1000,0);ctx.scale(-1,1)}
+ const g=ctx.createLinearGradient(0,240,0,560);g.addColorStop(0,lit?"#fff3c4":"#ece6d2");g.addColorStop(1,lit?"#ffe08a":"#ddd4b5");
+ const dX=u.dX||420;if(!u.noint)rr(dX,240,160,320,g);if(!u.nobulb)bulb(dX+80,300,13,lit);
+ if(hook){ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);hook();ctx.restore()}
+ for(const [x,w] of u.stubs){
+  poly([[x,238],[x+w,238],[x+w+26,222],[x+26,222]],"#eef0f3");
+  poly([[x+w,238],[x+w+26,222],[x+w+26,544],[x+w,560]],"#b8c0ca");
+  rr(x,238,w,322,"#dfe3e8","#9aa5b1");
+  ctx.strokeStyle="#c3cad3";ctx.lineWidth=1;for(let y=260;y<560;y+=22){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y);ctx.stroke()}}
+ ctx.strokeStyle="#8b96a3";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(dX,560);ctx.lineTo(dX,240);ctx.lineTo(dX+160,240);ctx.lineTo(dX+160,560);ctx.stroke();
+ ctx.strokeStyle="#374151";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(u.wide?60:u.stubs[0][0],240);ctx.lineTo(u.wide?940:(u.kind==="imp"?770:740),240);ctx.stroke();
+ const dx=420+(u.left?-u.x:u.x),gx=260+u.x,k=u.kind;
+ if(u.wide)gate(gx,480,[160,160]);else gate(dx,160,null);
+ if(k==="belt1"){rr(318,218,12,22,"#6b7280");spr(330,dx+8,228)}
+ else if(k==="imp"){rr(752,218,12,22,"#6b7280");spr(dx+156,752,228)}
+ else if(k==="not"){rr(270,218,12,22,"#6b7280");spr(282,dx-4,228)}
+ else if(u.wide){rr(56,218,12,22,"#6b7280");rr(932,218,12,22,"#6b7280");spr(68,gx-4,228);spr(gx+484,932,228)}
+ else{rr(268,218,12,22,"#6b7280");rr(740,218,12,22,"#6b7280");spr(280,dx+8,228);spr(dx+152,740,228)}
+ if(k==="belt1"||k==="not")belt(u,440,800,false,true);
+ else if(k==="imp")rack(u);
+ else belt(u,u.xi,u.xg,u.wI,true);
+ ctx.restore();
+ u.taps.forEach(drawTap);
+ ctx.restore();
+}
+let units,A,B,fn,isOpen,indic,tab="and",PS,DT={u:0,mode:"wait",t:.5};
+const rows=[[0,0],[0,1],[1,0],[1,1]];
+const NAMES={and:"І",or:"АБО",xor:"XOR",imp:"A → B",eq:"A ≡ B",not:"¬A"};
+// ---- АБО: перспектива
+const OS=.7,PV={vx:300,vy:340,s:.7,hc:200},UK=[0,572],CO=[0,5];
+const proj=(u,z)=>[PV.vx+PV.s*u/z,PV.vy+PV.s*PV.hc/z];
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function newP(last){return{mode:"idle",k:0,f:0,s:0,hold:0,got:false,last:last===undefined?1:last,u:286,z:.55,from:[286,.55]}}
+function stepOR(dt){
+ const op=k=>units[k].x>=96;
+ if(PS.mode==="idle"){const c=[0,1].filter(op);if(c.length){PS.k=c.length===2?1-PS.last:c[0];PS.from=[PS.u,PS.z];PS.f=0;PS.mode="go"}}
+ else if(PS.mode==="go"){PS.f=Math.min(1,PS.f+1.2*dt);const p=lerp(PS.from,[UK[PS.k],.7],PS.f);PS.u=p[0];PS.z=p[1];if(PS.f>=1)PS.mode="wait"}
+ else if(PS.mode==="wait"){if(op(PS.k)){PS.mode="enter";PS.s=0}else{const o=1-PS.k;if(op(o)){PS.k=o;PS.from=[PS.u,PS.z];PS.f=0;PS.mode="go"}}}
+ else if(PS.mode==="enter"){
+  if(PS.s<.7&&!op(PS.k)){PS.mode="wait";PS.u=UK[PS.k];PS.z=.7;PS.s=0;return}
+  PS.s=Math.min(2,PS.s+dt/(PS.s<1?.35:2.2));
+  const p=PS.s<1?lerp([UK[PS.k],.7],[UK[PS.k],1],PS.s):lerp([UK[PS.k],1],CO,PS.s-1);PS.u=p[0];PS.z=p[1];
+  if(PS.s>=2){PS.mode="grab";PS.hold=.9;PS.got=true}}
+ else if(PS.mode==="grab"){PS.hold-=dt;if(PS.hold<=0)PS=newP(PS.k)}
+}
+function person(x,y,z){const k=1.7/z;ctx.save();ctx.translate(x,y);ctx.scale(k,k);
+ ctx.fillStyle="rgba(0,0,0,.18)";ctx.beginPath();ctx.ellipse(0,0,13,5,0,0,7);ctx.fill();
+ ctx.fillStyle="#92400e";ctx.fillRect(-10,-40,20,34);ctx.fillStyle="#f2c9a0";ctx.beginPath();ctx.arc(0,-48,8,0,7);ctx.fill();ctx.restore()}
+function coinAt(x,y,r){ctx.fillStyle="rgba(255,214,0,.35)";ctx.beginPath();ctx.arc(x,y,r*1.7,0,7);ctx.fill();ctx.fillStyle="#f5b700";ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle="#a16207";ctx.lineWidth=2;ctx.stroke();ctx.fillStyle="#fde68a";ctx.beginPath();ctx.arc(x-r*.3,y-r*.3,r*.3,0,7);ctx.fill()}
+function orHook(k){
+ const u=units[k],x0=u.v.tx+OS*420,y0=u.v.ty+OS*240,w=OS*160,h=OS*320;
+ ctx.beginPath();ctx.rect(x0,y0,w,h);ctx.clip();
+ const gs=ctx.createLinearGradient(0,y0,0,PV.vy);gs.addColorStop(0,"#bcd9f5");gs.addColorStop(1,"#eaf4ff");rr(x0,y0,w,PV.vy-y0,gs);
+ const gg=ctx.createLinearGradient(0,PV.vy,0,y0+h);gg.addColorStop(0,"#dfe8cf");gg.addColorStop(1,"#bdd0a4");rr(x0,PV.vy,w,y0+h-PV.vy,gg);
+ ctx.strokeStyle="#a9bd90";ctx.lineWidth=1;for(let i=-8;i<=8;i++){ctx.beginPath();ctx.moveTo(PV.vx,PV.vy);ctx.lineTo(PV.vx+i*60,y0+h);ctx.stroke()}
+ const c=proj(CO[0],CO[1]);if(!PS.got)coinAt(c[0],c[1]-16,16);
+ if(PS.z>1){const p=proj(PS.u,PS.z);person(p[0],p[1],PS.z)}
+}
+// ---- І: аксонометрія з дротиком
+const P1=[196,560],P2=[636,450],DL=[440,-110],P0=[P1[0]-.35*DL[0],P1[1]-.35*DL[1]],P3=[P2[0]+.5*DL[0],P2[1]+.5*DL[1]],PTS=[P0,P1,P2,P3];
+function bp(u){const i=Math.min(2,Math.floor(u)),t=u-i,a=PTS[i],b=PTS[i+1];return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]}
+function stepDart(dt){
+ if(DT.mode==="wait"){DT.t-=dt;if(DT.t<=0){DT.mode="fly";DT.u=0}return}
+ if(DT.mode==="fly"){
+  const nu=DT.u+1.2*dt;
+  if(DT.u<1&&nu>=1&&units[0].x<96){DT.u=.995;DT.mode="stuck";DT.t=1.2;return}
+  if(DT.u<2&&nu>=2&&units[1].x<96){DT.u=1.995;DT.mode="stuck";DT.t=1.2;return}
+  DT.u=nu;if(DT.u>=3){DT.u=3;DT.mode="hit";DT.t=1.5}
+  return}
+ DT.t-=dt;if(DT.t<=0){DT.mode="wait";DT.t=.5}
+}
+function dart(){
+ const[x,y]=bp(DT.u),fly=DT.mode==="fly",h=85+(fly?14*Math.sin(Math.PI*DT.u/3):0);
+ const tx=x,ty=y-h,a=Math.atan2(DL[1],DL[0]),c=Math.cos(a),sn=Math.sin(a),nx=-sn,ny=c;
+ const pt=(d,w)=>[tx+d*c+w*nx,ty+d*sn+w*ny];
+ if(fly){
+  ctx.fillStyle="rgba(0,0,0,.15)";ctx.beginPath();ctx.ellipse(x,y,16,4,0,0,7);ctx.fill();
+  for(let i=1;i<=5;i++){ctx.strokeStyle="rgba(120,130,145,"+(0.45-i*0.08)+")";ctx.lineWidth=3-i*.4;ctx.beginPath();const p=pt(-62-i*14,0),q=pt(-62-i*14-9,0);ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}
+ }
+ ctx.strokeStyle="#374151";ctx.lineWidth=2.5;ctx.beginPath();let p=pt(-62,0),q=pt(0,0);ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();
+ ctx.strokeStyle="#6b7280";ctx.lineWidth=6;ctx.beginPath();p=pt(-30,0);q=pt(-14,0);ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();
+ for(const k of[-1,1])poly([pt(-42,0),pt(-66,k*12),pt(-62,0)],k>0?"#d9480f":"#f4b183");
+ for(const k of[-1,1])poly([pt(-42,0),pt(-62,k*5),pt(-62,0)],"#b42318");
+ poly([pt(0,0),pt(-16,4.5),pt(-16,-4.5)],"#9aa5b1");
+}
+function target(hit){
+ const tx=P3[0],ty=P3[1]-85;
+ ctx.strokeStyle="#6b7280";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(tx,ty+30);ctx.lineTo(tx,P3[1]);ctx.stroke();
+ ctx.fillStyle="rgba(0,0,0,.15)";ctx.beginPath();ctx.ellipse(tx,P3[1],26,7,0,0,7);ctx.fill();
+ if(hit){ctx.fillStyle="rgba(255,214,0,.45)";ctx.beginPath();ctx.arc(tx,ty,46,0,7);ctx.fill()}
+ [[34,"#b42318"],[26,"#fff"],[18,"#b42318"],[10,"#fff"],[4,"#b42318"]].forEach(r=>{ctx.fillStyle=r[1];ctx.beginPath();ctx.arc(tx,ty,r[0],0,7);ctx.fill()});
+ ctx.strokeStyle="#7f1d1d";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(tx,ty,34,0,7);ctx.stroke();
+}
+function floorAnd(both){
+ const hw=85,A_=[P0[0]-hw,P0[1]],B_=[P0[0]+hw,P0[1]],C_=[P3[0]+hw,P3[1]],D_=[P3[0]-hw,P3[1]];
+ poly([A_,B_,C_,D_],both?"#f3e3a8":"#e1e6ec");
+ ctx.strokeStyle="#b8c1cc";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(...A_);ctx.lineTo(...D_);ctx.moveTo(...B_);ctx.lineTo(...C_);ctx.stroke();
+ ctx.strokeStyle="#c9d0d9";ctx.lineWidth=1;
+ for(let i=1;i<20;i++){const t=i/20,cx=P0[0]+(P3[0]-P0[0])*t,cy=P0[1]+(P3[1]-P0[1])*t;ctx.beginPath();ctx.moveTo(cx-hw,cy);ctx.lineTo(cx+hw,cy);ctx.stroke()}
+ ctx.setLineDash([8,6]);ctx.strokeStyle="#9aa5b1";ctx.beginPath();ctx.moveTo(...P0);ctx.lineTo(...P3);ctx.stroke();ctx.setLineDash([]);
+}
+function drawAnd(){
+ const both=units[0].x>=96&&units[1].x>=96;
+ floorAnd(both);target(DT.mode==="hit");
+ if(DT.u>2)dart();
+ drawU(units[1],false);
+ const lx=P3[0],ly=P3[1]-175;
+ ctx.strokeStyle="#6b7280";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,ly-45);ctx.lineTo(lx,ly);ctx.stroke();
+ bulb(lx,ly,13,both);
+ if(DT.u>1&&DT.u<=2)dart();
+ drawU(units[0],false);
+ if(DT.u<=1)dart();
+}
+function build(n){
+ tab=n;const v1={tx:0,ty:40,s:1};B=null;indic=[60,70,22];PS=newP();DT={u:0,mode:"wait",t:.5};
+ if(n==="and"){A=mkTap(800,130,1,1,220,"A");B=mkTap(800,130,1,1,220,"B");
+  const st=()=>({stubs:[[280,140],[580,160]],nobulb:true,noint:true});
+  units=[mkU("belt1",{tx:-113.6,ty:212.8,s:.62},[A],0,L,st()),mkU("belt1",{tx:326.4,ty:102.8,s:.62},[B],0,L,st())];
+  fn=(a,b)=>a&&b;isOpen=()=>units[0].x>=96&&units[1].x>=96;indic=null}
+ if(n==="not"){A=mkTap(800,130,-1,-1,220,"A");
+  units=[mkU("not",v1,[A],0,L,{stubs:[[280,140],[580,160]],x:L})];fn=a=>!a;isOpen=()=>units[0].x>=96}
+ if(n==="or"){A=mkTap(800,130,1,1,120,"A");B=mkTap(800,130,1,1,120,"B");
+  const st=()=>({stubs:[[280,140],[580,160]],nobulb:true});
+  units=[mkU("belt1",{tx:-50,ty:88,s:OS},[A],0,L,st()),mkU("belt1",{tx:350,ty:88,s:OS},[B],0,L,st())];
+  fn=(a,b)=>a||b;isOpen=()=>units[0].x>=96||units[1].x>=96;indic=null}
+ if(n==="xor"){A=mkTap(200,130,-1,1,200,"A");B=mkTap(800,130,1,-1,200,"B");
+  units=[mkU("sym",v1,[A,B],-L,L,{stubs:[[260,160],[580,160]],xi:200,xg:800,wI:true})];
+  fn=(a,b)=>a!==b;isOpen=()=>Math.abs(units[0].x)>=96}
+ if(n==="imp"){A=mkTap(620,130,1,-1,200,"A");B=mkTap(810,142,-1,1,90,"B");
+  units=[mkU("imp",v1,[A,B],0,L,{stubs:[[100,160],[420,320]],dX:260,left:true,mir:true})];
+  fn=(a,b)=>!a||b;isOpen=()=>units[0].x<96;indic=[100,70,22]}
+ if(n==="eq"){A=mkTap(700,130,1,-1,200,"A");B=mkTap(700,130,-1,1,200,"B");
+  units=[mkU("sym",v1,[A,B],-L,L,{stubs:[[100,320],[580,320]],xi:300,xg:700,wI:false,wide:true})];
+  fn=(a,b)=>a===b;isOpen=()=>Math.abs(units[0].x)<=30}
+  document.querySelectorAll("#gtabs button").forEach(b=>b.className=b.dataset.n===n?"on":"");
+ table();
+}
+function table(){
+ const a=A.valve>.5?1:0,b=B?(B.valve>.5?1:0):0,rs=B?rows:[[0],[1]];
+ document.getElementById("tt").innerHTML="<tr><th>A</th>"+(B?"<th>B</th>":"")+"<th>"+NAMES[tab]+"</th></tr>"+rs.map(r=>"<tr"+(r[0]===a&&(!B||r[1]===b)?" class=cur":"")+"><td>"+r[0]+"</td>"+(B?"<td>"+r[1]+"</td>":"")+"<td>"+(fn(r[0],r[1])?1:0)+"</td></tr>").join("");
+}
+for(const n of["and","or","xor","imp","eq","not"]){const b=document.createElement("button");b.textContent=NAMES[n];b.dataset.n=n;b.onclick=()=>build(n);document.getElementById("gtabs").appendChild(b)}
+cv.addEventListener("click",e=>{
+ const r=cv.getBoundingClientRect(),X=(e.clientX-r.left)*1000/r.width,Y=(e.clientY-r.top)*640/r.height;
+ for(const u of units)for(const t of u.taps){
+  const lx=(X-u.v.tx)/u.v.s,ly=(Y-u.v.ty)/u.v.s,hx=t.nx+t.pdir*t.len*.5;
+  if(Math.abs(lx-hx)<45&&ly>t.ny-60&&ly<t.ny+6){t.valve=t.valve>.5?0:1;table();return}
+ }
+});
+function draw(){
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,1000,640);rr(0,0,1000,640,"#fbfcfd");
+ if(tab==="and"){drawAnd();return}
+ if(tab==="or"){
+  rr(0,480,1000,160,"#e7eaee");rr(0,254,1000,226,"#dfe3e8");
+  ctx.strokeStyle="#c3cad3";ctx.lineWidth=1;for(let y=268;y<480;y+=16){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1000,y);ctx.stroke()}
+  ctx.strokeStyle="#9aa5b1";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,480);ctx.lineTo(1000,480);ctx.stroke();
+  units.forEach((u,k)=>drawU(u,false,()=>orHook(k)));
+  if(PS.z<=1){const p=proj(PS.u,PS.z);person(p[0],p[1],PS.z)}
+  return}
+ const lit=isOpen();
+ for(const u of units){drawU(u,lit);ctx.save();ctx.translate(u.v.tx,u.v.ty);ctx.scale(u.v.s,u.v.s);ctx.strokeStyle="#9aa5b1";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(60,560);ctx.lineTo(940,560);ctx.stroke();ctx.restore()}
+ bulb(indic[0],indic[1],indic[2],lit);
+}
+let last=performance.now();
+let gActive=false;
+window.gatesSetActive=v=>{gActive=v;last=performance.now()};
+function frame(now){
+ if(!gActive){last=now;requestAnimationFrame(frame);return}
+ let rem=Math.min(.05,(now-last)/1000)*SPD;last=now;
+ while(rem>1e-9){const d=Math.min(1/240,rem);units.forEach(u=>stepU(u,d));if(tab==="or")stepOR(d);if(tab==="and")stepDart(d);rem-=d}
+ draw();requestAnimationFrame(frame);
+}
+build("and");requestAnimationFrame(frame);
+
+})();
 </script>
 
 </body>
