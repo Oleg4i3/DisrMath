@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Алгоритми маршрутизації на графах</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+body{font-family:system-ui,Segoe UI,Arial,sans-serif;background:#f6f7f9;color:#1f2933;margin:0;padding:16px}
+h1{font-size:20px;margin:0 0 10px}
+.tabs button,.ctl button{border:1px solid #b8c0cc;background:#fff;color:#1f2933;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:14px}
+.tabs button.on{background:#1565c0;color:#fff;border-color:#1565c0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0;font-size:14px}
+.ctl select,.ctl input{font-size:14px}
+#info{background:#fff;border:1px solid #d5dae1;border-radius:8px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:1060px}
+.panels{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.panel{background:#fff;border:1px solid #d5dae1;border-radius:8px;padding:10px}
+.panel h3{margin:0 0 6px;font-size:15px}
+canvas{display:block;border:1px solid #cfd6df}
+.st{font-size:13px;margin-top:6px;line-height:1.5;min-height:60px}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-top:10px;align-items:center}
+.leg i{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:4px;border:1px solid #9aa5b1}
+#sum{margin-top:12px;font-size:14px;line-height:1.55;max-width:1060px;background:#eef5ff;border:1px solid #b6d0f2;border-radius:8px;padding:10px 14px;display:none}
+</style></head><body>
+<h1>Маршрутизація в лабіринті: пошук у ширину/глибину, Дейкстра, A*</h1>
+<div class="tabs" id="tabs">
+<button data-m="a">а) Без ваг: BFS і DFS</button>
+<button data-m="b">б) З вагами: Дейкстра і A* (манхеттен)</button>
+<button data-m="c">в) З вагами: Дейкстра і A* (зважений манхеттен)</button></div>
+<div id="info"></div>
+<div class="ctl">
+<button id="go">▶ Старт</button><button id="stp">Крок</button><button id="rst">Спочатку</button><button id="nw">Новий лабіринт</button><label id="tpOpt"><input type="checkbox" id="tpc"> Телепорт</label>
+<label>Швидкість <input type="range" id="sp" min="1" max="40" value="4"></label>
+<label id="dfsOpt">Порядок сусідів у DFS <select id="ord"><option value="0">→ ↓ ← ↑ (до цілі)</option><option value="1">↑ ← ↓ → (від цілі)</option></select></label>
+</div>
+<div id="gen" style="font-size:13px;color:#52606d;margin-bottom:4px"></div>
+<div class="panels">
+<div class="panel"><h3 id="tL"></h3><canvas id="cL"></canvas><div class="st" id="sL"></div></div>
+<div class="panel"><h3 id="tR"></h3><canvas id="cR"></canvas><div class="st" id="sR"></div></div></div>
+<div class="leg"><span><i style="background:#37474f"></i>стіна</span><span><i style="background:rgba(30,100,220,.45)"></i>розкрито</span><span><i style="background:#ffc107"></i>у черзі/стеку</span><span><i style="background:#2e7d32"></i>знайдений шлях</span><span><b>S</b> старт, <b>G</b> ціль</span>
+<span id="tpl"><i style="border-radius:50%;border:3px solid #6a1b9a;background:#fff;width:8px;height:8px"></i>телепорт (вартість 0,2)</span><span id="wl"><i style="background:linear-gradient(90deg,#fff,#ff2828);width:70px"></i>вартість входу в клітинку: 0,2 → 5</span></div>
+<div id="sum"></div>
+<details id="theory" style="margin-top:14px;max-width:1060px;background:#fff;border:1px solid #d5dae1;border-radius:8px;padding:10px 14px;font-size:14px;line-height:1.6">
+<summary style="cursor:pointer;font-weight:600">Довідка: допустимість і узгодженість евристики</summary>
+<p><b>Позначення.</b> Граф: вершини — відкриті клітинки, ребро $(u,v)$ має вартість $c(u,v)$ — у симуляторі це вартість входу в клітинку $v$ (для телепорта — $\tau$). $G$ — ціль, $h^*(v)$ — справжня вартість найкоротшого шляху від $v$ до $G$, $g(v)$ — вартість найкращого знайденого шляху від старту до $v$. A* розкриває вершину з найменшим $f(v)=g(v)+h(v)$; при $h\equiv0$ це Дейкстра.</p>
+<p><b>Допустимість.</b> Евристика допустима, якщо вона ніколи не переоцінює залишок шляху:
+$$h(v)\le h^*(v)\ \text{ для всіх } v,\qquad h(G)=0.$$
+Допустима евристика — оцінка знизу. Тоді A* повертає оптимальний шлях (за умови, що вершини можна розкривати повторно, якщо для них знайдено дешевший шлях).</p>
+<p><b>Узгодженість (монотонність).</b> Для кожного ребра $(u,v)$:
+$$h(u)\le c(u,v)+h(v),\qquad h(G)=0.$$
+Це нерівність трикутника для $h$: оцінка не може впасти швидше, ніж вартість кроку. Тоді $f$ не спадає вздовж шляху, кожну вершину досить розкрити один раз, і в цей момент $g(v)$ вже оптимальне. Саме так працює симулятор: розкрита клітинка не переглядається.</p>
+<p><b>Зв'язок.</b> Узгоджена ⇒ допустима (індукція вздовж оптимального шляху до цілі: $h(v)\le \sum c + h(G)=h^*(v)$). Зворотне хибне: евристика може бути допустимою, але неузгодженою; тоді без повторного розкриття оптимальність втрачається.</p>
+<p><b>Що це означає в симуляторі.</b></p>
+<ul>
+<li><b>$h_M=|x-x_g|+|y-y_g|$.</b> Якщо всі $c\ge1$, допустима й узгоджена (крок змінює $d_M$ не більше ніж на 1, а коштує щонайменше 1). Якщо є клітинки з $c<1$ — недопустима. Приклад: 5 білих клітинок поспіль коштують $5\cdot0{,}2=1$, а $h_M=5>h^*=1$. Тому A* вважає ці напрямки «дорогими», рано закриває вершини з неоптимальним $g$ і повертає довший шлях.</li>
+<li><b>$h_W=c_{\min}\,d_M$, $c_{\min}=0{,}2$.</b> Допустима й узгоджена: $h_W(u)-h_W(v)=c_{\min}\bigl(d_M(u)-d_M(v)\bigr)\le c_{\min}\le c(u,v)$. A* оптимальний. Ціна — слабкість оцінки: середня клітинка коштує значно більше за $c_{\min}$, тож $h_W$ далека від $h^*$ і виграш за кількістю розкриттів помірний. Чим ближча допустима $h$ до $h^*$, тим менше розкриттів.</li>
+<li><b>Телепорт.</b> Допустимість — властивість евристики <i>разом із графом</i>. Ребро-телепорт $(a,b)$ вартістю $\tau$ з'єднує далекі клітинки; тоді $h_W(a)=c_{\min}d_M(a,G)\gg\tau+h_W(b)$ (вихід $b$ біля цілі). Нерівність узгодженості порушена, і $h_W(a)>h^*(a)$. Виправлення — враховувати телепорт в евристиці: $h(v)=\min\bigl(c_{\min}d_M(v,G),\ c_{\min}d_M(v,a)+\tau+c_{\min}d_M(b,G)\bigr)$ (і так само для напрямку $b\to a$).</li>
+</ul>
+<p><b>Дві практичні поради.</b> Евристика, що завищує, може бути корисною заради швидкості (зважений A*), але тоді оптимальність не гарантується — її треба перевіряти порівнянням із Дейкстрою, як у цьому симуляторі. Недопустимість доводиться контрприкладом ($h(v)>h^*(v)$ хоча б для однієї вершини); допустимість — доведенням для всіх.</p>
+</details>
+<script>
+const W=31,H=21,S=16,START=1*W+1,GOAL=(H-2)*W+(W-2);
+const RMAX=0.7,CMIN=0.2,TC=CMIN,GMIN=0.25,DIRS=[[1,0],[0,1],[-1,0],[0,-1]];let TP=[],TPM={},tpOn=false,GEN={};
+let seed=1,mode='a',grid,wt,pair,sL,sR,OPT,running=false,acc=0;
+const NAMES={bfs:'Пошук у ширину (BFS)',dfs:'Пошук у глибину (DFS)',dij:'Дейкстра',astarM:'A*, h = манхеттен',astarW:'A*, h = зважений манхеттен'};
+const MODES={a:['bfs','dfs'],b:['dij','astarM'],c:['dij','astarW']};
+const INFO={
+a:'Усі кроки однаково «дорогі». BFS розкриває клітинки шарами за відстанню від старту, тож перший шлях до цілі — найкоротший. DFS занурюється вглиб і знаходить <i>якийсь</i> шлях; чи він коротший за час пошуку, залежить від порядку обходу сусідів і від самого лабіринту — змінюйте їх і перевіряйте.',
+b:'Вартість входу в клітинку $c\\in[0{,}2;\\,5]$: біла — швидко, червона — повільно. Дейкстра впорядковує клітинки за $g(v)$, A* — за $f(v)=g(v)+h(v)$ з $h_M(v)=|x-x_g|+|y-y_g|$ (число кроків). Біла клітинка коштує $0{,}2<1$, тому $h_M(v)$ може перевищити справжню вартість $h^*(v)$: евристика <b>недопустима</b>, оптимальність A* не гарантована. (Якби всі $c\\ge1$, $h_M$ була б допустимою, лише слабкою.) Розкрита клітинка не переглядається. Лабіринт підібрано симуляцією: у ньому A* з $h_M$ гарантовано знаходить неоптимальний шлях.',
+c:'Та сама карта. Евристика $h_W(v)=c_{\\min}\\,(|x-x_g|+|y-y_g|)$, $c_{\\min}=0{,}2$. Кожен крок коштує щонайменше $c_{\\min}$, тому $h_W(v)\\le h^*(v)$ — допустима й узгоджена, A* знаходить оптимум і розкриває менше клітинок, ніж Дейкстра, яка розходиться колами. Увімкніть телепорт, щоб побачити, що допустимість залежить і від графа.'};
+const TPB=' Увімкнено телепорт (вартість переходу $\\tau=0{,}2$), про який $h_M$ нічого не знає.';
+const TPC='Та сама карта з телепортом (вартість переходу $\\tau=0{,}2$). Без нього $h_W(v)=c_{\\min}d_M(v,G)$ допустима, бо кожен крок коштує щонайменше $c_{\\min}$. Телепорт — ребро, що скорочує шлях між далекими клітинками, тому для клітинок біля входу $h_W(v)>h^*(v)$: допустимість — властивість евристики <i>разом із графом</i>. Оптимальність A* більше не гарантована; Дейкстра лишається оптимальною.';
+const infoText=()=>mode==='c'&&tpOn?TPC:INFO[mode];
+
+function mkRng(s){return()=>((s=(s*1664525+1013904223)>>>0)/4294967296)}
+function build(sd){
+ const r=mkRng(sd*9973+1);
+ const g=Array.from({length:H},()=>Array(W).fill(1));
+ const st=[[1,1]];g[1][1]=0;
+ while(st.length){const[x,y]=st[st.length-1];
+  const nb=[[2,0],[-2,0],[0,2],[0,-2]].map(([dx,dy])=>[x+dx,y+dy,dx/2,dy/2]).filter(([a,b])=>a>0&&b>0&&a<W-1&&b<H-1&&g[b][a]);
+  if(!nb.length){st.pop();continue}
+  const[a,b,hx,hy]=nb[Math.floor(r()*nb.length)];g[y+hy][x+hx]=0;g[b][a]=0;st.push([a,b])}
+ for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)
+  if(g[y][x]&&((!g[y][x-1]&&!g[y][x+1]&&g[y-1][x]&&g[y+1][x])||(!g[y-1][x]&&!g[y+1][x]&&g[y][x-1]&&g[y][x+1]))&&r()<0.3)g[y][x]=0;
+ const bl=Array.from({length:8},()=>({x:r()*W,y:r()*H,s:2.5+r()*3.5,a:0.7+r()*0.7}));
+ wt=[];for(let y=0;y<H;y++){wt.push([]);for(let x=0;x<W;x++){let v=0;
+  for(const b of bl)v+=b.a*Math.exp(-((x-b.x)**2+(y-b.y)**2)/(2*b.s*b.s));
+  wt[y].push(CMIN+(5-CMIN)*Math.max(0,Math.min(1,v-0.45)))}}
+ grid=g;TP=[];TPM={};
+}
+const cost=i=>mode==='a'?1:wt[(i/W)|0][i%W];
+const manh=(i,j)=>Math.abs(i%W-j%W)+Math.abs(((i/W)|0)-((j/W)|0));
+const tpA=()=>tpOn&&mode==='c';
+const ec=(i,j)=>(tpA()&&TPM[i]===j&&manh(i,j)>1)?TC:cost(j);
+function dijk(src,rev){
+ const d=new Float64Array(W*H).fill(Infinity),h=[[0,src]];d[src]=0;
+ while(h.length){const[g0,i]=hpop(h);if(g0>d[i])continue;const x=i%W,y=(i/W)|0;
+  for(const[dx,dy]of DIRS){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H||grid[ny][nx])continue;
+   const j=ny*W+nx,ng=g0+(rev?wt[y][x]:wt[ny][nx]);if(ng<d[j]){d[j]=ng;hpush(h,[ng,j])}}}
+ return d}
+function runK(k){const s=mk(k);while(!s.done)step(s);return s}
+function simGap(k){const d=runK('dij'),a=runK(k);return(a.cost-d.cost)/d.cost}
+function placeTP(){
+ // телепорт: вхід «непомітний» для A*, вихід біля цілі; з телепортом A* зі зваженим манхеттеном має бути неоптимальним
+ const dS=dijk(START,false),dG=dijk(GOAL,true),base=dS[GOAL],op=[],cand=[];
+ for(let i=0;i<W*H;i++)if(!grid[(i/W)|0][i%W])op.push(i);
+ for(const a of op){if(dS[a]+CMIN*manh(a,GOAL)<=base)continue;
+  for(const b of op){if(manh(a,b)<15)continue;const sv=base-(dS[a]+TC+dG[b]);if(sv>0)cand.push([sv,a,b])}}
+ cand.sort((x,y)=>y[0]-x[0]);
+ const tried=[];let best=null,bg=0;
+ for(const[,a,b]of cand){if(tried.length>=40)break;
+  if(tried.some(t=>manh(t[0],a)<4&&manh(t[1],b)<4))continue;tried.push([a,b]);
+  TP=[[a,b]];TPM={[a]:b,[b]:a};const g=simGap('astarW');if(g>bg){bg=g;best=[a,b]}}
+ if(best&&bg>=GMIN){TP=[best];TPM={[best[0]]:best[1],[best[1]]:best[0]};GEN.gW=bg;return true}
+ TP=[];TPM={};return false}
+function gen(start){
+ const sm=mode,st=tpOn;GEN={};
+ for(let k=0;k<2500;k++){const sd=start+k;build(sd);GEN={};
+  mode='b';tpOn=false;const gm=simGap('astarM');if(gm<GMIN)continue;mode='c';{const A=runK('astarW'),D=runK('dij');if(A.exp>RMAX*D.exp)continue}
+  mode='c';tpOn=true;const ok=placeTP();
+  if(ok){mode=sm;tpOn=st;GEN.gM=gm;return sd}}
+ mode=sm;tpOn=st;build(start);GEN={};return start}
+const dfsOrder=()=>{const d=[[1,0],[0,1],[-1,0],[0,-1]];return $('ord').value==='0'?d:d.slice().reverse()};
+function nbrs(i,d){const x=i%W,y=(i/W)|0,o=[];for(const[dx,dy]of d){const nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<W&&ny<H&&!grid[ny][nx])o.push(ny*W+nx)}if(tpA()&&TPM[i]!==undefined)o.push(TPM[i]);return o}
+const $=id=>document.getElementById(id);
+function hpush(h,e){h.push(e);let i=h.length-1;while(i>0){const p=(i-1)>>1;if(h[p][0]<=h[i][0])break;[h[p],h[i]]=[h[i],h[p]];i=p}}
+function hpop(h){const t=h[0],l=h.pop();if(h.length){h[0]=l;let i=0;for(;;){let a=2*i+1,b=a+1,m=i;if(a<h.length&&h[a][0]<h[m][0])m=a;if(b<h.length&&h[b][0]<h[m][0])m=b;if(m===i)break;[h[m],h[i]]=[h[i],h[m]];i=m}}return t}
+function mk(kind){
+ const n=W*H,o={kind,par:new Int32Array(n).fill(-1),g:new Float64Array(n).fill(Infinity),vis:new Uint8Array(n),fr:new Uint8Array(n),seen:new Uint8Array(n),exp:0,done:false,found:false,path:[],cost:0,q:[START],head:0,st:[[START,-1]],hp:[]};
+ o.g[START]=0;o.seen[START]=1;o.fr[START]=1;o.hp.push([0,START]);return o}
+function hh(k,i){const d=Math.abs(i%W-(W-2))+Math.abs(((i/W)|0)-(H-2));return k==='astarM'?d:k==='astarW'?CMIN*d:0}
+function fin(s,ok){s.done=true;s.found=ok;if(ok){let i=GOAL;while(i!==-1){s.path.push(i);i=s.par[i]}s.path.reverse();s.cost=0;for(let k=1;k<s.path.length;k++)s.cost+=ec(s.path[k-1],s.path[k])}}
+function step(s){
+ if(s.done)return;const k=s.kind;
+ if(k==='bfs'){
+  if(s.head>=s.q.length)return fin(s,false);
+  const i=s.q[s.head++];s.vis[i]=1;s.fr[i]=0;s.exp++;if(i===GOAL)return fin(s,true);
+  for(const j of nbrs(i,DIRS))if(!s.seen[j]){s.seen[j]=1;s.par[j]=i;s.fr[j]=1;s.q.push(j)}
+ }else if(k==='dfs'){
+  let e;do{if(!s.st.length)return fin(s,false);e=s.st.pop()}while(s.vis[e[0]]);
+  const[i,p]=e;s.vis[i]=1;s.fr[i]=0;s.par[i]=p;s.exp++;if(i===GOAL)return fin(s,true);
+  for(const j of nbrs(i,dfsOrder()).reverse())if(!s.vis[j]){s.fr[j]=1;s.st.push([j,i])}
+ }else{
+  let i;do{if(!s.hp.length)return fin(s,false);i=hpop(s.hp)[1]}while(s.vis[i]);
+  s.vis[i]=1;s.fr[i]=0;s.exp++;if(i===GOAL)return fin(s,true);
+  for(const j of nbrs(i,DIRS)){if(s.vis[j])continue;const ng=s.g[i]+ec(i,j);
+   if(ng<s.g[j]){s.g[j]=ng;s.par[j]=i;s.fr[j]=1;hpush(s.hp,[ng+hh(k,j),j])}}
+ }
+}
+const wcol=c=>{const t=Math.min(1,(c-CMIN)/(5-CMIN)),v=Math.round(255-215*t);return`rgb(255,${v},${v})`};
+function draw(cv,s){
+ cv.width=W*S;cv.height=H*S;const c=cv.getContext('2d');
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;
+  c.fillStyle=grid[y][x]?'#37474f':(mode==='a'?'#fff':wcol(wt[y][x]));c.fillRect(x*S,y*S,S,S);
+  if(!grid[y][x]){if(s.vis[i]){c.fillStyle='rgba(30,100,220,.45)';c.fillRect(x*S,y*S,S,S)}
+   if(s.fr[i]){c.fillStyle='#ffc107';c.fillRect(x*S+2,y*S+2,S-4,S-4)}}}
+ const px=i=>[(i%W+.5)*S,(((i/W)|0)+.5)*S],TCOL=['#6a1b9a','#00838f'];
+ if(tpA()){c.lineWidth=1.5;c.setLineDash([3,4]);TP.forEach(([a,b],k)=>{c.strokeStyle=TCOL[k];c.beginPath();c.moveTo(...px(a));c.lineTo(...px(b));c.stroke()});c.setLineDash([])}
+ if(s.found){c.strokeStyle='#2e7d32';c.lineWidth=4;c.lineJoin='round';
+  for(let k=1;k<s.path.length;k++){const a=s.path[k-1],b=s.path[k];c.setLineDash(manh(a,b)>1?[7,5]:[]);c.beginPath();c.moveTo(...px(a));c.lineTo(...px(b));c.stroke()}
+  c.setLineDash([])}
+ if(tpA()){c.font='bold 11px sans-serif';c.textAlign='center';c.textBaseline='middle';
+  TP.forEach((p,k)=>p.forEach(e=>{const[x,y]=px(e);c.fillStyle='#fff';c.strokeStyle=TCOL[k];c.lineWidth=3;c.beginPath();c.arc(x,y,S*.42,0,7);c.fill();c.stroke();c.fillStyle=TCOL[k];c.fillText(k+1,x,y+1)}))}
+ c.font='bold 12px sans-serif';c.textAlign='center';c.textBaseline='middle';
+ for(const[i,t,col]of[[START,'S','#00695c'],[GOAL,'G','#4a148c']]){const x=(i%W+.5)*S,y=(((i/W)|0)+.5)*S;
+  c.fillStyle=col;c.beginPath();c.arc(x,y,S*.46,0,7);c.fill();c.fillStyle='#fff';c.fillText(t,x,y+1)}
+}
+const f1=x=>x.toFixed(1).replace('.',',');
+function stats(el,s){
+ let t=`Розкрито клітинок: <b>${s.exp}</b><br>`;
+ if(!s.done)t+='Стан: триває пошук…';
+ else if(!s.found)t+='Шлях не знайдено';
+ else{const steps=s.path.length-1,gap=(s.cost-OPT)/OPT*100;
+  t+=`Шлях: <b>${steps}</b> кроків`+(mode==='a'?'':`, вартість <b>${f1(s.cost)}</b> (оптимум ${f1(OPT)})`)+'<br>'+
+  (gap<1e-6?'<span style="color:#2e7d32">оптимальний</span>':`<span style="color:#c62828">довший за оптимальний на ${f1(gap)}%</span>`)}
+ el.innerHTML=t}
+function render(){draw($('cL'),sL);draw($('cR'),sR);stats($('sL'),sL);stats($('sR'),sR)}
+function summary(){
+ const a=[sL,sR],d=$('sum');d.style.display='block';
+ const r=a.map(s=>({n:NAMES[s.kind],e:s.exp,ok:Math.abs(s.cost-OPT)<1e-6,gap:(s.cost-OPT)/OPT*100,steps:s.path.length-1}));
+ let t=r.map(x=>`<b>${x.n}</b>: розкрито ${x.e}, ${x.ok?'шлях оптимальний':'шлях довший за оптимальний на '+f1(x.gap)+'%'}`).join('.<br>')+'.<br>';
+ t+=r[0].e===r[1].e?'Кількість розкритих клітинок однакова.':`Менше клітинок розкрито в «${(r[0].e<r[1].e?r[0]:r[1]).n}» (${Math.min(r[0].e,r[1].e)} проти ${Math.max(r[0].e,r[1].e)}).`;
+ d.innerHTML=t}
+function reset(){
+ running=false;acc=0;$('go').textContent='▶ Старт';$('sum').style.display='none';
+ pair=MODES[mode];sL=mk(pair[0]);sR=mk(pair[1]);
+ const o=mk('dij');while(!o.done)step(o);OPT=mode==='a'?(()=>{const b=mk('bfs');while(!b.done)step(b);return b.path.length-1})():o.cost;
+ $('tL').textContent=NAMES[pair[0]];$('tR').textContent=NAMES[pair[1]];
+ $('wl').style.display=mode==='a'?'none':'';$('tpl').style.display=tpA()?'':'none';$('tpOpt').style.display=mode==='c'?'':'none';
+ $('gen').textContent=mode==='b'&&!tpOn&&GEN.gM?`Лабіринт №${seed}: перевірено симуляцією — A* з манхеттеном довший за оптимальний на ${f1(GEN.gM*100)}%.`:mode==='c'&&tpOn&&GEN.gW?`Лабіринт №${seed}: перевірено симуляцією — з телепортом A* довший за оптимальний на ${f1(GEN.gW*100)}%.`:`Лабіринт №${seed}.`;$('dfsOpt').style.display=mode==='a'?'':'none';
+ $('info').innerHTML=infoText();
+ if(window.renderMathInElement)renderMathInElement($('info'),{delimiters:[{left:'$',right:'$',display:false}]});
+ render()}
+function tick(){step(sL);step(sR);render();if(sL.done&&sR.done){running=false;$('go').textContent='▶ Старт';summary()}}
+function loop(){if(running){acc+=$('sp').value/4;while(acc>=1&&running){acc--;tick()}}requestAnimationFrame(loop)}
+$('go').onclick=()=>{if(sL.done&&sR.done)reset();running=!running;$('go').textContent=running?'⏸ Пауза':'▶ Старт'};
+$('stp').onclick=()=>{running=false;$('go').textContent='▶ Старт';if(!(sL.done&&sR.done))tick()};
+$('rst').onclick=reset;$('ord').onchange=reset;
+$('nw').onclick=()=>{seed=gen(seed+1);reset()};$('tpc').onchange=()=>{tpOn=$('tpc').checked;reset()};
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));reset()});
+document.querySelector('#tabs button').classList.add('on');
+seed=gen(1);reset();loop();
+window.addEventListener('load',()=>{if(window.renderMathInElement){renderMathInElement($('info'),{delimiters:[{left:'$',right:'$',display:false}]});renderMathInElement($('theory'),{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})}});
+</script></body></html>
