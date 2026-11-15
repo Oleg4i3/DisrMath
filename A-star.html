@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Симулятор Алгоритму A*</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <style>
         :root {
             --primary-color: #007bff; /* Blue */
@@ -47,7 +49,7 @@
         select { text-align-last: center; }
         input[type="number"] { width: 60px; }
         input[type="checkbox"] { transform: scale(1.2); }
-        .visualization { width: 100%; height: 550px; border-radius: 5px; position: relative; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px; }
+        .visualization { width: 100%; height: 640px; border-radius: 5px; position: relative; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px; }
         .legend { font-size: 0.9em; color: #555; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background-color: #f8f9fa; margin-bottom: 15px; }
         .legend-item { display: flex; align-items: center; gap: 5px; }
         .legend-color { width: 15px; height: 15px; border-radius: 3px; border: 1px solid #ccc; }
@@ -61,16 +63,17 @@
 
         svg { width: 100%; height: 100%; }
         .node circle { stroke: #555; stroke-width: 1px; fill: var(--white-bg); transition: fill 0.3s, stroke 0.3s; }
-        .node text { pointer-events: none; font-size: 10px; text-anchor: middle; }
-        .node text.f-label { fill: var(--fcost-color); font-weight: bold; font-size: 11px; }
-        .node text.g-label { fill: var(--cost-color); font-size: 11px; }
-        .node text.h-label { fill: var(--heuristic-color); font-size: 11px; }
-        .node text.id-label { fill: #333; font-weight: bold; font-size: 12px; }
+        .node text { pointer-events: none; font-size: 14px; text-anchor: middle; }
+        .node text.f-label { fill: var(--fcost-color); font-weight: bold; font-size: 15px; }
+        .node text.g-label { fill: var(--cost-color); font-size: 15px; text-anchor: end; }
+        .node text.h-label { fill: var(--heuristic-color); font-size: 15px; text-anchor: start; }
+        .node text.id-label { fill: #333; font-weight: bold; font-size: 16px; }
 
         .edge { stroke: #ccc; stroke-width: 1.5px; fill: none; transition: stroke 0.3s, stroke-width 0.3s; }
+        .edge.colored { stroke-width: 2.2px; }
         .edge-label-group { cursor: pointer; pointer-events: bounding-box; }
-        .edge-label { font-size: 10px; fill: #555; text-anchor: middle; pointer-events: none; }
-        .edge-label-bg { fill: white; opacity: 0.7; pointer-events: none; }
+        .edge-label { font-size: 16px; font-weight: bold; fill: #333; text-anchor: middle; pointer-events: none; }
+        .edge-label-bg { fill: white; opacity: 0.9; pointer-events: none; }
 
         .node.open-set circle { fill: var(--open-set-color); }
         .node.closed-set circle { fill: var(--closed-set-color); }
@@ -78,7 +81,7 @@
         .node.current circle { fill: var(--current-color); stroke: #a67c00; stroke-width: 3px; }
         .node.path circle { fill: var(--path-color); stroke: var(--path-color); stroke-width: 3px; }
         .node.path text { fill: white; }
-        .node.optimal circle { stroke: var(--optimal-path-color); stroke-dasharray: 4 2; stroke-width: 2.5px; fill: none; /* Only outline */ }
+        .node.optimal circle { stroke: var(--optimal-path-color); stroke-dasharray: 4 2; stroke-width: 2.5px; fill: var(--white-bg); /* білий фон, щоб пунктир ребер не просвічував крізь мітки */ }
         .node.optimal text { /* Keep text visible for optimal nodes */ fill: #333; }
         .node.optimal.path text { fill: white; } /* Ensure path nodes override optimal text color */
 
@@ -86,6 +89,14 @@
         .edge.path { stroke: var(--path-color); stroke-width: 3px;}
         .edge.relaxing { stroke: var(--current-color); stroke-width: 3px; }
         .edge.optimal { stroke: var(--optimal-path-color); stroke-width: 2.5px; stroke-dasharray: 5 3; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(108, 117, 125, 0.35); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+        .modal-overlay[hidden] { display: none; }
+        .modal { background: var(--white-bg); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); max-width: 720px; max-height: 90vh; overflow-y: auto; padding: 25px 30px; box-sizing: border-box; color: var(--text-color); }
+        .modal h3 { margin: 0 0 12px 0; color: var(--primary-color); }
+        .modal p { line-height: 1.6; margin: 0 0 12px 0; }
+        .modal .tex-block { text-align: center; margin: 8px 0 14px 0; overflow-x: auto; }
+        .modal-actions { text-align: right; margin-top: 10px; }
 
         .theory-container { max-width: 1200px; }
         details { border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; }
@@ -133,6 +144,7 @@
         <div class="legend-item"><span class="legend-color" style="background-color: var(--current-color);"></span> Поточна</div>
         <div class="legend-item"><span class="legend-color" style="background-color: var(--path-color);"></span> Шлях A*</div>
         <div class="legend-item"><span class="legend-color legend-optimal"></span> Опт. шлях</div>
+        <div class="legend-item"><span class="legend-color" style="background: linear-gradient(90deg, #d6336c 33%, #7048e8 33% 66%, #1971c2 66%);"></span> Діагональні й довгі ребра (колір підпису = колір ребра)</div>
         <div class="legend-item"><span class="legend-color" style="background-color: var(--white-bg);"></span> Не знайдена</div>
     </div>
     <div class="controls">
@@ -180,6 +192,23 @@
     </details>
 </div>
 
+<div id="preset-modal" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title">
+        <h3 id="preset-modal-title">Приклад неоптимальності</h3>
+        <p>У цьому графі частина ребер має вагу менше 6 (значення 1, 2, 3), а манхеттенська евристика вважає, що кожен крок сіткою коштує 6 (<code>GRID_STEP</code>):
+           <span class="tex" data-tex="h(n)=6\,(|\Delta r|+|\Delta c|)">h(n)=6(|Δr|+|Δc|)</span>.
+           Через це в вершинах 1, 2, 5, 6, 9, 10 значення <span class="tex" data-tex="h">h</span> перевищує справжню вартість шляху до цілі, тобто евристика <b>недопустима</b>.
+           На ребрах із вагою менше 6, спрямованих до цілі, вона ще й <b>локально неузгоджена</b>:
+           <span class="tex" data-tex="h(A)>w(A,B)+h(B)">h(A) &gt; w(A,B)+h(B)</span>.</p>
+        <p>Оптимальний шлях проходить через вершини 6, 5, 9, 10 із завищеною <span class="tex" data-tex="h">h</span>, тому A* виймає ціль із Open Set раніше, ніж до них доходить черга, і повертає довший шлях. Оптимальний шлях за Дейкстрою на останньому кроці показано сірим пунктиром.</p>
+        <p>Чи можливий такий граф насправді? Так, якщо вага ребра — це не довжина, а <b>час проходження</b> (магістраль проти ґрунтової дороги):
+           <span class="tex" data-tex="w=\ell/v">w=ℓ/v</span>, де <span class="tex" data-tex="\ell">ℓ</span> — довжина ребра, <span class="tex" data-tex="v">v</span> — швидкість на ньому. Тоді манхеттенська відстань сама по собі не є оцінкою часу, і евристику треба зважити швидкістю:</p>
+        <div class="tex-block"><span class="tex" data-display="1" data-tex="h(n)=\frac{\ell_0\,(|\Delta r|+|\Delta c|)}{v_{\max}}">h(n)=ℓ₀(|Δr|+|Δc|)/v_max</span></div>
+        <p>Тут <span class="tex" data-tex="\ell_0">ℓ₀</span> — довжина кроку сіткою, <span class="tex" data-tex="v_{\max}">v_max</span> — найбільша швидкість у графі. Для цього пресета це дає множник <span class="tex" data-tex="D=\min w=1">D=min w=1</span> замість 6: тоді евристика допустима й узгоджена, і A* знаходить оптимальний шлях.</p>
+        <div class="modal-actions"><button id="preset-modal-close">Зрозуміло</button></div>
+    </div>
+</div>
+
 <script>
 // --- GLOBAL STATE ---
 let graph = { nodes: [], edges: [], adj: new Map(), obstacles: new Set(), grid: { cols: 0, rows: 0 } };
@@ -203,7 +232,10 @@ const astarStepCounter = document.getElementById('astar-step-counter');
 
 
 // --- CONSTANTS ---
-const NODE_RADIUS = 25; 
+const NODE_RADIUS = 30; 
+// Кольори діагональних і довгих ребер (без зеленого/жовтого/оранжевого, які зайняті станами алгоритму)
+const EDGE_COLORS = ['#d6336c', '#7048e8', '#1971c2', '#c92a2a', '#ae3ec9', '#0b7285', '#8a5a00', '#364fc7'];
+
 const GRID_STEP = 6;
 
 // ===================================================================
@@ -269,7 +301,7 @@ function loadPreset() {
         [5, 9, 3], // 
         [9, 10, 2], //
         [10, 11, 1], [11, 12, 6], // 
-        [2, 6, 6], [3, 7, 16], [4, 8, 6], 
+        [2, 6, 6], [3, 7, 16],
         [6, 10, 10], [7, 11, 6]
     ];
 
@@ -277,19 +309,10 @@ function loadPreset() {
     graph.edges = []; 
     graph.adj.forEach((_, key) => graph.adj.set(key, [])); 
     
+    // Неорієнтований граф: кожне ребро зберігається й малюється один раз
     presetEdges.forEach(([u, v, w]) => {
-        // Add edge U->V
-        let arcUV = false;
-        const reverseUV = graph.adj.get(v)?.some(e => e.to === u);
-        if (reverseUV) { arcUV = true; const existingReverse = graph.edges.find(e => e.from === v && e.to === u); if(existingReverse) existingReverse.arc = true; }
-        graph.edges.push({from: u, to: v, weight: w, arc: arcUV});
+        graph.edges.push({from: u, to: v, weight: w, arc: false});
         graph.adj.get(u).push({to: v, weight: w});
-
-        // Add edge V->U for undirected
-        let arcVU = arcUV; // If U->V caused arcing, V->U should too
-        const reverseVU = graph.adj.get(u)?.some(e => e.to === v); // Check original direction
-        if (reverseVU && !arcVU) { arcVU = true; const existingOriginal = graph.edges.find(e => e.from === u && e.to === v); if(existingOriginal) existingOriginal.arc = true; }
-        graph.edges.push({from: v, to: u, weight: w, arc: arcVU});
         graph.adj.get(v).push({to: u, weight: w});
     });
 
@@ -413,37 +436,23 @@ function generateGraphStructure(gridSize) {
 
 
 function addEdge(u, v, baseWeight = 1, fixedWeight = null) {
-    const weight = fixedWeight !== null ? fixedWeight : Math.max(1, Math.round(baseWeight * (1 + (Math.random() - 0.5))));
-    
-    let arc = false;
-     if (!graph.isDirected) {
-         const reverseEdge = graph.edges.find(e => e.from === v && e.to === u);
-         if(reverseEdge) { arc = true; reverseEdge.arc = true; }
-    }
+    const randomWeight = () => Math.max(1, Math.round(baseWeight * (1 + (Math.random() - 0.5))));
+    const weight = fixedWeight !== null ? fixedWeight : randomWeight();
 
-    graph.edges.push({from: u, to: v, weight, arc});
+    // Одне ребро = один запис для малювання (у неорієнтованому графі без стрілок і без дублювання)
+    graph.edges.push({from: u, to: v, weight, arc: false});
     graph.adj.get(u).push({to: v, weight});
 
     if (!graph.isDirected) {
-        // Add reverse adjacency list entry if it doesn't exist
-        if (!graph.adj.get(v).some(e => e.to === u)) {
-             graph.adj.get(v).push({to: u, weight});
-        }
-         // Add reverse edge for drawing if it doesn't exist yet
-         if (!graph.edges.some(e => e.from === v && e.to === u)) {
-              graph.edges.push({from: v, to: u, weight, arc});
-         } else { // Ensure arc=true is set on existing reverse edge for drawing consistency
-              const existingReverse = graph.edges.find(e => e.from === v && e.to === u);
-              if (existingReverse && arc) existingReverse.arc = true;
-         }
-    } else { // Directed graph: add reverse edge with probability
-        if(Math.random() < 0.25 && !graph.adj.get(v).some(e => e.to === u)) { 
-             const reverseWeight = fixedWeight !== null ? fixedWeight : Math.max(1, Math.round(baseWeight * (1 + (Math.random() - 0.5))));
-             graph.edges.push({from: v, to: u, weight: reverseWeight, arc: true}); 
-             graph.adj.get(v).push({to: u, weight: reverseWeight});
-              const originalEdge = graph.edges.find(e => e.from === u && e.to === v);
-              if (originalEdge) originalEdge.arc = true;
-        }
+        // Симетрична суміжність для алгоритму; на малюнок це не впливає
+        if (!graph.adj.get(v).some(e => e.to === u)) graph.adj.get(v).push({to: u, weight});
+    } else if (Math.random() < 0.25 && !graph.adj.get(v).some(e => e.to === u)) {
+        // Орієнтований граф: зворотна дуга з імовірністю; пара дуг малюється вигнутими зі стрілками
+        const reverseWeight = fixedWeight !== null ? fixedWeight : randomWeight();
+        graph.edges.push({from: v, to: u, weight: reverseWeight, arc: true});
+        graph.adj.get(v).push({to: u, weight: reverseWeight});
+        const originalEdge = graph.edges.find(e => e.from === u && e.to === v);
+        if (originalEdge) originalEdge.arc = true;
     }
 }
 
@@ -526,10 +535,10 @@ function runAStar(start, end, heuristicType) {
                  cameFrom.set(neighbor, current);
                  gScore.set(neighbor, tentativeGScore);
                  fScore.set(neighbor, neighborF);
-                 saveStep({ current, relaxing: edge, commentary }); 
+                 saveStep({ current, relaxing: {from: current, to: neighbor}, commentary }); 
             } else {
                  commentary += `Шлях через <b>${current}</b> не кращий за існуючий (g=${gScore.get(neighbor).toFixed(1)}).`;
-                 saveStep({ current, relaxing: edge, commentary }); 
+                 saveStep({ current, relaxing: {from: current, to: neighbor}, commentary }); 
             }
         }
     }
@@ -620,8 +629,179 @@ function updateAStarView() {
 // ===================================================================
 // SHARED DRAWING & UTILS
 // ===================================================================
+// --- Геометрія ребра та розкладка підписів ваг ---
+let edgeLabelPos = new Map();
+
+function labelSize(edge) {
+    return { bgW: 12 + 10 * String(edge.weight).length, bgH: 22 };
+}
+
+function edgeGeometry(edge) {
+    const uNode = graph.nodes.find(n => n.id === edge.from);
+    const vNode = graph.nodes.find(n => n.id === edge.to);
+    if (!uNode || !vNode) return null;
+    const midX = (uNode.x + vNode.x) / 2, midY = (uNode.y + vNode.y) / 2;
+    const dx = vNode.x - uNode.x, dy = vNode.y - uNode.y;
+    const curvature = edgeCurv.has(edge) ? edgeCurv.get(edge) : (edge.arc ? 0.55 : 0);
+    let d = `M ${uNode.x},${uNode.y} L ${vNode.x},${vNode.y}`;
+    if (curvature !== 0) {
+        const controlX = midX + dy * curvature, controlY = midY - dx * curvature;
+        d = `M ${uNode.x},${uNode.y} Q ${controlX},${controlY} ${vNode.x},${vNode.y}`;
+    }
+    return { d, curvature };
+}
+
+// --- Розкладка ребер: кривина, колір, підписи. Рахується один раз на граф ---
+let edgeCurv = new Map();
+let edgeColor = new Map();
+let layoutGraph = null;
+let layoutDirty = false;
+
+// Точки квадратичної кривої Безьє з тією ж параметризацією, що й у edgeGeometry
+function curvePoints(u, v, k, n) {
+    const cx = (u.x + v.x) / 2 + (v.y - u.y) * k, cy = (u.y + v.y) / 2 - (v.x - u.x) * k;
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+        const t = i / n, a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, c = t * t;
+        pts.push({ x: a * u.x + b * cx + c * v.x, y: a * u.y + b * cy + c * v.y });
+    }
+    return pts;
+}
+
+function computeEdgeLayout() {
+    if (layoutGraph === graph && !layoutDirty) return;
+    layoutGraph = graph; layoutDirty = false;
+    edgeCurv = new Map(); edgeColor = new Map();
+    const R = NODE_RADIUS;
+    const nodeOf = id => graph.nodes[id - 1];
+    const nodes = graph.nodes.filter(n => !graph.obstacles.has(n.id));
+    const isGrid = e => Math.abs(nodeOf(e.from).r - nodeOf(e.to).r) + Math.abs(nodeOf(e.from).c - nodeOf(e.to).c) === 1;
+    const placed = []; // {edge, pts}
+
+    // 1) ребра між сусідніми вершинами сітки й пари протилежних дуг: кривина фіксована
+    graph.edges.forEach(e => {
+        if (!nodeOf(e.from) || !nodeOf(e.to)) return;
+        if (isGrid(e) || e.arc) {
+            const k = e.arc ? 0.55 : 0;
+            edgeCurv.set(e, k);
+            placed.push({ edge: e, pts: curvePoints(nodeOf(e.from), nodeOf(e.to), k, 24) });
+        }
+    });
+
+    // 2) діагональні й довгі ребра: обираємо кривину, що оминає вершини й мінімізує перетини
+    const KS = [0, 0.12, -0.12, 0.22, -0.22, 0.32, -0.32, 0.45, -0.45];
+    graph.edges.forEach(e => {
+        if (edgeCurv.has(e) || !nodeOf(e.from) || !nodeOf(e.to)) return;
+        const u = nodeOf(e.from), v = nodeOf(e.to);
+        let bestK = 0, bestCost = Infinity;
+        for (const k of KS) {
+            const pts = curvePoints(u, v, k, 28).filter(p => Math.hypot(p.x - u.x, p.y - u.y) > R + 6 && Math.hypot(p.x - v.x, p.y - v.y) > R + 6);
+            let cost = Math.abs(k) * 8;
+            for (const p of pts) {
+                for (const n of nodes) {
+                    if (n.id === e.from || n.id === e.to) continue;
+                    const dd = Math.hypot(p.x - n.x, p.y - n.y);
+                    if (dd < R + 8) cost += 200 + (R + 8 - dd) * 5;
+                }
+            }
+            for (const q of placed) {
+                let hit = false;
+                for (const p of pts) {
+                    for (const r of q.pts) { if (Math.abs(p.x - r.x) < 9 && Math.abs(p.y - r.y) < 9) { hit = true; break; } }
+                    if (hit) break;
+                }
+                if (hit) cost += 12;
+            }
+            if (cost < bestCost) { bestCost = cost; bestK = k; }
+        }
+        edgeCurv.set(e, bestK);
+        placed.push({ edge: e, pts: curvePoints(u, v, bestK, 24) });
+    });
+
+    // 3) кольори: сусідні (спільна вершина) й перехресні ребра отримують різні кольори
+    const colored = [];
+    placed.forEach(q => {
+        const e = q.edge;
+        if (isGrid(e)) return;
+        const used = new Map();
+        colored.forEach(o => {
+            const shares = o.edge.from === e.from || o.edge.from === e.to || o.edge.to === e.from || o.edge.to === e.to;
+            let touch = shares;
+            if (!touch) {
+                outer: for (const p of q.pts) for (const r of o.pts) { if (Math.abs(p.x - r.x) < 14 && Math.abs(p.y - r.y) < 14) { touch = true; break outer; } }
+            }
+            if (touch) used.set(edgeColor.get(o.edge), (used.get(edgeColor.get(o.edge)) || 0) + 1);
+        });
+        let pick = EDGE_COLORS.find(c => !used.has(c));
+        if (!pick) pick = EDGE_COLORS.slice().sort((a, b) => (used.get(a) || 0) - (used.get(b) || 0))[0];
+        edgeColor.set(e, pick);
+        colored.push(q);
+    });
+
+    computeEdgeLabelPositions();
+}
+
+// Для кожного підпису шукаємо вздовж ребра позицію, де він не перекриває
+// ні інші підписи, ні кружки вершин. Порядок обходу фіксований, тому розкладка
+// однакова на всіх кроках алгоритму.
+function computeEdgeLabelPositions() {
+    edgeLabelPos = new Map();
+    const placed = [];
+    const ts = [0.5];
+    for (let k = 1; k <= 11; k++) ts.push(0.5 - 0.035 * k, 0.5 + 0.035 * k); // від середини ребра в обидва боки
+    const tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const nodes = graph.nodes.filter(n => !graph.obstacles.has(n.id));
+
+    // 1) кандидати для кожного ребра з урахуванням лише кружків вершин
+    const items = [];
+    graph.edges.forEach(edge => {
+        const geo = edgeGeometry(edge);
+        if (!geo) return;
+        tmp.setAttribute('d', geo.d);
+        const len = tmp.getTotalLength();
+        const { bgW, bgH } = labelSize(edge);
+        const cands = ts.map(t => {
+            const pt = tmp.getPointAtLength(len * t);
+            const rect = { x: pt.x - bgW / 2, y: pt.y - bgH / 2, w: bgW, h: bgH };
+            let nodeClear = Infinity;
+            for (const n of nodes) {
+                const cx = Math.max(rect.x, Math.min(n.x, rect.x + rect.w));
+                const cy = Math.max(rect.y, Math.min(n.y, rect.y + rect.h));
+                nodeClear = Math.min(nodeClear, Math.hypot(n.x - cx, n.y - cy) - NODE_RADIUS);
+            }
+            return { pt, rect, nodeClear };
+        });
+        items.push({ edge, cands, free: cands.filter(c => c.nodeClear >= 2).length });
+    });
+
+    // 2) спершу ребра з найменшим вибором позицій; порядок фіксований, тож розкладка стабільна
+    items.sort((a, b) => a.free - b.free);
+    items.forEach(({ edge, cands }) => {
+        let best = null, bestScore = -Infinity;
+        for (const c of cands) {
+            let labelGap = Infinity;
+            for (const q of placed) {
+                const gap = Math.max(q.x - (c.rect.x + c.rect.w), c.rect.x - (q.x + q.w), q.y - (c.rect.y + c.rect.h), c.rect.y - (q.y + q.h));
+                labelGap = Math.min(labelGap, gap);
+            }
+            const score = Math.min(c.nodeClear - 2, labelGap - 3);
+            if (score > bestScore) { bestScore = score; best = c; }
+            if (score >= 0) break;
+        }
+        edgeLabelPos.set(edge, best.pt);
+        placed.push(best.rect);
+    });
+}
+
+// Ключ ребра: у неорієнтованому графі (u,v) і (v,u) — те саме ребро
+function edgeKey(a, b) {
+    if (graph.isDirected) return `${a}-${b}`;
+    return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
 function updateVisualization(svgElement, step) {
     svgElement.innerHTML = ''; 
+    computeEdgeLayout();
     const { openSet, closedSet, gScore, fScore, current, relaxing, path } = step;
     const isFinalStep = astarState.currentStep === astarState.steps.length - 1;
     const astarPathCost = path ? calculatePathCost(path) : Infinity;
@@ -633,17 +813,18 @@ function updateVisualization(svgElement, step) {
         <marker id="arrow-path" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="var(--path-color)"/></marker>
         <marker id="arrow-relax" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="var(--current-color)"/></marker>
         <marker id="arrow-optimal" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="var(--optimal-path-color)"/></marker>
+        ${EDGE_COLORS.map(c => `<marker id="arrow-${c.slice(1)}" viewBox="0 -5 10 10" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,-5L10,0L0,5" fill="${c}"/></marker>`).join('')}
     `;
     svgElement.appendChild(defs);
 
-    const pathEdges = new Set(path ? Array.from({length: path.length - 1}, (_, i) => `${path[i]}-${path[i+1]}`) : []);
-    const optimalPathEdges = new Set(showOptimal && astarState.optimalPath ? Array.from({length: astarState.optimalPath.length - 1}, (_, i) => `${astarState.optimalPath[i]}-${astarState.optimalPath[i+1]}`) : []);
+    const pathEdges = new Set(path ? Array.from({length: path.length - 1}, (_, i) => edgeKey(path[i], path[i+1])) : []);
+    const optimalPathEdges = new Set(showOptimal && astarState.optimalPath ? Array.from({length: astarState.optimalPath.length - 1}, (_, i) => edgeKey(astarState.optimalPath[i], astarState.optimalPath[i+1])) : []);
 
     
     // Draw Optimal Path Edges First (if needed)
      if (showOptimal) {
         graph.edges.forEach(edge => {
-            if (optimalPathEdges.has(`${edge.from}-${edge.to}`)) {
+            if (optimalPathEdges.has(edgeKey(edge.from, edge.to))) {
                  drawEdge(svgElement, edge, step, true); // Draw as optimal
             }
         });
@@ -656,7 +837,7 @@ function updateVisualization(svgElement, step) {
         if (!uNode || !vNode || graph.obstacles.has(uNode.id) || graph.obstacles.has(vNode.id)) return;
         
         // Don't redraw if it was already drawn as optimal and is not part of A* path
-        if (showOptimal && optimalPathEdges.has(`${edge.from}-${edge.to}`) && !pathEdges.has(`${edge.from}-${edge.to}`)) {
+        if (showOptimal && optimalPathEdges.has(edgeKey(edge.from, edge.to)) && !pathEdges.has(edgeKey(edge.from, edge.to))) {
              return; 
         }
 
@@ -690,24 +871,24 @@ function updateVisualization(svgElement, step) {
         const f = fScore.get(node.id);
         
         const fText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        fText.setAttribute('x', node.x); fText.setAttribute('y', node.y - NODE_RADIUS * 0.4); 
+        fText.setAttribute('x', node.x); fText.setAttribute('y', node.y - NODE_RADIUS * 0.38); 
         fText.classList.add('f-label'); fText.textContent = f === Infinity ? '∞' : f.toFixed(0); 
         group.appendChild(fText);
 
         const gText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        gText.setAttribute('x', node.x - NODE_RADIUS * 0.4); gText.setAttribute('y', node.y + 2); 
+        gText.setAttribute('x', node.x - 4); gText.setAttribute('y', node.y + 3); 
         gText.classList.add('g-label'); gText.setAttribute('text-anchor', 'end');
         gText.textContent = g === Infinity ? '∞' : g.toFixed(0); 
         group.appendChild(gText);
 
         const hText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        hText.setAttribute('x', node.x + NODE_RADIUS * 0.4); hText.setAttribute('y', node.y + 2); 
+        hText.setAttribute('x', node.x + 4); hText.setAttribute('y', node.y + 3); 
         hText.classList.add('h-label'); hText.setAttribute('text-anchor', 'start');
         hText.textContent = hVal.toFixed(0); 
         group.appendChild(hText);
         
         const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        idText.setAttribute('x', node.x); idText.setAttribute('y', node.y + NODE_RADIUS * 0.5 + 3); 
+        idText.setAttribute('x', node.x); idText.setAttribute('y', node.y + NODE_RADIUS * 0.4); 
         idText.classList.add('id-label'); idText.setAttribute('dominant-baseline', 'hanging');
         idText.textContent = node.id;
         group.appendChild(idText);
@@ -723,27 +904,17 @@ function drawEdge(svgElement, edge, step, isDrawingOptimal) {
     // Skip if nodes not found (e.g., connected to obstacle removed from nodes list)
     if (!uNode || !vNode) return;
 
-    const midX = (uNode.x + vNode.x) / 2, midY = (uNode.y + vNode.y) / 2;
-    const dx = vNode.x - uNode.x, dy = vNode.y - uNode.y;
-
-    let d = `M ${uNode.x},${uNode.y} L ${vNode.x},${vNode.y}`;
-    let curvature = edge.arc ? 0.4 : 0;
-
-    if(curvature === 0 && (uNode.r === vNode.r && Math.abs(uNode.c - vNode.c) > 1 || uNode.c === vNode.c && Math.abs(uNode.r - vNode.r) > 1)){
-         curvature = 0.3;
-    }
-
-    if (curvature !== 0) {
-        const controlX = midX + dy * curvature, controlY = midY - dx * curvature;
-        d = `M ${uNode.x},${uNode.y} Q ${controlX},${controlY} ${vNode.x},${vNode.y}`;
-    }
+    const geo = edgeGeometry(edge);
+    let d = geo.d;
+    const curvature = geo.curvature;
 
     const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pathEl.setAttribute('d', d); pathEl.classList.add('edge');
     pathEl.setAttribute('data-from', edge.from); pathEl.setAttribute('data-to', edge.to);
 
-    const isAStarPath = path && path.includes(edge.from) && path.includes(edge.to) && (path.indexOf(edge.to) === path.indexOf(edge.from) + 1);
-    const isRelaxing = relaxing && relaxing.from === edge.from && relaxing.to === edge.to;
+    const thisKey = edgeKey(edge.from, edge.to);
+    const isAStarPath = !!path && path.some((id, i) => i < path.length - 1 && edgeKey(id, path[i + 1]) === thisKey);
+    const isRelaxing = !!relaxing && edgeKey(relaxing.from, relaxing.to) === thisKey;
 
     let arrowheadId = 'arrow'; // Default for directed/arc
     if (isDrawingOptimal) {
@@ -757,8 +928,20 @@ function drawEdge(svgElement, edge, step, isDrawingOptimal) {
         arrowheadId = 'arrow-relax';
     }
 
+    // Діагональні й довгі ребра мають власний колір; стан алгоритму (шлях, релаксація) його перекриває
+    const color = edgeColor.get(edge);
+    if (color) {
+        pathEl.classList.add('colored');
+        if (!isDrawingOptimal && !isAStarPath && !isRelaxing) {
+            pathEl.style.stroke = color;
+            arrowheadId = 'arrow-' + color.slice(1);
+        }
+    }
+    const labelColor = !color ? null
+        : isDrawingOptimal ? '#6c757d' : isAStarPath ? '#12906c' : isRelaxing ? '#b58100' : color;
+
     const pathLen = pathEl.getTotalLength();
-    if (graph.isDirected || curvature !== 0) {
+    if (graph.isDirected) {  // стрілки лише в орієнтованому графі
         pathEl.setAttribute('marker-end', `url(#${arrowheadId})`);
         const markerOffset = NODE_RADIUS + (isDrawingOptimal ? 3 : 5); // Adjust offset based on type
         if (pathLen > markerOffset) {
@@ -782,16 +965,20 @@ function drawEdge(svgElement, edge, step, isDrawingOptimal) {
     }
     svgElement.appendChild(pathEl);
 
-    const labelPos = pathEl.getPointAtLength(pathLen * 0.70);
+    const labelText = String(edge.weight);
+    const { bgW, bgH } = labelSize(edge);
+    const labelPos = edgeLabelPos.get(edge) || pathEl.getPointAtLength(pathEl.getTotalLength() * 0.5);
     const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     labelGroup.classList.add('edge-label-group');
     const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    textBg.setAttribute('x', labelPos.x - 7); textBg.setAttribute('y', labelPos.y - 8);
-    textBg.setAttribute('width', 14); textBg.setAttribute('height', 14);
+    textBg.setAttribute('x', labelPos.x - bgW / 2); textBg.setAttribute('y', labelPos.y - bgH / 2);
+    textBg.setAttribute('width', bgW); textBg.setAttribute('height', bgH); textBg.setAttribute('rx', 4);
+    if (labelColor) { textBg.setAttribute('stroke', labelColor); textBg.setAttribute('stroke-width', 1.5); textBg.style.opacity = 1; }
     textBg.classList.add('edge-label-bg'); labelGroup.appendChild(textBg);
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', labelPos.x); text.setAttribute('y', labelPos.y + 4);
-    text.classList.add('edge-label'); text.textContent = edge.weight; labelGroup.appendChild(text);
+    text.setAttribute('x', labelPos.x); text.setAttribute('y', labelPos.y + 5.5);
+    text.classList.add('edge-label'); text.textContent = labelText;
+    if (labelColor) text.style.fill = labelColor; labelGroup.appendChild(text);
     svgElement.appendChild(labelGroup);
 
     // Attach listener using a closure to capture the correct 'edge' object
@@ -803,7 +990,7 @@ function drawEdge(svgElement, edge, step, isDrawingOptimal) {
 
 
 function editEdgeWeight(edge) {
-    const newWeightStr = prompt(`Введіть нову вагу для ребра ${edge.from} → ${edge.to} (поточна: ${edge.weight}):`, edge.weight);
+    const newWeightStr = prompt(`Введіть нову вагу для ребра ${edge.from} ${graph.isDirected ? '→' : '—'} ${edge.to} (поточна: ${edge.weight}):`, edge.weight);
     if (newWeightStr !== null) {
         const newWeight = parseInt(newWeightStr, 10);
         if (!isNaN(newWeight) && newWeight > 0) {
@@ -822,7 +1009,7 @@ function editEdgeWeight(edge) {
                  if (reverseAdjEdge) { reverseAdjEdge.weight = newWeight; edgeUpdated = true; }
             }
 
-            if (edgeUpdated) restartSearch(); 
+            if (edgeUpdated) { layoutDirty = true; restartSearch(); } 
             else console.error("Could not find edge to update:", edge);
         } else {
             alert("Будь ласка, введіть дійсне позитивне числове значення для ваги.");
@@ -832,7 +1019,21 @@ function editEdgeWeight(edge) {
 
 // --- EVENT LISTENERS ---
 generateBtn.addEventListener('click', generateAndStart);
-presetBtn.addEventListener('click', loadPreset); 
+presetBtn.addEventListener('click', () => { loadPreset(); openPresetModal(); });
+const presetModal = document.getElementById('preset-modal');
+function openPresetModal() {
+    presetModal.querySelectorAll('.tex').forEach(el => {
+        try {
+            katex.render(el.dataset.tex, el, { throwOnError: false, displayMode: el.dataset.display === '1' });
+        } catch (e) { /* KaTeX недоступний (немає мережі): лишається простий текст */ }
+    });
+    presetModal.hidden = false;
+}
+function closePresetModal() { presetModal.hidden = true; }
+document.getElementById('preset-modal-close').addEventListener('click', closePresetModal);
+presetModal.addEventListener('click', (e) => { if (e.target === presetModal) closePresetModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !presetModal.hidden) closePresetModal(); });
+
 startNodeInput.addEventListener('change', restartSearch);
 endNodeInput.addEventListener('change', restartSearch);
 heuristicSelect.addEventListener('change', restartSearch);
